@@ -979,7 +979,6 @@ export default function ClientPage() {
                             {dayTasks.length > 3 && <div className="w-1 h-1 rounded-full bg-zinc-600" />}
                           </div>
                         )}
-                        </div>
                       </div>
                     )
                   })}
