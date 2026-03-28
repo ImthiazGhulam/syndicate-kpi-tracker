@@ -1,8 +1,27 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+
+// ── Constants ────────────────────────────────────────────────────────────────
+
+const HOURS = Array.from({ length: 16 }, (_, i) => i + 6) // 6am – 9pm
+const HOUR_H = 64 // px per hour
+
+const TIME_OPTIONS = []
+for (let h = 6; h <= 21; h++) {
+  for (const m of [0, 30]) {
+    const period = h >= 12 ? 'pm' : 'am'
+    const display = h > 12 ? h - 12 : h
+    TIME_OPTIONS.push({
+      value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
+      label: `${display}:${String(m).padStart(2, '0')} ${period}`,
+    })
+  }
+}
+
+const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -19,26 +38,76 @@ function shiftWeek(weekStr, n) {
   return d.toISOString().split('T')[0]
 }
 
+function getWeekDays(mondayStr) {
+  return Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(mondayStr)
+    d.setDate(d.getDate() + i)
+    return d.toISOString().split('T')[0]
+  })
+}
+
+function getTimeTopPx(timeStr) {
+  if (!timeStr) return 0
+  const [h, m] = timeStr.split(':').map(Number)
+  return (h - 6) * HOUR_H + (m / 60) * HOUR_H
+}
+
+function formatTime(timeStr) {
+  if (!timeStr) return ''
+  const [h, m] = timeStr.split(':').map(Number)
+  const period = h >= 12 ? 'pm' : 'am'
+  const hour = h > 12 ? h - 12 : h === 0 ? 12 : h
+  return `${hour}:${String(m).padStart(2, '0')}${period}`
+}
+
 function formatWeekRange(weekStr) {
   const start = new Date(weekStr)
   const end = new Date(weekStr)
   end.setDate(end.getDate() + 6)
-  const opts = { day: 'numeric', month: 'short' }
-  return `${start.toLocaleDateString('en-GB', opts)} – ${end.toLocaleDateString('en-GB', { ...opts, year: 'numeric' })}`
+  return `${start.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })} – ${end.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
 }
 
-const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
+function formatDayHeader(dateStr) {
+  const d = new Date(dateStr)
+  return { day: d.toLocaleDateString('en-GB', { weekday: 'short' }), date: d.getDate() }
+}
 
-const defaultAdventures = () =>
-  Array.from({ length: 6 }, (_, i) => ({
+function defaultAdventures() {
+  return Array.from({ length: 6 }, (_, i) => ({
     order_index: i + 1, title: '', who_with: '', when_planned: '', where_planned: '', completed: false,
   }))
+}
 
-// ── StatCard ──────────────────────────────────────────────────────────────────
+function expandTasksForRange(tasks, startStr, endStr) {
+  const start = new Date(startStr + 'T00:00:00')
+  const end = new Date(endStr + 'T23:59:59')
+  const result = []
+  tasks.filter(t => t.status === 'schedule' && t.scheduled_date).forEach(task => {
+    const recurring = task.recurring || 'none'
+    let d = new Date(task.scheduled_date + 'T00:00:00')
+    if (recurring === 'none') {
+      if (d >= start && d <= end) result.push({ ...task, _displayDate: task.scheduled_date })
+    } else {
+      let iter = 0
+      while (d <= end && iter < 500) {
+        iter++
+        const dateStr = d.toISOString().split('T')[0]
+        if (d >= start) result.push({ ...task, _displayDate: dateStr })
+        if (recurring === 'daily') d.setDate(d.getDate() + 1)
+        else if (recurring === 'weekly') d.setDate(d.getDate() + 7)
+        else if (recurring === 'monthly') d.setMonth(d.getMonth() + 1)
+        else break
+      }
+    }
+  })
+  return result
+}
+
+// ── StatCard ─────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, target, color = 'gold' }) {
   const colors = {
-    gold:   { text: 'text-gold',       bar: 'bg-gold' },
+    gold:   { text: 'text-gold',        bar: 'bg-gold' },
     green:  { text: 'text-emerald-400', bar: 'bg-emerald-500' },
     blue:   { text: 'text-sky-400',     bar: 'bg-sky-500' },
     purple: { text: 'text-violet-400',  bar: 'bg-violet-500' },
@@ -67,6 +136,7 @@ function StatCard({ label, value, target, color = 'gold' }) {
 
 export default function ClientPage() {
   const router = useRouter()
+  const weekViewRef = useRef(null)
 
   // Core
   const [user, setUser] = useState(null)
@@ -109,12 +179,24 @@ export default function ClientPage() {
   const [warMapTasks, setWarMapTasks] = useState([])
   const [warMapInput, setWarMapInput] = useState('')
   const [warMapWeek, setWarMapWeek] = useState(() => getMonday())
+  const [calendarView, setCalendarView] = useState('week')
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear())
   const [calendarMonth, setCalendarMonth] = useState(new Date().getMonth())
-  const [actioningTask, setActioningTask] = useState(null) // { id, action }
-  const [actionInput, setActionInput] = useState('')
+  const [selectedDay, setSelectedDay] = useState(null)
+  const [taskModal, setTaskModal] = useState(null)
+  const [modalForm, setModalForm] = useState({ title: '', date: '', time: '', duration: 60, recurring: 'none' })
+  const [delegatingTask, setDelegatingTask] = useState(null)
+  const [delegateName, setDelegateName] = useState('')
 
-  // ── Auth & Fetch ────────────────────────────────────────────────────────────
+  // ── Auto-scroll week view to 8am ────────────────────────────────────────────
+
+  useEffect(() => {
+    if (activeTab === 'war-map' && calendarView === 'week' && weekViewRef.current) {
+      weekViewRef.current.scrollTop = 2 * HOUR_H // scroll to 8am
+    }
+  }, [activeTab, calendarView])
+
+  // ── Auth & Fetch ─────────────────────────────────────────────────────────────
 
   useEffect(() => {
     const init = async () => {
@@ -133,7 +215,6 @@ export default function ClientPage() {
     setClientData(client)
 
     const year = new Date().getFullYear()
-
     const [kpisRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes] = await Promise.all([
       supabase.from('kpis').select('*').eq('client_id', client.id).order('week_date', { ascending: false }),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
@@ -149,14 +230,14 @@ export default function ClientPage() {
 
     if (designRes.data) {
       setLifeDesign(designRes.data)
-      setDesignForm({ ...designForm, ...designRes.data })
+      setDesignForm(f => ({ ...f, ...designRes.data }))
       setDesignEditing(false)
     } else {
       setDesignEditing(true)
     }
 
     if (adventuresRes.data?.length > 0) {
-      const merged = defaultAdventures().map((def) =>
+      const merged = defaultAdventures().map(def =>
         adventuresRes.data.find(a => a.order_index === def.order_index) || def
       )
       setAdventuresForm(merged)
@@ -166,7 +247,7 @@ export default function ClientPage() {
     setLoading(false)
   }
 
-  // ── Handlers ────────────────────────────────────────────────────────────────
+  // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/login') }
 
@@ -206,19 +287,14 @@ export default function ClientPage() {
   const saveDesign = async () => {
     setDesignLoading(true)
     const year = new Date().getFullYear()
-
     const { data: saved } = await supabase
       .from('life_design')
       .upsert({ client_id: clientData.id, year, ...designForm, updated_at: new Date().toISOString() }, { onConflict: 'client_id,year' })
       .select().single()
-
     if (saved) setLifeDesign(saved)
-
-    // Save adventures
     await supabase.from('mini_adventures').delete().eq('client_id', clientData.id).eq('year', year)
     const toSave = adventuresForm.filter(a => a.title?.trim()).map(a => ({ ...a, client_id: clientData.id, year }))
     if (toSave.length > 0) await supabase.from('mini_adventures').insert(toSave)
-
     setDesignEditing(false)
     setDesignLoading(false)
   }
@@ -242,8 +318,6 @@ export default function ClientPage() {
   const triageTask = async (taskId, status, extra = {}) => {
     const { data } = await supabase.from('war_map_tasks').update({ status, ...extra }).eq('id', taskId).select().single()
     if (data) setWarMapTasks(prev => prev.map(t => t.id === taskId ? data : t))
-    setActioningTask(null)
-    setActionInput('')
   }
 
   const completeTask = async (taskId) => {
@@ -256,12 +330,78 @@ export default function ClientPage() {
     setWarMapTasks(prev => prev.filter(t => t.id !== taskId))
   }
 
-  // ── Formatters ──────────────────────────────────────────────────────────────
+  const confirmDelegate = async (taskId) => {
+    if (!delegateName.trim()) return
+    await triageTask(taskId, 'delegate', { delegated_to: delegateName.trim() })
+    setDelegatingTask(null)
+    setDelegateName('')
+  }
 
+  // Modal helpers
+  const openNewTaskModal = (date, time = '') => {
+    setModalForm({ title: '', date, time, duration: 60, recurring: 'none' })
+    setTaskModal({ mode: 'new' })
+  }
+
+  const openScheduleModal = (task) => {
+    setModalForm({ title: task.title, date: todayStr, time: '09:00', duration: 60, recurring: 'none' })
+    setTaskModal({ mode: 'schedule', taskId: task.id })
+  }
+
+  const openViewModal = (task) => {
+    setTaskModal({ mode: 'view', task })
+  }
+
+  const saveTaskModal = async () => {
+    if (!modalForm.title.trim() || !modalForm.date) return
+    if (taskModal.mode === 'new') {
+      const { data } = await supabase.from('war_map_tasks').insert([{
+        client_id: clientData.id,
+        title: modalForm.title.trim(),
+        status: 'schedule',
+        scheduled_date: modalForm.date,
+        scheduled_time: modalForm.time || null,
+        duration_minutes: Number(modalForm.duration),
+        recurring: modalForm.recurring,
+        week_of: getMonday(new Date(modalForm.date)),
+      }]).select().single()
+      if (data) setWarMapTasks(prev => [data, ...prev])
+    } else if (taskModal.mode === 'schedule') {
+      const { data } = await supabase.from('war_map_tasks').update({
+        status: 'schedule',
+        scheduled_date: modalForm.date,
+        scheduled_time: modalForm.time || null,
+        duration_minutes: Number(modalForm.duration),
+        recurring: modalForm.recurring,
+      }).eq('id', taskModal.taskId).select().single()
+      if (data) setWarMapTasks(prev => prev.map(t => t.id === taskModal.taskId ? data : t))
+    }
+    setTaskModal(null)
+  }
+
+  // Formatters
   const formatCurrency = (v) => v != null ? `£${Number(v).toLocaleString()}` : '—'
   const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 
-  // ── Guards ──────────────────────────────────────────────────────────────────
+  // ── Computed ──────────────────────────────────────────────────────────────────
+
+  const todayStr = new Date().toISOString().split('T')[0]
+  const weekDays = getWeekDays(warMapWeek)
+  const monthStart = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-01`
+  const monthEnd = new Date(calendarYear, calendarMonth + 1, 0).toISOString().split('T')[0]
+  const tasksForWeek = expandTasksForRange(warMapTasks, weekDays[0], weekDays[6])
+  const tasksForMonth = expandTasksForRange(warMapTasks, monthStart, monthEnd)
+
+  const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1).getDay()
+  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
+  const calStartOffset = (firstDayOfMonth + 6) % 7
+  const calCells = [...Array(calStartOffset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
+
+  const brainDump = warMapTasks.filter(t => t.status === 'brain_dump')
+  const delegated  = warMapTasks.filter(t => t.status === 'delegate')
+  const doNow      = warMapTasks.filter(t => t.status === 'do_now')
+
+  // ── Guards ────────────────────────────────────────────────────────────────────
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
@@ -280,32 +420,17 @@ export default function ClientPage() {
   )
 
   const latestKpi = kpis[0]
-  const year = new Date().getFullYear()
 
   const tabs = [
-    { id: 'design',     label: 'Design™' },
-    { id: 'dashboard',  label: 'Dashboard' },
+    { id: 'design',      label: 'Design™' },
+    { id: 'war-map',     label: 'Weekly War Map™' },
+    { id: 'dashboard',   label: 'Dashboard' },
     { id: 'submit-kpis', label: 'Submit KPIs' },
-    { id: 'check-in',   label: 'Check-In' },
-    { id: 'projects',   label: 'Projects' },
-    { id: 'war-map',    label: 'Weekly War Map' },
+    { id: 'check-in',    label: 'Check-In' },
+    { id: 'projects',    label: 'Projects' },
   ]
 
-  // War map filtered views
-  const weekBrainDump = warMapTasks.filter(t => t.status === 'brain_dump' && t.week_of === warMapWeek)
-  const delegated     = warMapTasks.filter(t => t.status === 'delegate')
-  const scheduled     = warMapTasks.filter(t => t.status === 'schedule')
-  const doNow         = warMapTasks.filter(t => t.status === 'do_now')
-
-  // Calendar data
-  const scheduledDates = new Set(scheduled.filter(t => t.scheduled_date).map(t => t.scheduled_date))
-  const todayStr = new Date().toISOString().split('T')[0]
-  const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1).getDay()
-  const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
-  const calStartOffset = (firstDayOfMonth + 6) % 7
-  const calCells = [...Array(calStartOffset).fill(null), ...Array.from({ length: daysInMonth }, (_, i) => i + 1)]
-
-  // ── Render ──────────────────────────────────────────────────────────────────
+  // ── Render ────────────────────────────────────────────────────────────────────
 
   return (
     <div className="min-h-screen bg-zinc-950">
@@ -332,7 +457,7 @@ export default function ClientPage() {
         </button>
       </header>
 
-      <div className="max-w-4xl mx-auto p-4 md:p-7">
+      <div className="max-w-5xl mx-auto p-4 md:p-7">
 
         {/* Welcome */}
         <div className="mb-7">
@@ -342,7 +467,7 @@ export default function ClientPage() {
 
         {/* Tabs */}
         <div className="flex border-b border-zinc-800 mb-7 gap-5 overflow-x-auto scrollbar-none">
-          {tabs.map((tab) => (
+          {tabs.map(tab => (
             <button key={tab.id} onClick={() => setActiveTab(tab.id)}
               className={`pb-3 text-sm font-semibold uppercase tracking-wider transition border-b-2 -mb-px whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-zinc-500 hover:text-zinc-300'
@@ -352,13 +477,13 @@ export default function ClientPage() {
           ))}
         </div>
 
-        {/* ── DESIGN™ ─────────────────────────────────────────────────────── */}
+        {/* ── DESIGN™ ──────────────────────────────────────────────────────── */}
         {activeTab === 'design' && (
           <div>
             <div className="flex items-center justify-between mb-7">
               <div>
                 <h2 className="text-base font-bold text-white uppercase tracking-widest">Design™</h2>
-                <p className="text-zinc-600 text-xs mt-1">{year}</p>
+                <p className="text-zinc-600 text-xs mt-1">{new Date().getFullYear()}</p>
               </div>
               {lifeDesign && !designEditing && (
                 <button onClick={() => setDesignEditing(true)}
@@ -370,21 +495,14 @@ export default function ClientPage() {
 
             {designEditing ? (
               <div className="space-y-10">
-
-                {/* Masoji */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Masoji</h3>
-                  <p className="text-zinc-600 text-xs mb-4">Your single defining moment for {year}. The experience that will mark this year.</p>
-                  <textarea
-                    value={designForm.misoji}
-                    onChange={e => setDesignForm({ ...designForm, misoji: e.target.value })}
-                    rows={3}
-                    placeholder="Describe your masoji for this year..."
-                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm"
-                  />
+                  <p className="text-zinc-600 text-xs mb-4">Your single defining moment for {new Date().getFullYear()}. The experience that will mark this year.</p>
+                  <textarea value={designForm.misoji} onChange={e => setDesignForm({ ...designForm, misoji: e.target.value })}
+                    rows={3} placeholder="Describe your masoji for this year..."
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
                 </section>
 
-                {/* Mini Adventures */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Mini Adventures</h3>
                   <p className="text-zinc-600 text-xs mb-5">Six experiences outside of business — physical, travel, anything that fills you up.</p>
@@ -392,25 +510,14 @@ export default function ClientPage() {
                     {adventuresForm.map((adv, i) => (
                       <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Adventure {i + 1}</p>
-                        <input
-                          value={adv.title}
-                          onChange={e => setAdventuresForm(prev => prev.map((a, j) => j === i ? { ...a, title: e.target.value } : a))}
+                        <input value={adv.title} onChange={e => setAdventuresForm(prev => prev.map((a, j) => j === i ? { ...a, title: e.target.value } : a))}
                           placeholder="What is it?"
-                          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm mb-3"
-                        />
+                          className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm mb-3" />
                         <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                          {[
-                            { key: 'who_with', placeholder: 'Who with?' },
-                            { key: 'when_planned', placeholder: 'When?' },
-                            { key: 'where_planned', placeholder: 'Where?' },
-                          ].map(({ key, placeholder }) => (
-                            <input
-                              key={key}
-                              value={adv[key]}
-                              onChange={e => setAdventuresForm(prev => prev.map((a, j) => j === i ? { ...a, [key]: e.target.value } : a))}
+                          {[{ key: 'who_with', placeholder: 'Who with?' }, { key: 'when_planned', placeholder: 'When?' }, { key: 'where_planned', placeholder: 'Where?' }].map(({ key, placeholder }) => (
+                            <input key={key} value={adv[key]} onChange={e => setAdventuresForm(prev => prev.map((a, j) => j === i ? { ...a, [key]: e.target.value } : a))}
                               placeholder={placeholder}
-                              className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
-                            />
+                              className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
                           ))}
                         </div>
                       </div>
@@ -418,73 +525,62 @@ export default function ClientPage() {
                   </div>
                 </section>
 
-                {/* Days Off */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Days Off</h3>
                   <p className="text-zinc-600 text-xs mb-5">When are you protecting your time?</p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {[
-                      { key: 'days_off_week', label: 'Weekly' },
-                      { key: 'days_off_month', label: 'Monthly' },
-                      { key: 'days_off_quarter', label: 'Quarterly' },
-                      { key: 'days_off_year', label: 'Annually' },
-                    ].map(({ key, label }) => (
+                      { key: 'days_off_week', label: 'Weekly', placeholder: 'e.g. Sundays' },
+                      { key: 'days_off_month', label: 'Monthly', placeholder: 'e.g. Last weekend' },
+                      { key: 'days_off_quarter', label: 'Quarterly', placeholder: 'e.g. One full week' },
+                      { key: 'days_off_year', label: 'Annually', placeholder: 'e.g. 2 weeks in August' },
+                    ].map(({ key, label, placeholder }) => (
                       <div key={key}>
                         <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">{label}</label>
-                        <input
-                          value={designForm[key]}
-                          onChange={e => setDesignForm({ ...designForm, [key]: e.target.value })}
-                          placeholder={label === 'Weekly' ? 'e.g. Sundays' : label === 'Monthly' ? 'e.g. Last weekend' : label === 'Quarterly' ? 'e.g. One full week' : 'e.g. 2 weeks in August'}
-                          className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
-                        />
+                        <input value={designForm[key]} onChange={e => setDesignForm({ ...designForm, [key]: e.target.value })} placeholder={placeholder}
+                          className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
                       </div>
                     ))}
                   </div>
                 </section>
 
-                {/* Skills */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Skills</h3>
                   <p className="text-zinc-600 text-xs mb-5">What are you investing in developing this year?</p>
                   <div className="space-y-3">
                     <div>
                       <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Skill 1</label>
-                      <input value={designForm.skill_1} onChange={e => setDesignForm({ ...designForm, skill_1: e.target.value })} placeholder="e.g. Public speaking" className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                      <input value={designForm.skill_1} onChange={e => setDesignForm({ ...designForm, skill_1: e.target.value })} placeholder="e.g. Public speaking"
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Skill 2</label>
-                      <input value={designForm.skill_2} onChange={e => setDesignForm({ ...designForm, skill_2: e.target.value })} placeholder="e.g. Financial management" className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                      <input value={designForm.skill_2} onChange={e => setDesignForm({ ...designForm, skill_2: e.target.value })} placeholder="e.g. Financial management"
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
                     </div>
                     <div>
                       <label className="block text-xs font-semibold text-gold uppercase tracking-widest mb-2">Key Skill — Primary Focus</label>
-                      <input value={designForm.key_skill} onChange={e => setDesignForm({ ...designForm, key_skill: e.target.value })} placeholder="The one skill you're committed to mastering" className="w-full px-4 py-3 bg-zinc-800 border border-gold/40 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                      <input value={designForm.key_skill} onChange={e => setDesignForm({ ...designForm, key_skill: e.target.value })} placeholder="The one skill you're committed to mastering"
+                        className="w-full px-4 py-3 bg-zinc-800 border border-gold/40 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
                     </div>
                   </div>
                 </section>
 
-                {/* Money-Making Tasks */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Top 3 Money-Making Tasks</h3>
                   <p className="text-zinc-600 text-xs mb-5">The three activities that directly generate revenue in your business.</p>
                   <div className="space-y-3">
-                    {[1, 2, 3].map((n) => {
-                      const key = `money_task_${n}`
-                      return (
-                        <div key={n} className="flex items-center gap-3">
-                          <span className="text-gold font-bold text-sm w-5 flex-shrink-0">{n}</span>
-                          <input
-                            value={designForm[key]}
-                            onChange={e => setDesignForm({ ...designForm, [key]: e.target.value })}
-                            placeholder={`Money-making task ${n}`}
-                            className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
-                          />
-                        </div>
-                      )
-                    })}
+                    {[1, 2, 3].map(n => (
+                      <div key={n} className="flex items-center gap-3">
+                        <span className="text-gold font-bold text-sm w-5 flex-shrink-0">{n}</span>
+                        <input value={designForm[`money_task_${n}`]} onChange={e => setDesignForm({ ...designForm, [`money_task_${n}`]: e.target.value })}
+                          placeholder={`Money-making task ${n}`}
+                          className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                      </div>
+                    ))}
                   </div>
                 </section>
 
-                {/* Save */}
                 <div className="flex gap-3 pt-2">
                   <button onClick={saveDesign} disabled={designLoading}
                     className="px-8 py-3.5 bg-gold hover:bg-gold-light disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
@@ -498,12 +594,8 @@ export default function ClientPage() {
                   )}
                 </div>
               </div>
-
             ) : (
-              /* View Mode */
               <div className="space-y-10">
-
-                {/* Masoji */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">Masoji</h3>
                   <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
@@ -511,7 +603,6 @@ export default function ClientPage() {
                   </div>
                 </section>
 
-                {/* Mini Adventures */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Mini Adventures</h3>
                   <div className="space-y-3">
@@ -519,11 +610,7 @@ export default function ClientPage() {
                       <div key={i} className={`bg-zinc-900 border rounded-lg p-4 flex items-start gap-4 ${adv.completed ? 'border-gold/30' : 'border-zinc-800'}`}>
                         <button onClick={() => toggleAdventureComplete(adv)} className="mt-0.5 flex-shrink-0">
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${adv.completed ? 'bg-gold border-gold' : 'border-zinc-600 hover:border-gold'}`}>
-                            {adv.completed && (
-                              <svg className="w-3 h-3 text-zinc-950" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            )}
+                            {adv.completed && <svg className="w-3 h-3 text-zinc-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                           </div>
                         </button>
                         <div className="flex-1 min-w-0">
@@ -545,7 +632,6 @@ export default function ClientPage() {
                   </div>
                 </section>
 
-                {/* Days Off */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Days Off</h3>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
@@ -563,33 +649,16 @@ export default function ClientPage() {
                   </div>
                 </section>
 
-                {/* Skills */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Skills</h3>
                   <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-3">
-                    {lifeDesign?.skill_1 && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-zinc-600 text-xs uppercase tracking-widest w-16">Skill 1</span>
-                        <span className="text-zinc-300 text-sm">{lifeDesign.skill_1}</span>
-                      </div>
-                    )}
-                    {lifeDesign?.skill_2 && (
-                      <div className="flex items-center gap-3">
-                        <span className="text-zinc-600 text-xs uppercase tracking-widest w-16">Skill 2</span>
-                        <span className="text-zinc-300 text-sm">{lifeDesign.skill_2}</span>
-                      </div>
-                    )}
-                    {lifeDesign?.key_skill && (
-                      <div className="flex items-center gap-3 pt-2 border-t border-zinc-800">
-                        <span className="text-gold text-xs uppercase tracking-widest w-16 font-semibold">Primary</span>
-                        <span className="text-white text-sm font-semibold">{lifeDesign.key_skill}</span>
-                      </div>
-                    )}
+                    {lifeDesign?.skill_1 && <div className="flex items-center gap-3"><span className="text-zinc-600 text-xs uppercase tracking-widest w-16">Skill 1</span><span className="text-zinc-300 text-sm">{lifeDesign.skill_1}</span></div>}
+                    {lifeDesign?.skill_2 && <div className="flex items-center gap-3"><span className="text-zinc-600 text-xs uppercase tracking-widest w-16">Skill 2</span><span className="text-zinc-300 text-sm">{lifeDesign.skill_2}</span></div>}
+                    {lifeDesign?.key_skill && <div className="flex items-center gap-3 pt-2 border-t border-zinc-800"><span className="text-gold text-xs uppercase tracking-widest w-16 font-semibold">Primary</span><span className="text-white text-sm font-semibold">{lifeDesign.key_skill}</span></div>}
                     {!lifeDesign?.skill_1 && !lifeDesign?.skill_2 && <p className="text-zinc-600 text-sm">Not set</p>}
                   </div>
                 </section>
 
-                {/* Money-Making Tasks */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Top 3 Money-Making Tasks</h3>
                   <div className="space-y-2">
@@ -606,7 +675,431 @@ export default function ClientPage() {
           </div>
         )}
 
-        {/* ── DASHBOARD ───────────────────────────────────────────────────── */}
+        {/* ── WEEKLY WAR MAP™ ───────────────────────────────────────────────── */}
+        {activeTab === 'war-map' && (
+          <div>
+
+            {/* Brain Dump */}
+            <div className="mb-8">
+              <div className="flex items-center gap-2 mb-3">
+                <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Brain Dump</h3>
+                {brainDump.length > 0 && <span className="px-1.5 py-0.5 bg-zinc-800 text-zinc-400 text-xs rounded font-semibold">{brainDump.length}</span>}
+              </div>
+              <p className="text-zinc-600 text-xs mb-3">Get everything out of your head. Don't filter — just dump it all, then decide.</p>
+              <div className="flex gap-2 mb-3">
+                <input value={warMapInput} onChange={e => setWarMapInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && addToBrainDump()}
+                  placeholder="What's on your mind?"
+                  className="flex-1 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                <button onClick={addToBrainDump} className="px-5 py-2.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition flex-shrink-0">Add</button>
+              </div>
+
+              {brainDump.length > 0 && (
+                <div className="space-y-1.5">
+                  {brainDump.map(task => (
+                    <div key={task.id} className="bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm text-white flex-1 min-w-0 truncate">{task.title}</p>
+                        <div className="flex items-center gap-1.5 flex-shrink-0">
+                          <button onClick={() => openScheduleModal(task)} className="text-xs text-sky-400 hover:text-sky-300 uppercase tracking-wider font-semibold px-2 py-1 rounded hover:bg-sky-400/10 transition">Schedule</button>
+                          <button onClick={() => setDelegatingTask(delegatingTask === task.id ? null : task.id)} className="text-xs text-violet-400 hover:text-violet-300 uppercase tracking-wider font-semibold px-2 py-1 rounded hover:bg-violet-400/10 transition">Delegate</button>
+                          <button onClick={() => triageTask(task.id, 'do_now')} className="text-xs text-gold hover:text-gold-light uppercase tracking-wider font-semibold px-2 py-1 rounded hover:bg-gold/10 transition">Do Now</button>
+                          <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition p-1"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                        </div>
+                      </div>
+                      {delegatingTask === task.id && (
+                        <div className="flex items-center gap-2 mt-2 pl-0">
+                          <input autoFocus value={delegateName} onChange={e => setDelegateName(e.target.value)}
+                            onKeyDown={e => e.key === 'Enter' && confirmDelegate(task.id)}
+                            placeholder="Who are you delegating to?"
+                            className="flex-1 px-3 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-xs" />
+                          <button onClick={() => confirmDelegate(task.id)} className="px-3 py-1.5 bg-gold text-zinc-950 font-bold text-xs rounded transition">✓</button>
+                          <button onClick={() => { setDelegatingTask(null); setDelegateName('') }} className="px-3 py-1.5 border border-zinc-700 text-zinc-500 text-xs rounded transition">✕</button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Calendar Controls */}
+            <div className="flex items-center justify-between mb-4 pt-2 border-t border-zinc-800">
+              <div className="flex items-center gap-1">
+                <button onClick={() => {
+                    if (calendarView === 'week') setWarMapWeek(w => shiftWeek(w, -1))
+                    else { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1) } else setCalendarMonth(m => m - 1) }
+                  }}
+                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-sm font-semibold text-white min-w-[200px] text-center">
+                  {calendarView === 'week' ? formatWeekRange(warMapWeek) : `${MONTH_NAMES[calendarMonth]} ${calendarYear}`}
+                </span>
+                <button onClick={() => {
+                    if (calendarView === 'week') setWarMapWeek(w => shiftWeek(w, 1))
+                    else { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1) } else setCalendarMonth(m => m + 1) }
+                  }}
+                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+                <button onClick={() => { setWarMapWeek(getMonday()); setCalendarYear(new Date().getFullYear()); setCalendarMonth(new Date().getMonth()) }}
+                  className="ml-1 px-2.5 py-1 text-xs text-zinc-500 hover:text-gold uppercase tracking-wider font-semibold transition">
+                  Today
+                </button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => openNewTaskModal(todayStr)}
+                  className="px-4 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                  + Add Task
+                </button>
+                <div className="flex border border-zinc-700 rounded overflow-hidden">
+                  <button onClick={() => setCalendarView('week')}
+                    className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'week' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white'}`}>
+                    Week
+                  </button>
+                  <button onClick={() => setCalendarView('month')}
+                    className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'month' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white'}`}>
+                    Month
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* ── WEEK VIEW ─────────────────────────────────────────────── */}
+            {calendarView === 'week' && (
+              <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                {/* Day headers */}
+                <div className="flex border-b border-zinc-800 bg-zinc-900/50" style={{ paddingLeft: '52px' }}>
+                  {weekDays.map(dateStr => {
+                    const { day, date } = formatDayHeader(dateStr)
+                    const isToday = dateStr === todayStr
+                    return (
+                      <div key={dateStr} className={`flex-1 text-center py-3 border-l border-zinc-800 ${isToday ? 'bg-gold/10' : ''}`}>
+                        <p className="text-xs text-zinc-500 uppercase tracking-widest">{day}</p>
+                        <div className={`w-7 h-7 rounded-full flex items-center justify-center mx-auto mt-1 text-sm font-bold ${isToday ? 'bg-gold text-zinc-950' : 'text-zinc-300'}`}>
+                          {date}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Scrollable time grid */}
+                <div ref={weekViewRef} className="overflow-y-auto overflow-x-auto" style={{ maxHeight: '560px' }}>
+                  <div className="flex" style={{ minWidth: '600px', minHeight: `${HOURS.length * HOUR_H}px` }}>
+
+                    {/* Time labels */}
+                    <div className="flex-shrink-0 relative bg-zinc-900/30" style={{ width: '52px', minHeight: `${HOURS.length * HOUR_H}px` }}>
+                      {HOURS.map((h, i) => (
+                        <div key={h} style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
+                          className="absolute inset-x-0 flex items-start justify-end pr-2 pt-1 border-t border-zinc-800/50">
+                          <span className="text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Day columns */}
+                    {weekDays.map(dateStr => {
+                      const isToday = dateStr === todayStr
+                      const dayTasks = tasksForWeek.filter(t => t._displayDate === dateStr)
+                      const timedTasks = dayTasks.filter(t => t.scheduled_time)
+                      const allDayTasks = dayTasks.filter(t => !t.scheduled_time)
+
+                      return (
+                        <div key={dateStr} className={`flex-1 relative border-l border-zinc-800 ${isToday ? 'bg-gold/[0.03]' : ''}`}
+                          style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+
+                          {/* All-day tasks strip */}
+                          {allDayTasks.length > 0 && (
+                            <div className="px-0.5 pt-0.5 pb-1 border-b border-zinc-800/50 space-y-0.5 z-10 relative bg-zinc-900/40">
+                              {allDayTasks.map(task => (
+                                <div key={`${task.id}-${task._displayDate}`}
+                                  onClick={() => openViewModal(task)}
+                                  className={`text-xs px-1.5 py-0.5 rounded cursor-pointer truncate ${task.completed ? 'bg-zinc-800 text-zinc-500 line-through' : 'bg-gold/20 text-gold hover:bg-gold/30 transition'}`}>
+                                  {task.title}
+                                </div>
+                              ))}
+                            </div>
+                          )}
+
+                          {/* Hour slot backgrounds */}
+                          {HOURS.map((h, i) => (
+                            <div key={h}
+                              style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
+                              className="absolute inset-x-0 border-t border-zinc-800/40 hover:bg-zinc-800/20 cursor-pointer transition group"
+                              onClick={() => openNewTaskModal(dateStr, `${String(h).padStart(2, '0')}:00`)}>
+                              <span className="opacity-0 group-hover:opacity-100 text-xs text-zinc-700 pl-1 pt-0.5 select-none block">
+                                + {h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}
+                              </span>
+                            </div>
+                          ))}
+
+                          {/* Timed tasks */}
+                          {timedTasks.map((task, tIdx) => {
+                            const top = getTimeTopPx(task.scheduled_time)
+                            const height = Math.max(28, ((task.duration_minutes || 60) / 60) * HOUR_H)
+                            return (
+                              <div key={`${task.id}-${task._displayDate}`}
+                                style={{ top: `${top}px`, height: `${height}px`, left: `${tIdx * 2}px` }}
+                                className={`absolute right-0.5 rounded px-1.5 py-1 text-xs overflow-hidden cursor-pointer z-10 border ${
+                                  task.completed
+                                    ? 'bg-zinc-800/60 border-zinc-700 text-zinc-500'
+                                    : 'bg-gold/20 border-gold/40 text-gold hover:bg-gold/30 transition'
+                                }`}
+                                onClick={e => { e.stopPropagation(); openViewModal(task) }}>
+                                <p className="font-semibold truncate leading-tight">{task.title}</p>
+                                {height > 44 && <p className="text-gold/60 mt-0.5 text-[10px]">{formatTime(task.scheduled_time)}</p>}
+                                {task.recurring && task.recurring !== 'none' && <span className="text-gold/50 text-[10px]"> ↻</span>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── MONTH VIEW ────────────────────────────────────────────── */}
+            {calendarView === 'month' && (
+              <div>
+                <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg overflow-hidden">
+                  {['Mon','Tue','Wed','Thu','Fri','Sat','Sun'].map(d => (
+                    <div key={d} className="bg-zinc-950 py-2 text-center text-xs font-semibold text-zinc-600 uppercase tracking-wider">{d}</div>
+                  ))}
+                  {calCells.map((day, i) => {
+                    if (!day) return <div key={`e-${i}`} className="bg-zinc-950 h-24 md:h-28" />
+                    const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                    const dayTasks = tasksForMonth.filter(t => t._displayDate === dateStr)
+                    const isToday = dateStr === todayStr
+                    const isSelected = selectedDay === dateStr
+                    return (
+                      <div key={day}
+                        className={`bg-zinc-950 h-24 md:h-28 p-1.5 cursor-pointer hover:bg-zinc-900/60 transition ${isSelected ? 'ring-1 ring-inset ring-gold bg-zinc-900/40' : ''}`}
+                        onClick={() => setSelectedDay(isSelected ? null : dateStr)}>
+                        <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mb-1 ${isToday ? 'bg-gold text-zinc-950' : 'text-zinc-500'}`}>
+                          {day}
+                        </div>
+                        <div className="space-y-0.5">
+                          {dayTasks.slice(0, 3).map(task => (
+                            <div key={`${task.id}-${task._displayDate}`}
+                              className={`text-[10px] px-1 py-0.5 rounded truncate leading-tight ${task.completed ? 'text-zinc-600 line-through' : 'bg-gold/20 text-gold'}`}>
+                              {task.scheduled_time ? formatTime(task.scheduled_time) + ' ' : ''}{task.title}
+                            </div>
+                          ))}
+                          {dayTasks.length > 3 && <div className="text-[10px] text-zinc-600 px-1">+{dayTasks.length - 3} more</div>}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Day Panel */}
+                {selectedDay && (
+                  <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                    <div className="flex items-center justify-between mb-4">
+                      <p className="text-sm font-semibold text-white">
+                        {new Date(selectedDay).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                      </p>
+                      <button onClick={() => openNewTaskModal(selectedDay)}
+                        className="px-3 py-1.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                        + Add
+                      </button>
+                    </div>
+                    {tasksForMonth.filter(t => t._displayDate === selectedDay).length === 0 ? (
+                      <p className="text-zinc-600 text-sm">No tasks scheduled — click + Add to create one.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {tasksForMonth.filter(t => t._displayDate === selectedDay).map(task => (
+                          <div key={`${task.id}-${task._displayDate}`}
+                            className={`flex items-center gap-3 rounded-lg px-4 py-3 border cursor-pointer transition ${
+                              task.completed ? 'border-zinc-800 opacity-50' : 'border-zinc-800 hover:border-gold/30'
+                            }`}
+                            onClick={() => openViewModal(task)}>
+                            <div className="flex-1 min-w-0">
+                              <p className={`text-sm font-medium ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                              <div className="flex gap-3 mt-0.5 text-xs text-zinc-600">
+                                {task.scheduled_time && <span className="text-gold/70">{formatTime(task.scheduled_time)}{task.duration_minutes ? ` · ${task.duration_minutes}min` : ''}</span>}
+                                {task.recurring && task.recurring !== 'none' && <span>↻ {task.recurring}</span>}
+                              </div>
+                            </div>
+                            {!task.completed && (
+                              <button onClick={e => { e.stopPropagation(); completeTask(task.id) }}
+                                className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Delegated + Do Now */}
+            {(delegated.length > 0 || doNow.length > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mt-8 pt-7 border-t border-zinc-800">
+                <div>
+                  <p className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
+                    Delegated <span className="text-zinc-600">({delegated.length})</span>
+                  </p>
+                  <div className="space-y-1.5">
+                    {delegated.length === 0 && <p className="text-zinc-700 text-xs">Nothing delegated yet.</p>}
+                    {delegated.map(task => (
+                      <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center gap-3 ${task.completed ? 'opacity-40' : ''}`}>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                          {task.delegated_to && <p className="text-xs text-violet-400 mt-0.5">→ {task.delegated_to}</p>}
+                        </div>
+                        {!task.completed && <button onClick={() => completeTask(task.id)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
+                        <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <p className="text-xs font-bold text-gold uppercase tracking-widest mb-3 flex items-center gap-2">
+                    <span className="w-1.5 h-1.5 rounded-full bg-gold inline-block" />
+                    Do Now <span className="text-zinc-600">({doNow.length})</span>
+                  </p>
+                  <div className="space-y-1.5">
+                    {doNow.length === 0 && <p className="text-zinc-700 text-xs">Nothing marked for immediate action.</p>}
+                    {doNow.map(task => (
+                      <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center gap-3 ${task.completed ? 'opacity-40' : ''}`}>
+                        <p className={`text-sm font-medium flex-1 truncate ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                        {!task.completed && <button onClick={() => completeTask(task.id)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
+                        <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* ── TASK MODAL ────────────────────────────────────────────── */}
+            {taskModal && (
+              <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
+                onClick={() => setTaskModal(null)}>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-full max-w-md shadow-2xl"
+                  onClick={e => e.stopPropagation()}>
+
+                  <div className="flex items-center justify-between mb-5">
+                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">
+                      {taskModal.mode === 'view' ? 'Task' : taskModal.mode === 'schedule' ? 'Schedule Task' : 'Add Task'}
+                    </h3>
+                    <button onClick={() => setTaskModal(null)} className="text-zinc-500 hover:text-white transition">
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                    </button>
+                  </div>
+
+                  {taskModal.mode === 'view' ? (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Task</p>
+                        <p className="text-white font-medium">{taskModal.task.title}</p>
+                      </div>
+                      {taskModal.task.scheduled_date && (
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Date</p>
+                          <p className="text-zinc-300 text-sm">{new Date(taskModal.task.scheduled_date).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                        </div>
+                      )}
+                      {taskModal.task.scheduled_time && (
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Time</p>
+                          <p className="text-zinc-300 text-sm">{formatTime(taskModal.task.scheduled_time)}{taskModal.task.duration_minutes ? ` · ${taskModal.task.duration_minutes} min` : ''}</p>
+                        </div>
+                      )}
+                      {taskModal.task.recurring && taskModal.task.recurring !== 'none' && (
+                        <div>
+                          <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-1">Repeats</p>
+                          <p className="text-zinc-300 text-sm capitalize">{taskModal.task.recurring}</p>
+                        </div>
+                      )}
+                      <div className="flex gap-3 pt-2">
+                        {!taskModal.task.completed && (
+                          <button onClick={() => { completeTask(taskModal.task.id); setTaskModal(null) }}
+                            className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded transition">
+                            Mark Done
+                          </button>
+                        )}
+                        <button onClick={() => { deleteTask(taskModal.task.id); setTaskModal(null) }}
+                          className="flex-1 py-2.5 border border-red-900 hover:bg-red-900/20 text-red-400 font-bold text-xs uppercase tracking-widest rounded transition">
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Task</label>
+                        <input autoFocus={taskModal.mode === 'new'} value={modalForm.title}
+                          onChange={e => setModalForm({ ...modalForm, title: e.target.value })}
+                          readOnly={taskModal.mode === 'schedule'}
+                          placeholder="What needs to be done?"
+                          className={`w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm ${taskModal.mode === 'schedule' ? 'opacity-70' : ''}`} />
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Date</label>
+                          <input type="date" value={modalForm.date} onChange={e => setModalForm({ ...modalForm, date: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Time</label>
+                          <select value={modalForm.time} onChange={e => setModalForm({ ...modalForm, time: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm">
+                            <option value="">No time</option>
+                            {TIME_OPTIONS.map(opt => <option key={opt.value} value={opt.value}>{opt.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Duration</label>
+                          <select value={modalForm.duration} onChange={e => setModalForm({ ...modalForm, duration: Number(e.target.value) })}
+                            className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm">
+                            <option value={30}>30 min</option>
+                            <option value={60}>1 hour</option>
+                            <option value={90}>1.5 hours</option>
+                            <option value={120}>2 hours</option>
+                            <option value={180}>3 hours</option>
+                            <option value={240}>4 hours</option>
+                          </select>
+                        </div>
+                        <div>
+                          <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Repeat</label>
+                          <select value={modalForm.recurring} onChange={e => setModalForm({ ...modalForm, recurring: e.target.value })}
+                            className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm">
+                            <option value="none">Does not repeat</option>
+                            <option value="daily">Daily</option>
+                            <option value="weekly">Weekly</option>
+                            <option value="monthly">Monthly</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="flex gap-3 pt-1">
+                        <button onClick={saveTaskModal} disabled={!modalForm.title.trim() || !modalForm.date}
+                          className="flex-1 py-3 bg-gold hover:bg-gold-light disabled:opacity-40 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                          {taskModal.mode === 'schedule' ? 'Schedule Task' : 'Add to Calendar'}
+                        </button>
+                        <button onClick={() => setTaskModal(null)}
+                          className="px-4 py-3 border border-zinc-700 text-zinc-400 hover:text-white text-xs uppercase tracking-widest font-semibold rounded transition">
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* ── DASHBOARD ────────────────────────────────────────────────────── */}
         {activeTab === 'dashboard' && (
           <div>
             <div className="flex items-baseline gap-2 mb-5">
@@ -614,12 +1107,12 @@ export default function ClientPage() {
               {latestKpi && <span className="text-zinc-600 text-xs">{formatDate(latestKpi.week_date)}</span>}
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-9">
-              <StatCard label="Leads"        value={latestKpi?.leads}  target={clientData.lead_target}  color="gold" />
-              <StatCard label="Outreach"     value={latestKpi?.outreach} target={clientData.outreach_target} color="blue" />
-              <StatCard label="Sales"        value={latestKpi?.sales}  color="purple" />
-              <StatCard label="Revenue"      value={latestKpi?.revenue != null ? formatCurrency(latestKpi.revenue) : null} target={clientData.revenue_target ? formatCurrency(clientData.revenue_target) : null} color="green" />
+              <StatCard label="Leads"         value={latestKpi?.leads}  target={clientData.lead_target}  color="gold" />
+              <StatCard label="Outreach"      value={latestKpi?.outreach} target={clientData.outreach_target} color="blue" />
+              <StatCard label="Sales"         value={latestKpi?.sales}  color="purple" />
+              <StatCard label="Revenue"       value={latestKpi?.revenue != null ? formatCurrency(latestKpi.revenue) : null} target={clientData.revenue_target ? formatCurrency(clientData.revenue_target) : null} color="green" />
               <StatCard label="Cost per Lead" value={latestKpi?.cost_per_lead != null ? formatCurrency(latestKpi.cost_per_lead) : null} color="gold" />
-              <StatCard label="Tasks Done"   value={latestKpi?.tasks_completed} color="blue" />
+              <StatCard label="Tasks Done"    value={latestKpi?.tasks_completed} color="blue" />
             </div>
             {kpis.length > 1 && (
               <div>
@@ -628,7 +1121,7 @@ export default function ClientPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="border-b border-zinc-800 bg-zinc-900">
-                        {['Week', 'Leads', 'Revenue', 'Sales'].map(h => (
+                        {['Week','Leads','Revenue','Sales'].map(h => (
                           <th key={h} className="px-4 py-3 text-left text-xs font-semibold text-zinc-500 uppercase tracking-widest">{h}</th>
                         ))}
                       </tr>
@@ -655,11 +1148,7 @@ export default function ClientPage() {
           <div className="max-w-lg">
             <h2 className="text-base font-semibold text-white uppercase tracking-wider mb-1">Submit Weekly KPIs</h2>
             <p className="text-zinc-500 text-sm mb-7">Fill in your numbers for the week.</p>
-            {kpiSuccess && (
-              <div className="mb-5 p-3.5 bg-emerald-900/20 border border-emerald-900 rounded text-emerald-400 text-xs uppercase tracking-wider font-semibold">
-                KPIs submitted successfully
-              </div>
-            )}
+            {kpiSuccess && <div className="mb-5 p-3.5 bg-emerald-900/20 border border-emerald-900 rounded text-emerald-400 text-xs uppercase tracking-wider font-semibold">KPIs submitted successfully</div>}
             <form onSubmit={submitKpi} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Week Date</label>
@@ -668,12 +1157,9 @@ export default function ClientPage() {
               </div>
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 {[
-                  { key: 'leads', label: 'Leads Generated' },
-                  { key: 'outreach', label: 'Outreach Contacts' },
-                  { key: 'sales', label: 'Sales Closed' },
-                  { key: 'revenue', label: 'Revenue (£)' },
-                  { key: 'cost_per_lead', label: 'Cost per Lead (£)' },
-                  { key: 'tasks_completed', label: 'Tasks Completed' },
+                  { key: 'leads', label: 'Leads Generated' }, { key: 'outreach', label: 'Outreach Contacts' },
+                  { key: 'sales', label: 'Sales Closed' }, { key: 'revenue', label: 'Revenue (£)' },
+                  { key: 'cost_per_lead', label: 'Cost per Lead (£)' }, { key: 'tasks_completed', label: 'Tasks Completed' },
                 ].map(({ key, label }) => (
                   <div key={key}>
                     <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">{label}</label>
@@ -691,16 +1177,12 @@ export default function ClientPage() {
           </div>
         )}
 
-        {/* ── CHECK-IN ────────────────────────────────────────────────────── */}
+        {/* ── CHECK-IN ─────────────────────────────────────────────────────── */}
         {activeTab === 'check-in' && (
           <div className="max-w-lg">
             <h2 className="text-base font-semibold text-white uppercase tracking-wider mb-1">Weekly Check-In</h2>
             <p className="text-zinc-500 text-sm mb-7">Reflect on your week with your coach.</p>
-            {checkinSuccess && (
-              <div className="mb-5 p-3.5 bg-emerald-900/20 border border-emerald-900 rounded text-emerald-400 text-xs uppercase tracking-wider font-semibold">
-                Check-in submitted successfully
-              </div>
-            )}
+            {checkinSuccess && <div className="mb-5 p-3.5 bg-emerald-900/20 border border-emerald-900 rounded text-emerald-400 text-xs uppercase tracking-wider font-semibold">Check-in submitted successfully</div>}
             <form onSubmit={submitCheckin} className="space-y-5">
               <div>
                 <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Date</label>
@@ -708,9 +1190,7 @@ export default function ClientPage() {
                   className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
               </div>
               <div>
-                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">
-                  Overall Rating — <span className="text-gold">{checkinForm.rating}/5</span>
-                </label>
+                <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-3">Overall Rating — <span className="text-gold">{checkinForm.rating}/5</span></label>
                 <div className="flex gap-2">
                   {[1,2,3,4,5].map(n => (
                     <button key={n} type="button" onClick={() => setCheckinForm({ ...checkinForm, rating: n })} className="focus:outline-none p-1">
@@ -741,7 +1221,7 @@ export default function ClientPage() {
           </div>
         )}
 
-        {/* ── PROJECTS ────────────────────────────────────────────────────── */}
+        {/* ── PROJECTS ─────────────────────────────────────────────────────── */}
         {activeTab === 'projects' && (
           <div>
             <h2 className="text-base font-semibold text-white uppercase tracking-wider mb-5">Your Projects</h2>
@@ -774,226 +1254,6 @@ export default function ClientPage() {
                 })}
               </div>
             )}
-          </div>
-        )}
-
-        {/* ── WEEKLY WAR MAP ───────────────────────────────────────────────── */}
-        {activeTab === 'war-map' && (
-          <div>
-            {/* Week selector */}
-            <div className="flex items-center justify-between mb-7">
-              <div>
-                <h2 className="text-base font-bold text-white uppercase tracking-widest">Weekly War Map</h2>
-                <p className="text-zinc-600 text-xs mt-1">{formatWeekRange(warMapWeek)}</p>
-              </div>
-              <div className="flex items-center gap-1">
-                <button onClick={() => setWarMapWeek(w => shiftWeek(w, -1))}
-                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <button onClick={() => setWarMapWeek(getMonday())}
-                  className="px-3 py-1.5 text-xs text-zinc-500 hover:text-gold uppercase tracking-wider font-semibold transition">
-                  Today
-                </button>
-                <button onClick={() => setWarMapWeek(w => shiftWeek(w, 1))}
-                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                </button>
-              </div>
-            </div>
-
-            {/* Brain Dump Input */}
-            <div className="mb-7">
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3">Brain Dump</p>
-              <p className="text-zinc-600 text-xs mb-4">Get everything out of your head. Don't filter — just dump it all here.</p>
-              <div className="flex gap-2">
-                <input
-                  value={warMapInput}
-                  onChange={e => setWarMapInput(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && addToBrainDump()}
-                  placeholder="What's on your mind for this week?"
-                  className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
-                />
-                <button onClick={addToBrainDump}
-                  className="px-5 py-3 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition flex-shrink-0">
-                  Add
-                </button>
-              </div>
-            </div>
-
-            {/* Brain Dump List */}
-            {weekBrainDump.length > 0 && (
-              <div className="mb-7">
-                <div className="space-y-2">
-                  {weekBrainDump.map(task => (
-                    <div key={task.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                      <div className="flex items-center justify-between gap-3 mb-3">
-                        <p className="text-white text-sm font-medium flex-1">{task.title}</p>
-                        <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition flex-shrink-0">
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                        </button>
-                      </div>
-                      {/* Triage buttons */}
-                      {actioningTask?.id === task.id ? (
-                        <div className="flex items-center gap-2 mt-2">
-                          <input
-                            autoFocus
-                            value={actionInput}
-                            onChange={e => setActionInput(e.target.value)}
-                            placeholder={actioningTask.action === 'delegate' ? 'Who are you delegating to?' : 'Pick a date (e.g. 28 Mar)'}
-                            className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-xs"
-                          />
-                          <button
-                            onClick={() => {
-                              if (actioningTask.action === 'delegate') {
-                                triageTask(task.id, 'delegate', { delegated_to: actionInput })
-                              } else {
-                                triageTask(task.id, 'schedule', { scheduled_date: actionInput })
-                              }
-                            }}
-                            className="px-3 py-2 bg-gold text-zinc-950 font-bold text-xs uppercase tracking-wider rounded transition"
-                          >
-                            Confirm
-                          </button>
-                          <button onClick={() => { setActioningTask(null); setActionInput('') }}
-                            className="px-3 py-2 border border-zinc-700 text-zinc-400 text-xs rounded transition hover:text-white">
-                            Cancel
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex gap-2 flex-wrap">
-                          <button onClick={() => { setActioningTask({ id: task.id, action: 'delegate' }); setActionInput('') }}
-                            className="px-3 py-1.5 border border-zinc-700 hover:border-violet-500 hover:text-violet-400 text-zinc-400 text-xs uppercase tracking-wider font-semibold rounded transition">
-                            Delegate
-                          </button>
-                          <button onClick={() => { setActioningTask({ id: task.id, action: 'schedule' }); setActionInput('') }}
-                            className="px-3 py-1.5 border border-zinc-700 hover:border-sky-500 hover:text-sky-400 text-zinc-400 text-xs uppercase tracking-wider font-semibold rounded transition">
-                            Schedule
-                          </button>
-                          <button onClick={() => triageTask(task.id, 'do_now')}
-                            className="px-3 py-1.5 border border-zinc-700 hover:border-gold hover:text-gold text-zinc-400 text-xs uppercase tracking-wider font-semibold rounded transition">
-                            Do Now
-                          </button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {weekBrainDump.length === 0 && (
-              <div className="mb-7 py-8 border border-dashed border-zinc-800 rounded-lg text-center">
-                <p className="text-zinc-600 text-sm">Brain dump is clear — add tasks above to get started.</p>
-              </div>
-            )}
-
-            {/* Triaged Sections */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-5 mb-9">
-
-              {/* Delegated */}
-              <div>
-                <p className="text-xs font-bold text-violet-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-violet-400 inline-block" />
-                  Delegated <span className="text-zinc-600">({delegated.length})</span>
-                </p>
-                <div className="space-y-2">
-                  {delegated.length === 0 && <p className="text-zinc-700 text-xs">Nothing delegated yet.</p>}
-                  {delegated.map(task => (
-                    <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg p-3 ${task.completed ? 'opacity-50' : ''}`}>
-                      <p className={`text-sm font-medium ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
-                      {task.delegated_to && <p className="text-xs text-violet-400 mt-1">→ {task.delegated_to}</p>}
-                      <div className="flex gap-2 mt-2">
-                        {!task.completed && <button onClick={() => completeTask(task.id)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition">Done</button>}
-                        <button onClick={() => deleteTask(task.id)} className="text-xs text-zinc-700 hover:text-red-400 uppercase tracking-wider transition">Remove</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Scheduled */}
-              <div>
-                <p className="text-xs font-bold text-sky-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 inline-block" />
-                  Scheduled <span className="text-zinc-600">({scheduled.length})</span>
-                </p>
-                <div className="space-y-2">
-                  {scheduled.length === 0 && <p className="text-zinc-700 text-xs">Nothing scheduled yet.</p>}
-                  {scheduled.map(task => (
-                    <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg p-3 ${task.completed ? 'opacity-50' : ''}`}>
-                      <p className={`text-sm font-medium ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
-                      {task.scheduled_date && <p className="text-xs text-sky-400 mt-1">{task.scheduled_date}</p>}
-                      <div className="flex gap-2 mt-2">
-                        {!task.completed && <button onClick={() => completeTask(task.id)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition">Done</button>}
-                        <button onClick={() => deleteTask(task.id)} className="text-xs text-zinc-700 hover:text-red-400 uppercase tracking-wider transition">Remove</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              {/* Do Now */}
-              <div>
-                <p className="text-xs font-bold text-gold uppercase tracking-widest mb-3 flex items-center gap-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-gold inline-block" />
-                  Do Now <span className="text-zinc-600">({doNow.length})</span>
-                </p>
-                <div className="space-y-2">
-                  {doNow.length === 0 && <p className="text-zinc-700 text-xs">Nothing marked for immediate action.</p>}
-                  {doNow.map(task => (
-                    <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg p-3 ${task.completed ? 'opacity-50' : ''}`}>
-                      <p className={`text-sm font-medium ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
-                      <div className="flex gap-2 mt-2">
-                        {!task.completed && <button onClick={() => completeTask(task.id)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition">Done</button>}
-                        <button onClick={() => deleteTask(task.id)} className="text-xs text-zinc-700 hover:text-red-400 uppercase tracking-wider transition">Remove</button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            {/* Calendar */}
-            <div className="border-t border-zinc-800 pt-7">
-              <div className="flex items-center justify-between mb-5">
-                <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">
-                  {MONTH_NAMES[calendarMonth]} {calendarYear}
-                </p>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1) } else setCalendarMonth(m => m - 1) }}
-                    className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                  </button>
-                  <button onClick={() => { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1) } else setCalendarMonth(m => m + 1) }}
-                    className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                  </button>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-7 gap-1">
-                {['M','T','W','T','F','S','S'].map((d, i) => (
-                  <div key={i} className="text-center text-xs text-zinc-700 py-2 uppercase tracking-wider font-semibold">{d}</div>
-                ))}
-                {calCells.map((day, i) => {
-                  if (!day) return <div key={`e-${i}`} />
-                  const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
-                  const hasTasks = scheduledDates.has(dateStr)
-                  const isToday = dateStr === todayStr
-                  const dayTasks = scheduled.filter(t => t.scheduled_date === dateStr)
-                  return (
-                    <div key={day} title={dayTasks.map(t => t.title).join(', ')}
-                      className={`aspect-square flex flex-col items-center justify-center rounded text-xs cursor-default ${
-                        isToday ? 'bg-gold/20 text-gold font-bold' : hasTasks ? 'text-white' : 'text-zinc-600'
-                      }`}>
-                      <span>{day}</span>
-                      {hasTasks && <div className="w-1 h-1 bg-gold rounded-full mt-0.5" />}
-                    </div>
-                  )
-                })}
-              </div>
-            </div>
           </div>
         )}
 
