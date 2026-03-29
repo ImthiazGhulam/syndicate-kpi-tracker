@@ -2600,16 +2600,19 @@ export default function ClientPage() {
                   <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
                     <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
                     {KPI_COLS.map(col => {
-                      // Total followers: show % change from first to last entry
-                      if (col.key === 'total_followers') {
-                        const days = kpiDays.filter(d => Number(monthlyKpis[d]?.total_followers) > 0)
-                        const first = days.length > 0 ? Number(monthlyKpis[days[0]].total_followers) : 0
-                        const last = days.length > 0 ? Number(monthlyKpis[days[days.length - 1]].total_followers) : 0
-                        const change = first > 0 ? Math.round(((last - first) / first) * 100) : 0
+                      // Total followers & New followers: show % change first entry vs last entry
+                      if (col.key === 'total_followers' || col.key === 'new_followers') {
+                        const days = kpiDays.filter(d => monthlyKpis[d]?.[col.key] !== undefined && Number(monthlyKpis[d][col.key]) !== 0)
+                        if (days.length < 2) {
+                          return <td key={col.key} className="px-1.5 py-2 text-center text-zinc-500 text-xs">—</td>
+                        }
+                        const first = Number(monthlyKpis[days[0]][col.key])
+                        const last = Number(monthlyKpis[days[days.length - 1]][col.key])
+                        const pct = first !== 0 ? Math.round(((last - first) / Math.abs(first)) * 100) : 0
                         return (
                           <td key={col.key} className="px-1.5 py-2 text-center">
-                            <span className={`text-xs font-bold ${change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
-                              {days.length > 1 ? `${change > 0 ? '+' : ''}${change}%` : last || '—'}
+                            <span className={`text-xs font-bold ${pct > 0 ? 'text-emerald-400' : pct < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
+                              {pct > 0 ? '+' : ''}{pct}%
                             </span>
                           </td>
                         )
