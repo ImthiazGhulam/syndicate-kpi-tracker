@@ -177,9 +177,19 @@ export default function AdminPage() {
     if (data) {
       setClients(data)
       fetchAllClientHealth(data)
+      // If selected client was deleted, deselect
+      if (selectedClient && !data.find(c => c.id === selectedClient.id)) {
+        setSelectedClient(null)
+      }
     }
     setLoading(false)
   }
+
+  // Refetch clients every 30 seconds to pick up changes
+  useEffect(() => {
+    const interval = setInterval(fetchClients, 30000)
+    return () => clearInterval(interval)
+  }, [selectedClient?.id])
 
   const fetchAllClientHealth = async (clientList) => {
     const monday = getMonday()
@@ -799,7 +809,7 @@ export default function AdminPage() {
             <div>
               {/* Client Header */}
               <div className="mb-5">
-                <button onClick={() => setSelectedClient(null)} className="flex items-center gap-1.5 text-zinc-500 hover:text-gold text-xs font-semibold uppercase tracking-widest mb-3 transition">
+                <button onClick={() => { setSelectedClient(null); fetchClients() }} className="flex items-center gap-1.5 text-zinc-500 hover:text-gold text-xs font-semibold uppercase tracking-widest mb-3 transition">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                   All Clients
                 </button>
