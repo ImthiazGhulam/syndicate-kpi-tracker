@@ -2566,7 +2566,18 @@ export default function ClientPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {kpiDays.map((dateStr, i) => {
+                  {(() => {
+                    // Pre-compute chained total followers for every day
+                    const calcFollowers = []
+                    for (let d = 0; d < kpiDays.length; d++) {
+                      if (d === 0) {
+                        calcFollowers[d] = Number(monthlyKpis[kpiDays[d]]?.total_followers) || 0
+                      } else {
+                        calcFollowers[d] = calcFollowers[d - 1] + (Number(monthlyKpis[kpiDays[d - 1]]?.new_followers) || 0)
+                      }
+                    }
+
+                    return kpiDays.map((dateStr, i) => {
                     const day = i + 1
                     const row = monthlyKpis[dateStr] || {}
                     const isToday = dateStr === todayStr
@@ -2577,11 +2588,9 @@ export default function ClientPage() {
                         </td>
                         {KPI_COLS.map(col => {
                           // Auto-calc total_followers for Day 2+:
-                          // Day N total = Day (N-1) total + Day (N-1) new
+                          // Uses pre-computed calcFollowers array (calculated above)
                           if (col.autoCalc && col.key === 'total_followers' && i > 0) {
-                            const prevDay = kpiDays[i - 1]
-                            const prevRow = monthlyKpis[prevDay] || {}
-                            const calcTotal = (Number(prevRow.total_followers) || 0) + (Number(prevRow.new_followers) || 0)
+                            const calcTotal = calcFollowers[i]
                             return (
                               <td key={col.key} className="px-0.5 py-0.5 text-center bg-sky-900/5">
                                 <span className={`px-1.5 py-1 block text-xs font-medium ${calcTotal > 0 ? 'text-sky-400' : 'text-zinc-700'}`}>
@@ -2612,7 +2621,8 @@ export default function ClientPage() {
                         })}
                       </tr>
                     )
-                  })}
+                  })
+                  })()}
                   {/* Totals row */}
                   <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
                     <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
