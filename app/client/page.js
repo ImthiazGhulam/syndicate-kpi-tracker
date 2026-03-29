@@ -652,7 +652,7 @@ export default function ClientPage() {
       biggest_challenge: monthlyReview.biggest_challenge || '', key_learning: monthlyReview.key_learning || '',
       improve: monthlyReview.improve || '', goal_1: monthlyReview.goal_1 || '',
       goal_2: monthlyReview.goal_2 || '', goal_3: monthlyReview.goal_3 || '',
-      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '',
+      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
       ...overrides,
     }
     const { data } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
@@ -670,7 +670,7 @@ export default function ClientPage() {
       biggest_challenge: monthlyReview.biggest_challenge || '', key_learning: monthlyReview.key_learning || '',
       improve: monthlyReview.improve || '', goal_1: monthlyReview.goal_1 || '',
       goal_2: monthlyReview.goal_2 || '', goal_3: monthlyReview.goal_3 || '',
-      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '',
+      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
       completed: true, completed_at: new Date().toISOString(),
     }
     const { data } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
@@ -858,6 +858,7 @@ export default function ClientPage() {
       priority_2: weeklyPriorities.priority_2 || '',
       priority_3: weeklyPriorities.priority_3 || '',
       priority_4: weeklyPriorities.priority_4 || '',
+      revenue_target: weeklyPriorities.revenue_target || null,
     }, { onConflict: 'client_id,week_of' }).select().single()
     if (data) { setWeeklyPriorities(data); flash() }
     setPrioritiesSaving(false)
@@ -872,6 +873,7 @@ export default function ClientPage() {
       priority_2: weeklyPriorities.priority_2 || '',
       priority_3: weeklyPriorities.priority_3 || '',
       priority_4: weeklyPriorities.priority_4 || '',
+      revenue_target: weeklyPriorities.revenue_target || null,
       completed: true,
       completed_at: new Date().toISOString(),
     }, { onConflict: 'client_id,week_of' }).select().single()
@@ -1296,26 +1298,77 @@ export default function ClientPage() {
                 </div>
               </div>
 
+              {/* Revenue Targets */}
+              {(weeklyPriorities.revenue_target > 0 || monthlyReview.revenue_target > 0) && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-3">
+                  <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Revenue Targets</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {weeklyPriorities.revenue_target > 0 && (() => {
+                      const weekRevenue = kpiTotals.revenue || 0
+                      const weekTarget = Number(weeklyPriorities.revenue_target)
+                      const weekPct = Math.round((weekRevenue / weekTarget) * 100)
+                      const hit = weekRevenue >= weekTarget
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">This Week</p>
+                            <p className={`text-xs font-bold ${hit ? 'text-emerald-400' : 'text-gold'}`}>{weekPct}%</p>
+                          </div>
+                          <div className="flex items-baseline gap-2 mb-2">
+                            <span className={`text-xl font-black ${hit ? 'text-emerald-400' : 'text-white'}`}>£{weekRevenue.toLocaleString()}</span>
+                            <span className="text-zinc-600 text-xs">/ £{weekTarget.toLocaleString()}</span>
+                          </div>
+                          <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-700 ${hit ? 'bg-emerald-400' : 'bg-gold'}`} style={{ width: `${Math.min(100, weekPct)}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })()}
+                    {monthlyReview.revenue_target > 0 && (() => {
+                      const monthRevenue = Number(monthlyReview.revenue) || kpiTotals.revenue || 0
+                      const monthTarget = Number(monthlyReview.revenue_target)
+                      const monthPct = Math.round((monthRevenue / monthTarget) * 100)
+                      const hit = monthRevenue >= monthTarget
+                      return (
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">This Month</p>
+                            <p className={`text-xs font-bold ${hit ? 'text-emerald-400' : 'text-gold'}`}>{monthPct}%</p>
+                          </div>
+                          <div className="flex items-baseline gap-2 mb-2">
+                            <span className={`text-xl font-black ${hit ? 'text-emerald-400' : 'text-white'}`}>£{monthRevenue.toLocaleString()}</span>
+                            <span className="text-zinc-600 text-xs">/ £{monthTarget.toLocaleString()}</span>
+                          </div>
+                          <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
+                            <div className={`h-full rounded-full transition-all duration-700 ${hit ? 'bg-emerald-400' : 'bg-gold'}`} style={{ width: `${Math.min(100, monthPct)}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                </div>
+              )}
+
               {/* Business Snapshot */}
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
                 <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Business Snapshot</h3>
-                <div className="space-y-4">
-                  {[
-                    { label: 'Revenue', value: `£${(kpiTotals.revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`, color: 'text-emerald-400', bar: 'bg-emerald-400' },
-                    { label: 'New Followers', value: kpiTotals.new_followers || 0, color: 'text-sky-400', bar: 'bg-sky-400' },
-                    { label: 'Calls Taken', value: kpiTotals.calls_taken || 0, color: 'text-gold', bar: 'bg-gold' },
-                    { label: 'Deals Closed', value: kpiTotals.closed || 0, color: 'text-violet-400', bar: 'bg-violet-400' },
-                  ].map(m => (
-                    <div key={m.label}>
-                      <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{m.label}</p>
-                        <p className={`text-sm font-bold ${m.color}`}>{m.value}</p>
-                      </div>
-                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
-                        <div className={`h-full rounded-full ${m.bar} transition-all duration-700`} style={{ width: `${Math.min(100, typeof m.value === 'number' ? m.value * 5 : 50)}%` }} />
-                      </div>
-                    </div>
-                  ))}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Revenue</p>
+                    <p className="text-lg font-bold text-emerald-400">£{(kpiTotals.revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Followers</p>
+                    <p className="text-lg font-bold text-sky-400">{kpiTotals.new_followers || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Calls Taken</p>
+                    <p className="text-lg font-bold text-gold">{kpiTotals.calls_taken || 0}</p>
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Closed</p>
+                    <p className="text-lg font-bold text-violet-400">{kpiTotals.closed || 0}</p>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1438,6 +1491,20 @@ export default function ClientPage() {
             <div className="space-y-6">
               {/* Intention */}
               <div>
+              {/* Weekly target reminder */}
+              {weeklyPriorities.revenue_target > 0 && (
+                <div className="bg-emerald-900/10 border border-emerald-900/30 rounded-lg px-4 py-3 mb-6 flex items-center justify-between">
+                  <div>
+                    <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">This Week's Target</p>
+                    <p className="text-white font-bold text-lg mt-0.5">£{Number(weeklyPriorities.revenue_target).toLocaleString()}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Earned so far</p>
+                    <p className="text-emerald-400 font-bold text-lg mt-0.5">£{(kpiTotals.revenue || 0).toLocaleString()}</p>
+                  </div>
+                </div>
+              )}
+
                 <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">My intention for today is...</label>
                 <textarea value={dailyPulse.intention || ''} onChange={e => setDailyPulse(prev => ({ ...prev, intention: e.target.value }))} onBlur={savePulse}
                   rows={2} placeholder="Set your intention for the day..."
@@ -1821,6 +1888,19 @@ export default function ClientPage() {
                   onBlur={savePriorities}
                   placeholder="What is your #1 priority?"
                   className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm font-medium"
+                />
+              </div>
+
+              <div className="mb-6">
+                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-1">Revenue Target This Week (£)</h3>
+                <p className="text-zinc-600 text-xs mb-3">What are you committing to earn this week?</p>
+                <input
+                  type="number" min="0" step="0.01"
+                  value={weeklyPriorities.revenue_target || ''}
+                  onChange={e => setWeeklyPriorities(prev => ({ ...prev, revenue_target: e.target.value }))}
+                  onBlur={savePriorities}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-sm font-bold"
                 />
               </div>
 
@@ -3008,10 +3088,30 @@ export default function ClientPage() {
             <div className="space-y-6 mt-6">
               {/* Revenue */}
               <div>
+                <label className="block text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Revenue Target This Month (£)</label>
+                <p className="text-zinc-600 text-xs mb-3">What are you committing to earn this month?</p>
+                <input type="number" min="0" step="0.01" value={monthlyReview.revenue_target || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue_target: e.target.value }))} onBlur={() => saveMonthly()}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-lg font-bold mb-4" />
+
                 <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">Total Revenue This Month (£)</label>
                 <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
                   placeholder="0.00"
                   className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-lg font-bold" />
+                {monthlyReview.revenue_target > 0 && (
+                  <div className="mt-3">
+                    <div className="flex justify-between text-xs text-zinc-600 mb-1.5">
+                      <span>Progress to target</span>
+                      <span className={monthlyReview.revenue >= monthlyReview.revenue_target ? 'text-emerald-400 font-bold' : ''}>
+                        {Math.round((monthlyReview.revenue || 0) / monthlyReview.revenue_target * 100)}%
+                      </span>
+                    </div>
+                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                      <div className={`h-full rounded-full transition-all duration-500 ${monthlyReview.revenue >= monthlyReview.revenue_target ? 'bg-emerald-400' : 'bg-gold'}`}
+                        style={{ width: `${Math.min(100, Math.round((monthlyReview.revenue || 0) / monthlyReview.revenue_target * 100))}%` }} />
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Target hit */}
