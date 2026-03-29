@@ -890,7 +890,7 @@ export default function AdminPage() {
 
                 if (!clientPlaybook) alerts.push({ type: 'info', msg: 'Sold Out™ Playbook not started', action: 'Get them to build their offer' })
                 else {
-                  const pbTotal = (clientPlaybook.scores?.icp_score || 0) + (clientPlaybook.scores?.dip_score || 0) + (clientPlaybook.scores?.bb_score || 0)
+                  const pbTotal = (clientPlaybook.scores?.icp_score || 0) + (clientPlaybook.scores?.dip_score || 0) + (clientPlaybook.scores?.bb_score || 0) + (clientPlaybook.scores?.fw_score || 0)
                   if (pbTotal < 21) alerts.push({ type: 'warning', msg: `Playbook score is ${pbTotal}/40 — Needs Work`, action: 'Help them complete their offer blueprint' })
                 }
 
@@ -1051,7 +1051,7 @@ export default function AdminPage() {
                             <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
                               <circle cx="32" cy="32" r="28" fill="none" stroke="#27272a" strokeWidth="4" />
                               <circle cx="32" cy="32" r="28" fill="none" stroke="#C9A84C" strokeWidth="4"
-                                strokeDasharray={`${(pbTotal / 40) * 175.9} 175.9`} strokeLinecap="round" />
+                                strokeDasharray={`${(pbTotal / 50) * 175.9} 175.9`} strokeLinecap="round" />
                             </svg>
                             <span className="absolute inset-0 flex items-center justify-center text-lg font-black text-white">{pbTotal}</span>
                           </div>
@@ -1060,11 +1060,12 @@ export default function AdminPage() {
                             <p className="text-zinc-600 text-xs">Stage {clientPlaybook.current_stage || 1} of 4</p>
                           </div>
                         </div>
-                        <div className="grid grid-cols-3 gap-2">
+                        <div className="grid grid-cols-4 gap-2">
                           {[
                             { label: 'ICP', score: pbScores.icp_score || 0, max: 15, color: 'bg-sky-400' },
                             { label: 'Dip', score: pbScores.dip_score || 0, max: 10, color: 'bg-violet-400' },
                             { label: 'Offer', score: pbScores.bb_score || 0, max: 15, color: 'bg-gold' },
+                            { label: 'Framework', score: pbScores.fw_score || 0, max: 10, color: 'bg-emerald-400' },
                           ].map(s => (
                             <div key={s.label}>
                               <div className="flex justify-between text-[10px] mb-1">
@@ -2174,8 +2175,8 @@ export default function AdminPage() {
                 const dip = clientPlaybook.dip || {}
                 const bb = clientPlaybook.bang_bang || {}
                 const scores = clientPlaybook.scores || {}
-                const totalScore = (scores.icp_score || 0) + (scores.dip_score || 0) + (scores.bb_score || 0)
-                const maxScore = 40
+                const totalScore = (scores.icp_score || 0) + (scores.dip_score || 0) + (scores.bb_score || 0) + (scores.fw_score || 0)
+                const maxScore = 50
                 const band = totalScore >= 35 ? 'Offer-Ready' : totalScore >= 29 ? 'Strong Foundation' : totalScore >= 21 ? 'Getting There' : 'Needs Work'
                 const bandColor = totalScore >= 35 ? 'text-emerald-400' : totalScore >= 29 ? 'text-gold' : totalScore >= 21 ? 'text-amber-400' : 'text-red-400'
 
@@ -2207,11 +2208,12 @@ export default function AdminPage() {
                       </div>
                     </div>
                     {/* Section scores */}
-                    <div className="grid grid-cols-3 gap-3 mt-6">
+                    <div className="grid grid-cols-4 gap-3 mt-6">
                       {[
                         { label: 'ICP', score: scores.icp_score || 0, max: 15, color: 'bg-sky-400' },
                         { label: 'The Dip', score: scores.dip_score || 0, max: 10, color: 'bg-violet-400' },
                         { label: 'Bang Bang', score: scores.bb_score || 0, max: 15, color: 'bg-gold' },
+                        { label: 'Framework', score: scores.fw_score || 0, max: 10, color: 'bg-emerald-400' },
                       ].map(s => (
                         <div key={s.label}>
                           <div className="flex items-center justify-between mb-1">
@@ -2339,6 +2341,35 @@ export default function AdminPage() {
                       )}
                     </div>
                   )}
+
+                  {/* Signature Framework Summary */}
+                  {clientPlaybook.framework?.framework_name && (() => {
+                    const fw = clientPlaybook.framework
+                    return (
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-4">
+                        <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+                          <span className="text-base">🏗️</span> Signature Framework™ — {fw.framework_name}
+                        </h3>
+                        {fw.tagline && <p className="text-zinc-400 text-sm italic mb-4">{fw.tagline}</p>}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                          {(fw.pillars || []).map((pillar, pi) => pillar.name && (
+                            <div key={pi} className={`border rounded-lg p-4 ${pi === 0 ? 'border-sky-500/30 bg-sky-500/5' : pi === 1 ? 'border-violet-500/30 bg-violet-500/5' : 'border-gold/30 bg-gold/5'}`}>
+                              <p className={`text-sm font-bold mb-2 ${pi === 0 ? 'text-sky-400' : pi === 1 ? 'text-violet-400' : 'text-gold'}`}>{pillar.name}</p>
+                              {pillar.description && <p className="text-zinc-400 text-xs mb-3">{pillar.description}</p>}
+                              <div className="space-y-1">
+                                {(pillar.modules || []).filter(m => m.name).map((mod, mi) => (
+                                  <div key={mi} className="flex items-center gap-2">
+                                    <span className="w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0" />
+                                    <p className="text-zinc-300 text-xs">{mod.name}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
                 )
               })()}
