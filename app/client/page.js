@@ -24,7 +24,7 @@ for (let h = 6; h <= 21; h++) {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const KPI_COLS = [
-  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true, autoCalc: true },
+  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true },
   { key: 'new_followers', label: 'New Followers', group: 'audience', input: true },
   { key: 'qual_followers', label: 'Qual. Followers', group: 'audience', input: true },
   { key: 'ad_spend', label: 'Ad Spend (£)', group: 'audience', input: true, step: '0.01' },
@@ -2566,18 +2566,7 @@ export default function ClientPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {(() => {
-                    // Pre-compute chained total followers for every day
-                    const calcFollowers = []
-                    for (let d = 0; d < kpiDays.length; d++) {
-                      if (d === 0) {
-                        calcFollowers[d] = Number(monthlyKpis[kpiDays[d]]?.total_followers) || 0
-                      } else {
-                        calcFollowers[d] = calcFollowers[d - 1] + (Number(monthlyKpis[kpiDays[d - 1]]?.new_followers) || 0)
-                      }
-                    }
-
-                    return kpiDays.map((dateStr, i) => {
+                  {kpiDays.map((dateStr, i) => {
                     const day = i + 1
                     const row = monthlyKpis[dateStr] || {}
                     const isToday = dateStr === todayStr
@@ -2586,21 +2575,7 @@ export default function ClientPage() {
                         <td className={`sticky left-0 z-10 px-2 py-1 text-center font-bold border-r border-zinc-800 ${isToday ? 'bg-gold/20 text-gold' : 'bg-zinc-950 text-zinc-500'}`}>
                           {day}
                         </td>
-                        {KPI_COLS.map(col => {
-                          // Auto-calc total_followers for Day 2+:
-                          // Uses pre-computed calcFollowers array (calculated above)
-                          if (col.autoCalc && col.key === 'total_followers' && i > 0) {
-                            const calcTotal = calcFollowers[i]
-                            return (
-                              <td key={col.key} className="px-0.5 py-0.5 text-center bg-sky-900/5">
-                                <span className={`px-1.5 py-1 block text-xs font-medium ${calcTotal > 0 ? 'text-sky-400' : 'text-zinc-700'}`}>
-                                  {calcTotal > 0 ? calcTotal.toLocaleString() : '—'}
-                                </span>
-                              </td>
-                            )
-                          }
-
-                          return (
+                        {KPI_COLS.map(col => (
                           <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''}`}>
                             {col.calc ? (
                               <span className="px-1.5 py-1 block">{col.calc(row)}</span>
@@ -2612,21 +2587,34 @@ export default function ClientPage() {
                                 value={row[col.key] || ''}
                                 onChange={e => updateKpi(dateStr, col.key, e.target.value)}
                                 onBlur={() => saveKpiDay(dateStr)}
-                                placeholder={col.autoCalc && i === 0 ? 'Start' : '0'}
+                                placeholder="0"
                                 className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
                               />
                             )}
                           </td>
                           )
-                        })}
+                        ))}
                       </tr>
                     )
-                  })
-                  })()}
+                  })}
                   {/* Totals row */}
                   <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
                     <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
                     {KPI_COLS.map(col => {
+                      // Total followers: show % change from first to last entry
+                      if (col.key === 'total_followers') {
+                        const days = kpiDays.filter(d => Number(monthlyKpis[d]?.total_followers) > 0)
+                        const first = days.length > 0 ? Number(monthlyKpis[days[0]].total_followers) : 0
+                        const last = days.length > 0 ? Number(monthlyKpis[days[days.length - 1]].total_followers) : 0
+                        const change = first > 0 ? Math.round(((last - first) / first) * 100) : 0
+                        return (
+                          <td key={col.key} className="px-1.5 py-2 text-center">
+                            <span className={`text-xs font-bold ${change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
+                              {days.length > 1 ? `${change > 0 ? '+' : ''}${change}%` : last || '—'}
+                            </span>
+                          </td>
+                        )
+                      }
                       return (
                         <td key={col.key} className="px-1.5 py-2 text-center text-white">
                           {col.calc
