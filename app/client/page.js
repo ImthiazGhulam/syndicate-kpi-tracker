@@ -244,6 +244,7 @@ export default function ClientPage() {
 
   // Monthly Review
   const [monthlyReview, setMonthlyReview] = useState({})
+  const [lastMonthReview, setLastMonthReview] = useState(null)
   const [reviewMonth, setReviewMonth] = useState(new Date().getMonth())
   const [reviewYear, setReviewYear] = useState(new Date().getFullYear())
   const [monthlySaving, setMonthlySaving] = useState(false)
@@ -335,7 +336,7 @@ export default function ClientPage() {
     const today = new Date().toISOString().split('T')[0]
     const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes] = await Promise.all([
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes, lastMonthlyRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -352,6 +353,7 @@ export default function ClientPage() {
       supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
       supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', new Date().getFullYear()).maybeSingle(),
+      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle(),
     ])
 
     if (dkpiRes.data) {
@@ -409,6 +411,7 @@ export default function ClientPage() {
     if (weekKpisRes.data) setWeekKpis(weekKpisRes.data)
     if (monthlyRes.data) setMonthlyReview(monthlyRes.data)
     else setMonthlyReview({})
+    setLastMonthReview(lastMonthlyRes.data || null)
     setLoading(false)
   }
 
@@ -634,8 +637,15 @@ export default function ClientPage() {
   // Monthly Review
   const fetchMonthlyReview = async (m, y) => {
     if (!clientData) return
-    const { data } = await supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle()
-    setMonthlyReview(data || {})
+    // Get current month's review + last month's (for target comparison)
+    const prevM = m === 0 ? 11 : m - 1
+    const prevY = m === 0 ? y - 1 : y
+    const [current, prev] = await Promise.all([
+      supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle(),
+      supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', prevM).eq('year', prevY).maybeSingle(),
+    ])
+    setMonthlyReview(current.data || {})
+    setLastMonthReview(prev.data || null)
   }
 
   useEffect(() => {
@@ -1324,9 +1334,9 @@ export default function ClientPage() {
                         </div>
                       )
                     })()}
-                    {monthlyReview.revenue_target > 0 && (() => {
-                      const monthRevenue = Number(monthlyReview.revenue) || kpiTotals.revenue || 0
-                      const monthTarget = Number(monthlyReview.revenue_target)
+                    {lastMonthReview?.revenue_target > 0 && (() => {
+                      const monthRevenue = kpiTotals.revenue || 0
+                      const monthTarget = Number(lastMonthReview.revenue_target)
                       const monthPct = Math.round((monthRevenue / monthTarget) * 100)
                       const hit = monthRevenue >= monthTarget
                       return (
@@ -3088,30 +3098,45 @@ export default function ClientPage() {
             <div className="space-y-6 mt-6">
               {/* Revenue */}
               <div>
-                <label className="block text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Revenue Target This Month (£)</label>
-                <p className="text-zinc-600 text-xs mb-3">What are you committing to earn this month?</p>
-                <input type="number" min="0" step="0.01" value={monthlyReview.revenue_target || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue_target: e.target.value }))} onBlur={() => saveMonthly()}
-                  placeholder="0.00"
-                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-lg font-bold mb-4" />
-
-                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">Total Revenue This Month (£)</label>
-                <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
-                  placeholder="0.00"
-                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-lg font-bold" />
-                {monthlyReview.revenue_target > 0 && (
-                  <div className="mt-3">
-                    <div className="flex justify-between text-xs text-zinc-600 mb-1.5">
-                      <span>Progress to target</span>
-                      <span className={monthlyReview.revenue >= monthlyReview.revenue_target ? 'text-emerald-400 font-bold' : ''}>
-                        {Math.round((monthlyReview.revenue || 0) / monthlyReview.revenue_target * 100)}%
-                      </span>
+                {/* Last month's target vs this month's actual */}
+                {lastMonthReview?.revenue_target > 0 && (
+                  <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg p-4 mb-5">
+                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
+                      Last month's target vs this month's result
+                    </p>
+                    <div className="flex items-baseline justify-between mb-2">
+                      <div>
+                        <span className="text-zinc-600 text-xs">Target: </span>
+                        <span className="text-white font-bold">£{Number(lastMonthReview.revenue_target).toLocaleString()}</span>
+                      </div>
+                      <div>
+                        <span className="text-zinc-600 text-xs">Actual: </span>
+                        <span className={`font-bold ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'text-emerald-400' : 'text-red-400'}`}>
+                          £{(monthlyReview.revenue || 0).toLocaleString()}
+                        </span>
+                      </div>
                     </div>
                     <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-500 ${monthlyReview.revenue >= monthlyReview.revenue_target ? 'bg-emerald-400' : 'bg-gold'}`}
-                        style={{ width: `${Math.min(100, Math.round((monthlyReview.revenue || 0) / monthlyReview.revenue_target * 100))}%` }} />
+                      <div className={`h-full rounded-full transition-all duration-500 ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'bg-emerald-400' : 'bg-red-400'}`}
+                        style={{ width: `${Math.min(100, Math.round(((monthlyReview.revenue || 0) / lastMonthReview.revenue_target) * 100))}%` }} />
                     </div>
+                    <p className={`text-xs font-bold mt-1.5 ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'text-emerald-400' : 'text-red-400'}`}>
+                      {(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'Target hit' : `£${(lastMonthReview.revenue_target - (monthlyReview.revenue || 0)).toLocaleString()} short`}
+                    </p>
                   </div>
                 )}
+
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">Total Revenue This Month (£)</label>
+                <p className="text-zinc-600 text-xs mb-3">What did you actually earn this month?</p>
+                <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-lg font-bold mb-5" />
+
+                <label className="block text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Revenue Target for Next Month (£)</label>
+                <p className="text-zinc-600 text-xs mb-3">What are you committing to earn next month?</p>
+                <input type="number" min="0" step="0.01" value={monthlyReview.revenue_target || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue_target: e.target.value }))} onBlur={() => saveMonthly()}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-lg font-bold" />
               </div>
 
               {/* Target hit */}
