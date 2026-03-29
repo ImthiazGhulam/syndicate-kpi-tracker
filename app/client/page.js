@@ -2592,7 +2592,6 @@ export default function ClientPage() {
                               />
                             )}
                           </td>
-                          )
                         ))}
                       </tr>
                     )
