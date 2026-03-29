@@ -185,6 +185,11 @@ export default function ClientPage() {
   const [kpiMonth, setKpiMonth] = useState(new Date().getMonth())
   const [kpiYear, setKpiYear] = useState(new Date().getFullYear())
 
+  // Hot List — lead pipeline
+  const [leads, setLeads] = useState([])
+  const [addingLeadCol, setAddingLeadCol] = useState(null)
+  const [newLeadName, setNewLeadName] = useState('')
+
   // Check-in form
   const [checkinForm, setCheckinForm] = useState({
     checkin_date: new Date().toISOString().split('T')[0],
@@ -275,7 +280,7 @@ export default function ClientPage() {
     const today = new Date().toISOString().split('T')[0]
     const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes] = await Promise.all([
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -284,6 +289,7 @@ export default function ClientPage() {
       supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
       supabase.from('daily_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),
+      supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true }),
     ])
 
     if (dkpiRes.data) {
@@ -320,6 +326,7 @@ export default function ClientPage() {
     } else {
       setDailyPulse({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
     }
+    if (leadsRes.data) setLeads(leadsRes.data)
     setLoading(false)
   }
 
@@ -407,6 +414,34 @@ export default function ClientPage() {
       payload[c.key] = Number(row[c.key]) || 0
     })
     await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
+  }
+
+  // Hot List
+  const LEAD_STAGES = [
+    { id: 'new_lead', label: 'New Lead', color: 'border-sky-500/40 bg-sky-500/5' },
+    { id: 'dm_sent', label: 'Initial DM Sent', color: 'border-violet-500/40 bg-violet-500/5' },
+    { id: 'follow_up', label: 'Follow-up Friday DM', color: 'border-amber-500/40 bg-amber-500/5' },
+    { id: 'call_booked', label: 'Call Booked', color: 'border-gold/40 bg-gold/5' },
+    { id: 'client_won', label: 'Client Won', color: 'border-emerald-500/40 bg-emerald-500/5' },
+    { id: 'ghosted', label: 'Client Ghosted', color: 'border-red-500/40 bg-red-500/5' },
+  ]
+
+  const addLead = async (status) => {
+    if (!newLeadName.trim()) return
+    const { data } = await supabase.from('leads').insert([{ client_id: clientData.id, name: newLeadName.trim(), status }]).select().single()
+    if (data) setLeads(prev => [...prev, data])
+    setNewLeadName('')
+    setAddingLeadCol(null)
+  }
+
+  const moveLead = async (leadId, newStatus) => {
+    const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
+    if (data) setLeads(prev => prev.map(l => l.id === leadId ? data : l))
+  }
+
+  const deleteLead = async (leadId) => {
+    await supabase.from('leads').delete().eq('id', leadId)
+    setLeads(prev => prev.filter(l => l.id !== leadId))
   }
 
   const submitCheckin = async (e) => {
@@ -620,6 +655,7 @@ export default function ClientPage() {
     { id: 'war-map',     label: 'Weekly War Map™' },
     { id: 'morning-ops', label: 'Morning Ops™' },
     { id: 'dashboard',   label: 'Dashboard' },
+    { id: 'hot-list',    label: 'Hot List' },
     { id: 'check-in',    label: 'Check-In' },
     { id: 'projects',    label: 'Projects' },
   ]
@@ -1756,6 +1792,94 @@ export default function ClientPage() {
                   <p className="text-xl font-bold text-emerald-400">{kpiTotals.calls_booked ? Math.round(kpiTotals.calls_taken / kpiTotals.calls_booked * 100) + '%' : '—'}</p>
                   <p className="text-zinc-600 text-[10px] mt-1">Target: 95%+</p>
                 </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── HOT LIST — Lead Pipeline ─────────────────────────────────────── */}
+        {activeTab === 'hot-list' && (
+          <div>
+            <div className="mb-6">
+              <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
+              <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
+            </div>
+
+            <div className="overflow-x-auto -mx-4 sm:mx-0 pb-4">
+              <div className="flex gap-3 px-4 sm:px-0" style={{ minWidth: '900px' }}>
+                {LEAD_STAGES.map((stage, stageIdx) => {
+                  const stageLeads = leads.filter(l => l.status === stage.id)
+                  const prevStage = stageIdx > 0 ? LEAD_STAGES[stageIdx - 1].id : null
+                  const nextStage = stageIdx < LEAD_STAGES.length - 1 ? LEAD_STAGES[stageIdx + 1].id : null
+                  return (
+                    <div key={stage.id} className="flex-1 min-w-[150px]">
+                      {/* Column header */}
+                      <div className={`rounded-t-lg border-t-2 ${stage.color} px-3 py-2.5 bg-zinc-900`}>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold text-white uppercase tracking-wider">{stage.label}</h3>
+                          <span className="text-xs font-bold text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">{stageLeads.length}</span>
+                        </div>
+                      </div>
+
+                      {/* Cards */}
+                      <div className="bg-zinc-900/50 border border-t-0 border-zinc-800 rounded-b-lg p-2 min-h-[200px] space-y-2">
+                        {stageLeads.map(lead => (
+                          <div key={lead.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group">
+                            <div className="flex items-start justify-between gap-2 mb-2">
+                              <p className="text-sm font-medium text-white leading-tight">{lead.name}</p>
+                              <button onClick={() => deleteLead(lead.id)}
+                                className="text-zinc-700 hover:text-red-400 active:text-red-400 transition opacity-0 group-hover:opacity-100 flex-shrink-0 -mt-0.5">
+                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                              </button>
+                            </div>
+                            <p className="text-[10px] text-zinc-600 mb-2">
+                              {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                            </p>
+                            <div className="flex items-center gap-1">
+                              {prevStage && (
+                                <button onClick={() => moveLead(lead.id, prevStage)}
+                                  className="flex-1 py-1.5 text-[10px] font-semibold text-zinc-500 hover:text-white active:text-white bg-zinc-900 hover:bg-zinc-700 rounded transition uppercase tracking-wider text-center">
+                                  ← Back
+                                </button>
+                              )}
+                              {nextStage && (
+                                <button onClick={() => moveLead(lead.id, nextStage)}
+                                  className="flex-1 py-1.5 text-[10px] font-semibold text-gold hover:text-gold-light bg-gold/10 hover:bg-gold/20 rounded transition uppercase tracking-wider text-center">
+                                  Next →
+                                </button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Add card */}
+                        {addingLeadCol === stage.id ? (
+                          <div className="space-y-2">
+                            <input autoFocus value={newLeadName} onChange={e => setNewLeadName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter') addLead(stage.id); if (e.key === 'Escape') { setAddingLeadCol(null); setNewLeadName('') } }}
+                              placeholder="Lead name..."
+                              className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition" />
+                            <div className="flex gap-1.5">
+                              <button onClick={() => addLead(stage.id)}
+                                className="flex-1 py-1.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded transition">
+                                Add
+                              </button>
+                              <button onClick={() => { setAddingLeadCol(null); setNewLeadName('') }}
+                                className="px-3 py-1.5 border border-zinc-700 text-zinc-500 text-[10px] uppercase tracking-widest rounded transition">
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setAddingLeadCol(stage.id); setNewLeadName('') }}
+                            className="w-full py-2 text-[10px] font-semibold text-zinc-600 hover:text-gold active:text-gold uppercase tracking-widest transition text-center rounded hover:bg-zinc-800/60">
+                            + Add card
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })}
               </div>
             </div>
           </div>
