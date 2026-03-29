@@ -59,6 +59,7 @@ export default function AdminPage() {
   const [adventures, setAdventures] = useState(defaultAdventures())
   const [warMapTasks, setWarMapTasks] = useState([])
   const [warMapWeekly, setWarMapWeekly] = useState(null)
+  const [dailyPulse, setDailyPulse] = useState(null)
 
   // Calendar state (for War Map view)
   const [calendarYear, setCalendarYear] = useState(new Date().getFullYear())
@@ -99,7 +100,7 @@ export default function AdminPage() {
     monday.setDate(monday.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1))
     const mondayStr = monday.toISOString().split('T')[0]
 
-    const [kpisRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes] = await Promise.all([
+    const [kpisRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes] = await Promise.all([
       supabase.from('kpis').select('*').eq('client_id', client.id).order('week_date', { ascending: false }),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -107,6 +108,7 @@ export default function AdminPage() {
       supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),
       supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', mondayStr).maybeSingle(),
+      supabase.from('daily_pulse').select('*').eq('client_id', client.id).eq('date', new Date().toISOString().split('T')[0]).maybeSingle(),
     ])
 
     if (kpisRes.data) setKpis(kpisRes.data)
@@ -125,6 +127,7 @@ export default function AdminPage() {
 
     if (warRes.data) setWarMapTasks(warRes.data)
     setWarMapWeekly(weeklyRes.data || null)
+    setDailyPulse(pulseRes.data || null)
   }
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/login') }
@@ -143,11 +146,12 @@ export default function AdminPage() {
   // ── Tab Config ──────────────────────────────────────────────────────────────
 
   const tabs = [
-    { id: 'kpis',      label: 'KPIs' },
-    { id: 'checkins',  label: 'Check-ins' },
-    { id: 'projects',  label: 'Projects' },
-    { id: 'design',    label: 'Design™' },
-    { id: 'war-map',   label: 'War Map' },
+    { id: 'kpis',        label: 'KPIs' },
+    { id: 'checkins',    label: 'Check-ins' },
+    { id: 'projects',    label: 'Projects' },
+    { id: 'design',      label: 'Design™' },
+    { id: 'war-map',     label: 'War Map' },
+    { id: 'morning-ops', label: 'Morning Ops' },
   ]
 
   // War map filters
@@ -623,6 +627,78 @@ export default function AdminPage() {
                       </div>
                     </div>
                   ) : null}
+                </div>
+              )}
+
+              {/* ── MORNING OPS ─────────────────────────────────────────── */}
+              {activeTab === 'morning-ops' && (
+                <div>
+                  <div className="flex items-center justify-between mb-6">
+                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Today's Morning Ops</h3>
+                    {dailyPulse ? (
+                      dailyPulse.completed ? (
+                        <div className="flex items-center gap-1.5 px-2.5 py-1 bg-emerald-900/20 border border-emerald-900/40 rounded">
+                          <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                          <span className="text-emerald-400 text-xs font-semibold uppercase tracking-widest">Completed</span>
+                        </div>
+                      ) : (
+                        <span className="px-2.5 py-1 bg-yellow-900/20 border border-yellow-900/40 rounded text-yellow-400 text-xs font-semibold uppercase tracking-widest">In Progress</span>
+                      )
+                    ) : (
+                      <span className="px-2.5 py-1 bg-zinc-800 border border-zinc-700 rounded text-zinc-500 text-xs font-semibold uppercase tracking-widest">Not Started</span>
+                    )}
+                  </div>
+
+                  {!dailyPulse ? (
+                    <p className="text-center py-12 text-zinc-600 text-sm">Client hasn't started their Morning Ops today.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {[
+                        { label: 'Intention', value: dailyPulse.intention, color: 'text-gold' },
+                        { label: 'Feeling', value: dailyPulse.feeling, color: 'text-zinc-400' },
+                        { label: 'What would make today a win', value: dailyPulse.win, color: 'text-zinc-400' },
+                        { label: 'Money-making task', value: dailyPulse.money_task, color: 'text-gold' },
+                      ].map(({ label, value, color }) => value && (
+                        <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                          <p className={`text-[10px] font-semibold uppercase tracking-widest mb-1.5 ${color}`}>{label}</p>
+                          <p className="text-white text-sm leading-relaxed">{value}</p>
+                        </div>
+                      ))}
+
+                      {/* To-dos */}
+                      {(dailyPulse.todo_1 || dailyPulse.todo_2 || dailyPulse.todo_3) && (
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Top 3 To-Dos</p>
+                          <div className="space-y-1.5">
+                            {[dailyPulse.todo_1, dailyPulse.todo_2, dailyPulse.todo_3].map((todo, i) => todo && (
+                              <div key={i} className="flex items-center gap-2">
+                                <span className="text-xs font-bold text-zinc-500 w-4">{i + 1}</span>
+                                <p className="text-white text-sm">{todo}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {dailyPulse.gratitude && (
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1.5">Gratitude</p>
+                          <p className="text-white text-sm leading-relaxed">{dailyPulse.gratitude}</p>
+                        </div>
+                      )}
+
+                      {dailyPulse.let_go && (
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-1.5">Letting go of</p>
+                          <p className="text-white text-sm leading-relaxed">{dailyPulse.let_go}</p>
+                        </div>
+                      )}
+
+                      {dailyPulse.completed_at && (
+                        <p className="text-zinc-600 text-xs mt-2">Submitted {new Date(dailyPulse.completed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}</p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
 

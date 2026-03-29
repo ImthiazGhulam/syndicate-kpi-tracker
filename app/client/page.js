@@ -165,6 +165,11 @@ export default function ClientPage() {
   const [checkinLoading, setCheckinLoading] = useState(false)
   const [checkinSuccess, setCheckinSuccess] = useState(false)
 
+  // Morning Ops
+  const [dailyPulse, setDailyPulse] = useState({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
+  const [dailyPulseDate, setDailyPulseDate] = useState(() => new Date().toISOString().split('T')[0])
+  const [pulseSaving, setPulseSaving] = useState(false)
+
   // Design™
   const [lifeDesign, setLifeDesign] = useState(null)
   const [designEditing, setDesignEditing] = useState(false)
@@ -224,7 +229,8 @@ export default function ClientPage() {
 
     const year = new Date().getFullYear()
     const monday = getMonday()
-    const [kpisRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes] = await Promise.all([
+    const today = new Date().toISOString().split('T')[0]
+    const [kpisRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes] = await Promise.all([
       supabase.from('kpis').select('*').eq('client_id', client.id).order('week_date', { ascending: false }),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -232,6 +238,7 @@ export default function ClientPage() {
       supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),
       supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
+      supabase.from('daily_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),
     ])
 
     if (kpisRes.data) setKpis(kpisRes.data)
@@ -259,6 +266,11 @@ export default function ClientPage() {
     } else {
       setWeeklyPriorities({ number_one_priority: '', priority_2: '', priority_3: '', priority_4: '', completed: false, completed_at: null })
     }
+    if (pulseRes.data) {
+      setDailyPulse(pulseRes.data)
+    } else {
+      setDailyPulse({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
+    }
     setLoading(false)
   }
 
@@ -273,9 +285,66 @@ export default function ClientPage() {
     }
   }
 
+  // Fetch daily pulse when date changes
+  const fetchDailyPulse = async (dateStr) => {
+    if (!clientData) return
+    const { data } = await supabase.from('daily_pulse').select('*').eq('client_id', clientData.id).eq('date', dateStr).maybeSingle()
+    if (data) {
+      setDailyPulse(data)
+    } else {
+      setDailyPulse({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
+    }
+  }
+
+  useEffect(() => {
+    if (clientData) fetchDailyPulse(dailyPulseDate)
+  }, [dailyPulseDate, clientData?.id])
+
   // ── Handlers ─────────────────────────────────────────────────────────────────
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/login') }
+
+  const savePulse = async () => {
+    if (!clientData) return
+    setPulseSaving(true)
+    const { data } = await supabase.from('daily_pulse').upsert({
+      client_id: clientData.id,
+      date: dailyPulseDate,
+      intention: dailyPulse.intention || '',
+      feeling: dailyPulse.feeling || '',
+      win: dailyPulse.win || '',
+      money_task: dailyPulse.money_task || '',
+      todo_1: dailyPulse.todo_1 || '',
+      todo_2: dailyPulse.todo_2 || '',
+      todo_3: dailyPulse.todo_3 || '',
+      gratitude: dailyPulse.gratitude || '',
+      let_go: dailyPulse.let_go || '',
+    }, { onConflict: 'client_id,date' }).select().single()
+    if (data) setDailyPulse(data)
+    setPulseSaving(false)
+  }
+
+  const completePulse = async () => {
+    if (!clientData) return
+    setPulseSaving(true)
+    const { data } = await supabase.from('daily_pulse').upsert({
+      client_id: clientData.id,
+      date: dailyPulseDate,
+      intention: dailyPulse.intention || '',
+      feeling: dailyPulse.feeling || '',
+      win: dailyPulse.win || '',
+      money_task: dailyPulse.money_task || '',
+      todo_1: dailyPulse.todo_1 || '',
+      todo_2: dailyPulse.todo_2 || '',
+      todo_3: dailyPulse.todo_3 || '',
+      gratitude: dailyPulse.gratitude || '',
+      let_go: dailyPulse.let_go || '',
+      completed: true,
+      completed_at: new Date().toISOString(),
+    }, { onConflict: 'client_id,date' }).select().single()
+    if (data) setDailyPulse(data)
+    setPulseSaving(false)
+  }
 
   const submitKpi = async (e) => {
     e.preventDefault(); setKpiLoading(true)
@@ -463,6 +532,7 @@ export default function ClientPage() {
   const tasksForWeek = expandTasksForRange(warMapTasks, weekDays[0], weekDays[6])
   const tasksForMonth = expandTasksForRange(warMapTasks, monthStart, monthEnd)
   const tasksForDay = expandTasksForRange(warMapTasks, dayViewDate, dayViewDate)
+  const tasksForPulseDay = expandTasksForRange(warMapTasks, dailyPulseDate, dailyPulseDate)
 
   const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1).getDay()
   const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
@@ -496,6 +566,7 @@ export default function ClientPage() {
   const tabs = [
     { id: 'design',      label: 'Design™' },
     { id: 'war-map',     label: 'Weekly War Map™' },
+    { id: 'morning-ops', label: 'Morning Ops™' },
     { id: 'dashboard',   label: 'Dashboard' },
     { id: 'submit-kpis', label: 'Submit KPIs' },
     { id: 'check-in',    label: 'Check-In' },
@@ -548,6 +619,170 @@ export default function ClientPage() {
             </button>
           ))}
         </div>
+
+        {/* ── MORNING OPS™ ──────────────────────────────────────────────── */}
+        {activeTab === 'morning-ops' && (
+          <div>
+            {/* Date nav */}
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h2 className="text-base font-bold text-white uppercase tracking-widest">Morning Ops™</h2>
+                <p className="text-zinc-600 text-xs mt-1">
+                  {new Date(dailyPulseDate).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              <div className="flex items-center gap-1">
+                <button onClick={() => setDailyPulseDate(d => { const dt = new Date(d); dt.setDate(dt.getDate() - 1); return dt.toISOString().split('T')[0] })}
+                  className="p-2 text-zinc-500 hover:text-white active:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <button onClick={() => setDailyPulseDate(new Date().toISOString().split('T')[0])}
+                  className="px-2.5 py-1 text-xs text-zinc-500 hover:text-gold uppercase tracking-wider font-semibold transition">
+                  Today
+                </button>
+                <button onClick={() => setDailyPulseDate(d => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return dt.toISOString().split('T')[0] })}
+                  className="p-2 text-zinc-500 hover:text-white active:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {dailyPulse.completed && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-900/20 border border-emerald-900/40 rounded mb-6">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <span className="text-emerald-400 text-xs font-semibold uppercase tracking-widest">Completed</span>
+              </div>
+            )}
+
+            <div className="space-y-6">
+              {/* Intention */}
+              <div>
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">My intention for today is...</label>
+                <textarea value={dailyPulse.intention || ''} onChange={e => setDailyPulse(prev => ({ ...prev, intention: e.target.value }))} onBlur={savePulse}
+                  rows={2} placeholder="Set your intention for the day..."
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+              </div>
+
+              {/* Feeling */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">How am I feeling going into today?</label>
+                <textarea value={dailyPulse.feeling || ''} onChange={e => setDailyPulse(prev => ({ ...prev, feeling: e.target.value }))} onBlur={savePulse}
+                  rows={2} placeholder="Check in with yourself..."
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+              </div>
+
+              {/* Win */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">What would make today a win?</label>
+                <textarea value={dailyPulse.win || ''} onChange={e => setDailyPulse(prev => ({ ...prev, win: e.target.value }))} onBlur={savePulse}
+                  rows={2} placeholder="Define what success looks like today..."
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+              </div>
+
+              {/* Money-making task */}
+              <div>
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">My money-making task today is...</label>
+                <input value={dailyPulse.money_task || ''} onChange={e => setDailyPulse(prev => ({ ...prev, money_task: e.target.value }))} onBlur={savePulse}
+                  placeholder="The one task that moves the needle financially..."
+                  className="w-full px-4 py-3 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm font-medium" />
+              </div>
+
+              {/* Top 3 to-dos */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Top 3 To-Dos</label>
+                <div className="space-y-2">
+                  {[
+                    { key: 'todo_1', num: 1 },
+                    { key: 'todo_2', num: 2 },
+                    { key: 'todo_3', num: 3 },
+                  ].map(({ key, num }) => (
+                    <div key={key} className="flex items-center gap-3">
+                      <span className="text-sm font-bold w-5 flex-shrink-0 text-zinc-500">{num}</span>
+                      <input value={dailyPulse[key] || ''} onChange={e => setDailyPulse(prev => ({ ...prev, [key]: e.target.value }))} onBlur={savePulse}
+                        placeholder={`To-do ${num}`}
+                        className="flex-1 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* Today's Schedule — from War Map */}
+              {tasksForPulseDay.length > 0 && (
+                <div>
+                  <label className="block text-xs font-bold text-sky-400 uppercase tracking-widest mb-3">Today's Schedule</label>
+                  <div className="space-y-1.5">
+                    {tasksForPulseDay
+                      .sort((a, b) => (a.scheduled_time || '99:99').localeCompare(b.scheduled_time || '99:99'))
+                      .map((task, idx) => (
+                      <div key={`${task.id}-${idx}`} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-2.5 flex items-center gap-3 ${task.completed ? 'opacity-50' : ''}`}>
+                        {task.scheduled_time && <span className="text-xs text-sky-400/70 font-medium flex-shrink-0 w-14">{formatTime(task.scheduled_time)}</span>}
+                        <p className={`text-sm flex-1 ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                        {task.duration_minutes && <span className="text-xs text-zinc-600 flex-shrink-0">{task.duration_minutes}min</span>}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Gratitude + Mini Adventures */}
+              <div>
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">I am so grateful I just...</label>
+                <p className="text-zinc-600 text-xs mb-3">Rewrite your mini adventure. Visualise it as if it's already happened.</p>
+                <textarea value={dailyPulse.gratitude || ''} onChange={e => setDailyPulse(prev => ({ ...prev, gratitude: e.target.value }))} onBlur={savePulse}
+                  rows={3} placeholder="Write as if your adventure has already happened..."
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+
+                {/* Mini Adventures grid */}
+                {adventuresForm.some(a => a.title) && (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-4">
+                    {adventuresForm.filter(a => a.title).map((adv, i) => (
+                      <div key={i} className={`bg-zinc-900 border rounded-lg p-3 ${adv.completed ? 'border-gold/30' : 'border-zinc-800'}`}>
+                        <div className="flex items-start gap-2">
+                          <div className={`w-4 h-4 rounded border-2 flex-shrink-0 mt-0.5 flex items-center justify-center ${adv.completed ? 'bg-gold border-gold' : 'border-zinc-600'}`}>
+                            {adv.completed && <svg className="w-2.5 h-2.5 text-zinc-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                          </div>
+                          <div className="min-w-0">
+                            <p className={`text-xs font-semibold leading-tight ${adv.completed ? 'text-zinc-500 line-through' : 'text-white'}`}>{adv.title}</p>
+                            {adv.when_planned && <p className="text-[10px] text-zinc-600 mt-0.5">{adv.when_planned}</p>}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Let go */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">What do I need to let go of?</label>
+                <textarea value={dailyPulse.let_go || ''} onChange={e => setDailyPulse(prev => ({ ...prev, let_go: e.target.value }))} onBlur={savePulse}
+                  rows={2} placeholder="Release what's holding you back..."
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+              </div>
+            </div>
+
+            {/* Complete button */}
+            <div className="mt-10 pt-6 border-t border-zinc-800">
+              {dailyPulse.completed ? (
+                <div className="bg-zinc-900 border border-emerald-900/40 rounded-lg p-5 text-center">
+                  <svg className="w-10 h-10 text-emerald-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <p className="text-white font-semibold text-sm mb-1">Morning Ops Complete</p>
+                  <p className="text-zinc-500 text-xs">
+                    Submitted {dailyPulse.completed_at ? new Date(dailyPulse.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) + ' at ' + new Date(dailyPulse.completed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-zinc-500 text-xs mb-4 uppercase tracking-widest">Ready to go? Lock in your day.</p>
+                  <button onClick={completePulse} disabled={pulseSaving}
+                    className="w-full sm:w-auto px-10 py-4 bg-gold hover:bg-gold-light disabled:opacity-40 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                    {pulseSaving ? 'Submitting...' : 'Complete Morning Ops™'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* ── DESIGN™ ──────────────────────────────────────────────────────── */}
         {activeTab === 'design' && (
