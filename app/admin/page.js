@@ -10,11 +10,11 @@ const MONTH_NAMES = ['January','February','March','April','May','June','July','A
 
 const LEAD_STAGES = [
   { id: 'new_lead', label: 'New Lead', color: 'text-sky-400', bg: 'bg-sky-500/10', border: 'border-sky-500/30' },
-  { id: 'dm_sent', label: 'DM Sent', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/30' },
-  { id: 'follow_up', label: 'Follow-up', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
+  { id: 'dm_sent', label: 'Initial DM Sent', color: 'text-violet-400', bg: 'bg-violet-500/10', border: 'border-violet-500/30' },
+  { id: 'follow_up', label: 'Follow-up Friday DM', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/30' },
   { id: 'call_booked', label: 'Call Booked', color: 'text-gold', bg: 'bg-gold/10', border: 'border-gold/30' },
-  { id: 'client_won', label: 'Won', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
-  { id: 'ghosted', label: 'Ghosted', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
+  { id: 'client_won', label: 'Client Won', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' },
+  { id: 'ghosted', label: 'Client Ghosted', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
 ]
 
 function getMonday(d = new Date()) {
@@ -884,6 +884,12 @@ export default function AdminPage() {
 
                 if (!identityChange?.affirmations?.trim()) alerts.push({ type: 'warning', msg: 'Identity Chamber is empty', action: 'Needs to write affirmations' })
 
+                if (!clientPlaybook) alerts.push({ type: 'info', msg: 'Sold Out™ Playbook not started', action: 'Get them to build their offer' })
+                else {
+                  const pbTotal = (clientPlaybook.scores?.icp_score || 0) + (clientPlaybook.scores?.dip_score || 0) + (clientPlaybook.scores?.bb_score || 0)
+                  if (pbTotal < 21) alerts.push({ type: 'warning', msg: `Playbook score is ${pbTotal}/40 — Needs Work`, action: 'Help them complete their offer blueprint' })
+                }
+
                 if (!lifeDesign) alerts.push({ type: 'info', msg: 'Design™ not yet filled in', action: 'Get them to set their masoji and adventures' })
 
                 if (selectedClient.programme_renewal) {
@@ -1022,6 +1028,54 @@ export default function AdminPage() {
                       })}
                     </div>
                   </div>
+
+                  {/* Sold Out™ Playbook Score */}
+                  {clientPlaybook && (() => {
+                    const pbScores = clientPlaybook.scores || {}
+                    const pbTotal = (pbScores.icp_score || 0) + (pbScores.dip_score || 0) + (pbScores.bb_score || 0)
+                    const pbBand = pbTotal >= 35 ? 'Offer-Ready' : pbTotal >= 29 ? 'Strong' : pbTotal >= 21 ? 'Getting There' : 'Needs Work'
+                    return (
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <h3 className="text-xs font-bold text-white uppercase tracking-widest flex items-center gap-2">
+                            <span className="text-base">📖</span> Sold Out™ Playbook
+                          </h3>
+                          <span className={`text-xs font-bold uppercase tracking-widest ${pbTotal >= 35 ? 'text-emerald-400' : pbTotal >= 29 ? 'text-gold' : pbTotal >= 21 ? 'text-amber-400' : 'text-red-400'}`}>{pbBand}</span>
+                        </div>
+                        <div className="flex items-center gap-4 mb-4">
+                          <div className="relative flex-shrink-0">
+                            <svg className="w-16 h-16 -rotate-90" viewBox="0 0 64 64">
+                              <circle cx="32" cy="32" r="28" fill="none" stroke="#27272a" strokeWidth="4" />
+                              <circle cx="32" cy="32" r="28" fill="none" stroke="#C9A84C" strokeWidth="4"
+                                strokeDasharray={`${(pbTotal / 40) * 175.9} 175.9`} strokeLinecap="round" />
+                            </svg>
+                            <span className="absolute inset-0 flex items-center justify-center text-lg font-black text-white">{pbTotal}</span>
+                          </div>
+                          <div className="flex-1">
+                            <p className="text-white font-semibold text-sm">{clientPlaybook.name || 'My Offer'}</p>
+                            <p className="text-zinc-600 text-xs">Stage {clientPlaybook.current_stage || 1} of 4</p>
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          {[
+                            { label: 'ICP', score: pbScores.icp_score || 0, max: 15, color: 'bg-sky-400' },
+                            { label: 'Dip', score: pbScores.dip_score || 0, max: 10, color: 'bg-violet-400' },
+                            { label: 'Offer', score: pbScores.bb_score || 0, max: 15, color: 'bg-gold' },
+                          ].map(s => (
+                            <div key={s.label}>
+                              <div className="flex justify-between text-[10px] mb-1">
+                                <span className="text-zinc-500 font-bold uppercase tracking-widest">{s.label}</span>
+                                <span className="text-white font-bold">{s.score}/{s.max}</span>
+                              </div>
+                              <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                                <div className={`h-full rounded-full ${s.color}`} style={{ width: `${(s.score / s.max) * 100}%` }} />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   {/* Client Targets */}
                   <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -1709,6 +1763,13 @@ export default function AdminPage() {
                           </div>
                         ))}
                       </div>
+                      {/* Revenue Target */}
+                      {warMapWeekly.revenue_target > 0 && (
+                        <div className="bg-zinc-900 border-2 border-emerald-500/30 rounded-lg p-4 mt-3">
+                          <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-widest mb-1.5">Revenue Target This Week</p>
+                          <p className="text-white text-xl font-bold">£{Number(warMapWeekly.revenue_target).toLocaleString()}</p>
+                        </div>
+                      )}
                       {warMapWeekly.completed_at && (
                         <p className="text-zinc-600 text-xs mt-2">Submitted {new Date(warMapWeekly.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
                       )}
@@ -1878,10 +1939,16 @@ export default function AdminPage() {
                     <p className="text-center py-12 text-zinc-600 text-sm">Client hasn't started their monthly review yet.</p>
                   ) : (
                     <div className="space-y-4">
-                      {/* Revenue */}
-                      <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1.5">Total Revenue This Month</p>
-                        <p className="text-white text-2xl font-bold">{monthlyReview.revenue ? formatCurrency(monthlyReview.revenue) : '—'}</p>
+                      {/* Revenue + Target */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
+                        <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-4">
+                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1.5">Revenue This Month</p>
+                          <p className="text-white text-2xl font-bold">{monthlyReview.revenue ? formatCurrency(monthlyReview.revenue) : '—'}</p>
+                        </div>
+                        <div className="bg-zinc-900 border-2 border-emerald-500/30 rounded-lg p-4">
+                          <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-widest mb-1.5">Target for Next Month</p>
+                          <p className="text-white text-2xl font-bold">{monthlyReview.revenue_target ? formatCurrency(monthlyReview.revenue_target) : '—'}</p>
+                        </div>
                       </div>
 
                       {/* Target hit */}
