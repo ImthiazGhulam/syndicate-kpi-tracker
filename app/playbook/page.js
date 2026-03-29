@@ -134,6 +134,72 @@ const ALIGNMENT_QUESTIONS = [
   'Is the offer structure sustainable for you to deliver at scale?',
 ]
 
+// ── Reusable Sub-components (outside main component to prevent remounting) ──
+
+function TextInput({ value, onChange, placeholder, type = 'text', step }) {
+  return (
+    <input
+      type={type}
+      value={value || ''}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      step={step}
+      className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
+    />
+  )
+}
+
+function TextArea({ value, onChange, placeholder, rows = 3 }) {
+  return (
+    <textarea
+      rows={rows}
+      value={value || ''}
+      onChange={e => onChange(e.target.value)}
+      placeholder={placeholder}
+      className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm"
+    />
+  )
+}
+
+function SingleSelectTags({ options, value, onChange }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map(opt => (
+        <button key={opt} onClick={() => onChange(opt)} className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition border ${value === opt ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>{opt}</button>
+      ))}
+    </div>
+  )
+}
+
+function MultiSelectTags({ options, value = [], onToggle }) {
+  return (
+    <div className="flex flex-wrap gap-2">
+      {options.map(opt => (
+        <button key={opt} onClick={() => onToggle(opt)} className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition border ${(value || []).includes(opt) ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>{opt}</button>
+      ))}
+    </div>
+  )
+}
+
+function DynamicList({ items = [''], onUpdate, onAdd, onRemove, placeholder }) {
+  return (
+    <div className="space-y-2">
+      {(items || ['']).map((item, i) => (
+        <div key={i} className="flex gap-2">
+          <input
+            value={item || ''}
+            onChange={e => onUpdate(i, e.target.value)}
+            placeholder={placeholder}
+            className="flex-1 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
+          />
+          <button onClick={() => onRemove(i)} className="text-zinc-700 hover:text-red-400 transition px-2 text-lg">&#10005;</button>
+        </div>
+      ))}
+      <button onClick={onAdd} className="text-xs text-gold hover:text-gold-light transition">+ Add</button>
+    </div>
+  )
+}
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function PlaybookPage() {
@@ -224,7 +290,6 @@ export default function PlaybookPage() {
       updated_at: new Date().toISOString(),
     }).eq('id', playbook.id)
     setSaving(false)
-    flash()
   }, [playbook])
 
   const debouncedSave = useCallback((fields) => {
@@ -649,59 +714,8 @@ export default function PlaybookPage() {
     </div>
   )
 
-  const TextInput = ({ value, onChange, placeholder, type = 'text', step }) => (
-    <input
-      type={type}
-      value={value || ''}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      step={step}
-      className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
-    />
-  )
-
-  const TextArea = ({ value, onChange, placeholder, rows = 3 }) => (
-    <textarea
-      rows={rows}
-      value={value || ''}
-      onChange={e => onChange(e.target.value)}
-      placeholder={placeholder}
-      className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm"
-    />
-  )
-
-  const SingleSelectTags = ({ options, value, onChange }) => (
-    <div className="flex flex-wrap gap-2">
-      {options.map(opt => (
-        <button key={opt} onClick={() => onChange(opt)} className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition border ${value === opt ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>{opt}</button>
-      ))}
-    </div>
-  )
-
-  const MultiSelectTags = ({ options, value = [], onToggle }) => (
-    <div className="flex flex-wrap gap-2">
-      {options.map(opt => (
-        <button key={opt} onClick={() => onToggle(opt)} className={`px-3 py-2 rounded-lg text-xs font-semibold uppercase tracking-wider transition border ${(value || []).includes(opt) ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>{opt}</button>
-      ))}
-    </div>
-  )
-
-  const DynamicList = ({ items = [''], onUpdate, onAdd, onRemove, placeholder }) => (
-    <div className="space-y-2">
-      {(items || ['']).map((item, i) => (
-        <div key={i} className="flex gap-2">
-          <input
-            value={item || ''}
-            onChange={e => onUpdate(i, e.target.value)}
-            placeholder={placeholder}
-            className="flex-1 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
-          />
-          <button onClick={() => onRemove(i)} className="text-zinc-700 hover:text-red-400 transition px-2 text-lg">&#10005;</button>
-        </div>
-      ))}
-      <button onClick={onAdd} className="text-xs text-gold hover:text-gold-light transition">+ Add</button>
-    </div>
-  )
+  // Sub-components (TextInput, TextArea, SingleSelectTags, MultiSelectTags, DynamicList)
+  // are defined outside the component to prevent focus loss on re-render
 
   const FieldGroup = ({ label, children, className = '' }) => (
     <div className={`mb-5 ${className}`}>
