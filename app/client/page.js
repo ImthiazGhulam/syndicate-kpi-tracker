@@ -1051,6 +1051,9 @@ export default function ClientPage() {
     { heading: 'Yearly', items: [
       { id: 'design',      label: 'Design™',              icon: '🎯' },
     ]},
+    { heading: 'Strategy', items: [
+      { id: 'playbook',    label: 'Sold Out™ Playbook',   icon: '📖', href: '/playbook' },
+    ]},
   ]
 
   const allTabs = navSections.flatMap(s => s.items)
@@ -1078,7 +1081,7 @@ export default function ClientPage() {
               <p className="px-5 pt-5 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">{section.heading}</p>
             )}
             {section.items.map(tab => (
-              <button key={tab.id} onClick={() => switchTab(tab.id)}
+              <button key={tab.id} onClick={() => tab.href ? router.push(tab.href) : switchTab(tab.id)}
                 className={`w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-medium transition ${
                   activeTab === tab.id
                     ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
