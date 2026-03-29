@@ -1,7 +1,7 @@
 import './globals.css'
 
 export const metadata = {
-  title: 'The Syndicate KPI Tracker',
+  title: 'The Syndicate — The Motherboard',
   description: 'Business coaching KPI tracking platform',
 }
 
