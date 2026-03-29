@@ -24,7 +24,7 @@ for (let h = 6; h <= 21; h++) {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const KPI_COLS = [
-  { key: 'total_followers', label: 'Total Followers', group: 'audience', computed: true },
+  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true },
   { key: 'new_followers', label: 'New Followers', group: 'audience', input: true },
   { key: 'qual_followers', label: 'Qual. Followers', group: 'audience', input: true },
   { key: 'ad_spend', label: 'Ad Spend (£)', group: 'audience', input: true, step: '0.01' },
@@ -322,28 +322,9 @@ export default function ClientPage() {
     if (!clientData) return
     const s = `${y}-${String(m + 1).padStart(2, '0')}-01`
     const e = new Date(y, m + 1, 0).toISOString().split('T')[0]
-
-    // Also fetch last day of previous month to carry total_followers forward
-    const prevMonthEnd = new Date(y, m, 0).toISOString().split('T')[0]
-    const prevMonthStart = `${m === 0 ? y - 1 : y}-${String(m === 0 ? 12 : m).padStart(2, '0')}-01`
-
-    const [currentRes, prevRes] = await Promise.all([
-      supabase.from('daily_kpis').select('*').eq('client_id', clientData.id).gte('date', s).lte('date', e),
-      supabase.from('daily_kpis').select('total_followers, date').eq('client_id', clientData.id).gte('date', prevMonthStart).lte('date', prevMonthEnd).order('date', { ascending: false }).limit(1),
-    ])
-
+    const { data } = await supabase.from('daily_kpis').select('*').eq('client_id', clientData.id).gte('date', s).lte('date', e)
     const obj = {}
-    currentRes.data?.forEach(row => { obj[row.date] = row })
-
-    // If Day 1 of this month has no total_followers, carry forward from last month
-    const day1 = s
-    if (!obj[day1]?.total_followers && prevRes.data?.length > 0) {
-      const lastTotal = Number(prevRes.data[0].total_followers) || 0
-      if (lastTotal > 0) {
-        obj[day1] = { ...(obj[day1] || {}), total_followers: lastTotal }
-      }
-    }
-
+    data?.forEach(row => { obj[row.date] = row })
     setMonthlyKpis(obj)
   }
 
@@ -372,13 +353,9 @@ export default function ClientPage() {
     const year = new Date().getFullYear()
     const monday = getMonday()
     const today = new Date().toISOString().split('T')[0]
-    const curMonth = new Date().getMonth()
-    const curYear = new Date().getFullYear()
-    const mStart = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-01`
-    const mEnd = new Date(curYear, curMonth + 1, 0).toISOString().split('T')[0]
-    const prevMStart = `${curMonth === 0 ? curYear - 1 : curYear}-${String(curMonth === 0 ? 12 : curMonth).padStart(2, '0')}-01`
-    const prevMEnd = new Date(curYear, curMonth, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes, lastMonthlyRes, prevMonthKpiRes] = await Promise.all([
+    const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
+    const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes, lastMonthlyRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -396,19 +373,11 @@ export default function ClientPage() {
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
       supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', new Date().getFullYear()).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle(),
-      supabase.from('daily_kpis').select('total_followers, date').eq('client_id', client.id).gte('date', prevMStart).lte('date', prevMEnd).order('date', { ascending: false }).limit(1),
     ])
 
     if (dkpiRes.data) {
       const obj = {}
       dkpiRes.data.forEach(row => { obj[row.date] = row })
-      // Carry forward last month's total followers to Day 1 if not already set
-      if (!obj[mStart]?.total_followers && prevMonthKpiRes.data?.length > 0) {
-        const lastTotal = Number(prevMonthKpiRes.data[0].total_followers) || 0
-        if (lastTotal > 0) {
-          obj[mStart] = { ...(obj[mStart] || {}), total_followers: lastTotal }
-        }
-      }
       setMonthlyKpis(obj)
     }
     if (checkinsRes.data) setCheckins(checkinsRes.data)
@@ -534,67 +503,20 @@ export default function ClientPage() {
   }
 
   // Daily KPI tracker
-  // Recalculate total_followers for all days based on Day 1 starting total + cumulative new followers
-  const recalcTotalFollowers = (data) => {
-    const updated = { ...data }
-    // Find the first day with a total_followers entry (the starting count)
-    let startingTotal = 0
-    let startIdx = -1
-    for (let i = 0; i < kpiDays.length; i++) {
-      const d = kpiDays[i]
-      if (Number(updated[d]?.total_followers) > 0) {
-        startingTotal = Number(updated[d].total_followers)
-        startIdx = i
-        break
-      }
-    }
-    if (startIdx < 0) return updated
-
-    // From the day AFTER the starting day, accumulate new followers onto the running total
-    let runningTotal = startingTotal
-    for (let i = startIdx + 1; i < kpiDays.length; i++) {
-      const d = kpiDays[i]
-      const newFollowers = Number(updated[d]?.new_followers) || 0
-      // Always carry the total forward, adding any new followers for this day
-      runningTotal = runningTotal + newFollowers
-      updated[d] = { ...(updated[d] || {}), total_followers: runningTotal }
-    }
-    return updated
-  }
-
   const updateKpi = (dateStr, key, value) => {
-    setMonthlyKpis(prev => {
-      const updated = { ...prev, [dateStr]: { ...(prev[dateStr] || {}), [key]: value === '' ? 0 : Number(value) } }
-      // Recalculate totals whenever new_followers or the starting total changes
-      if (key === 'new_followers' || key === 'total_followers') {
-        return recalcTotalFollowers(updated)
-      }
-      return updated
-    })
+    setMonthlyKpis(prev => ({
+      ...prev,
+      [dateStr]: { ...(prev[dateStr] || {}), [key]: value === '' ? 0 : Number(value) }
+    }))
   }
 
   const saveKpiDay = async (dateStr) => {
     const row = monthlyKpis[dateStr] || {}
     const payload = { client_id: clientData.id, date: dateStr }
-    KPI_COLS.filter(c => c.input || c.computed).forEach(c => {
+    KPI_COLS.filter(c => c.input).forEach(c => {
       payload[c.key] = Number(row[c.key]) || 0
     })
     await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
-    // Also save any days that were auto-calculated (cascaded total_followers)
-    const dayIdx = kpiDays.indexOf(dateStr)
-    if (dayIdx >= 0) {
-      for (let i = dayIdx + 1; i < kpiDays.length; i++) {
-        const d = kpiDays[i]
-        const r = monthlyKpis[d]
-        if (r?.total_followers > 0) {
-          const p = { client_id: clientData.id, date: d }
-          KPI_COLS.filter(c => c.input || c.computed).forEach(c => { p[c.key] = Number(r[c.key]) || 0 })
-          await supabase.from('daily_kpis').upsert(p, { onConflict: 'client_id,date' })
-        } else {
-          break
-        }
-      }
-    }
     flash()
   }
 
@@ -2654,19 +2576,10 @@ export default function ClientPage() {
                           {day}
                         </td>
                         {KPI_COLS.map(col => {
-                          // total_followers: editable on Day 1, auto-calculated after
-                          const isComputedFollowers = col.computed && col.key === 'total_followers'
-                          const isFirstDayForTotal = isComputedFollowers && i === 0
-                          const isAutoCalcDay = isComputedFollowers && i > 0
-
                           return (
-                          <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''} ${isAutoCalcDay ? 'bg-sky-900/5' : ''}`}>
+                          <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''}`}>
                             {col.calc ? (
                               <span className="px-1.5 py-1 block">{col.calc(row)}</span>
-                            ) : isAutoCalcDay ? (
-                              <span className={`px-1.5 py-1 block text-xs ${row.total_followers ? 'text-sky-400 font-medium' : 'text-zinc-700'}`}>
-                                {row.total_followers || '—'}
-                              </span>
                             ) : (
                               <input
                                 type="number"
@@ -2675,7 +2588,7 @@ export default function ClientPage() {
                                 value={row[col.key] || ''}
                                 onChange={e => updateKpi(dateStr, col.key, e.target.value)}
                                 onBlur={() => saveKpiDay(dateStr)}
-                                placeholder={isFirstDayForTotal ? 'Start' : '0'}
+                                placeholder="0"
                                 className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
                               />
                             )}
@@ -2689,25 +2602,6 @@ export default function ClientPage() {
                   <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
                     <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
                     {KPI_COLS.map(col => {
-                      // Total Followers: show latest count + % growth from start
-                      if (col.computed && col.key === 'total_followers') {
-                        const daysWithData = kpiDays.filter(d => monthlyKpis[d]?.total_followers > 0)
-                        const firstVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[0]]?.total_followers) || 0 : 0
-                        const lastVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[daysWithData.length - 1]]?.total_followers) || 0 : 0
-                        const growth = firstVal > 0 ? Math.round(((lastVal - firstVal) / firstVal) * 100) : 0
-                        return (
-                          <td key={col.key} className="px-1.5 py-2 text-center">
-                            <div>
-                              <span className="text-xs font-bold text-sky-400">{lastVal.toLocaleString()}</span>
-                              {firstVal > 0 && (
-                                <p className={`text-[9px] font-bold ${growth > 0 ? 'text-emerald-400' : growth < 0 ? 'text-red-400' : 'text-zinc-600'}`}>
-                                  {growth > 0 ? '↑' : growth < 0 ? '↓' : ''}{Math.abs(growth)}%
-                                </p>
-                              )}
-                            </div>
-                          </td>
-                        )
-                      }
                       return (
                         <td key={col.key} className="px-1.5 py-2 text-center text-white">
                           {col.calc
