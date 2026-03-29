@@ -322,9 +322,28 @@ export default function ClientPage() {
     if (!clientData) return
     const s = `${y}-${String(m + 1).padStart(2, '0')}-01`
     const e = new Date(y, m + 1, 0).toISOString().split('T')[0]
-    const { data } = await supabase.from('daily_kpis').select('*').eq('client_id', clientData.id).gte('date', s).lte('date', e)
+
+    // Also fetch last day of previous month to carry total_followers forward
+    const prevMonthEnd = new Date(y, m, 0).toISOString().split('T')[0]
+    const prevMonthStart = `${m === 0 ? y - 1 : y}-${String(m === 0 ? 12 : m).padStart(2, '0')}-01`
+
+    const [currentRes, prevRes] = await Promise.all([
+      supabase.from('daily_kpis').select('*').eq('client_id', clientData.id).gte('date', s).lte('date', e),
+      supabase.from('daily_kpis').select('total_followers, date').eq('client_id', clientData.id).gte('date', prevMonthStart).lte('date', prevMonthEnd).order('date', { ascending: false }).limit(1),
+    ])
+
     const obj = {}
-    data?.forEach(row => { obj[row.date] = row })
+    currentRes.data?.forEach(row => { obj[row.date] = row })
+
+    // If Day 1 of this month has no total_followers, carry forward from last month
+    const day1 = s
+    if (!obj[day1]?.total_followers && prevRes.data?.length > 0) {
+      const lastTotal = Number(prevRes.data[0].total_followers) || 0
+      if (lastTotal > 0) {
+        obj[day1] = { ...(obj[day1] || {}), total_followers: lastTotal }
+      }
+    }
+
     setMonthlyKpis(obj)
   }
 
@@ -353,9 +372,13 @@ export default function ClientPage() {
     const year = new Date().getFullYear()
     const monday = getMonday()
     const today = new Date().toISOString().split('T')[0]
-    const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
-    const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes, lastMonthlyRes] = await Promise.all([
+    const curMonth = new Date().getMonth()
+    const curYear = new Date().getFullYear()
+    const mStart = `${curYear}-${String(curMonth + 1).padStart(2, '0')}-01`
+    const mEnd = new Date(curYear, curMonth + 1, 0).toISOString().split('T')[0]
+    const prevMStart = `${curMonth === 0 ? curYear - 1 : curYear}-${String(curMonth === 0 ? 12 : curMonth).padStart(2, '0')}-01`
+    const prevMEnd = new Date(curYear, curMonth, 0).toISOString().split('T')[0]
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes, lastMonthlyRes, prevMonthKpiRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -373,11 +396,19 @@ export default function ClientPage() {
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
       supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', new Date().getFullYear()).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle(),
+      supabase.from('daily_kpis').select('total_followers, date').eq('client_id', client.id).gte('date', prevMStart).lte('date', prevMEnd).order('date', { ascending: false }).limit(1),
     ])
 
     if (dkpiRes.data) {
       const obj = {}
       dkpiRes.data.forEach(row => { obj[row.date] = row })
+      // Carry forward last month's total followers to Day 1 if not already set
+      if (!obj[mStart]?.total_followers && prevMonthKpiRes.data?.length > 0) {
+        const lastTotal = Number(prevMonthKpiRes.data[0].total_followers) || 0
+        if (lastTotal > 0) {
+          obj[mStart] = { ...(obj[mStart] || {}), total_followers: lastTotal }
+        }
+      }
       setMonthlyKpis(obj)
     }
     if (checkinsRes.data) setCheckins(checkinsRes.data)
