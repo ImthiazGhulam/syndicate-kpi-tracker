@@ -135,6 +135,20 @@ function expandTasksForRange(tasks, startStr, endStr) {
   return result
 }
 
+// ── Toast ───────────────────────────────────────────────────────────────────
+
+function SaveToast({ show }) {
+  if (!show) return null
+  return (
+    <div className="fixed top-4 right-4 z-50 toast-in">
+      <div className="flex items-center gap-2 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg">
+        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Saved</span>
+      </div>
+    </div>
+  )
+}
+
 // ── StatCard ─────────────────────────────────────────────────────────────────
 
 function StatCard({ label, value, target, color = 'gold' }) {
@@ -175,6 +189,10 @@ export default function ClientPage() {
   const [clientData, setClientData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('design')
+  const [showToast, setShowToast] = useState(false)
+
+  const flash = () => { setShowToast(true); setTimeout(() => setShowToast(false), 2000) }
+  const switchTab = (id) => { setActiveTab(id); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
   // Data
   const [checkins, setCheckins] = useState([])
@@ -386,7 +404,7 @@ export default function ClientPage() {
     if (!clientData) return
     setPulseSaving(true)
     const { data } = await supabase.from('daily_pulse').upsert(buildPulsePayload(), { onConflict: 'client_id,date' }).select().single()
-    if (data) setDailyPulse(data)
+    if (data) { setDailyPulse(data); flash() }
     setPulseSaving(false)
   }
 
@@ -417,6 +435,7 @@ export default function ClientPage() {
       payload[c.key] = Number(row[c.key]) || 0
     })
     await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
+    flash()
   }
 
   // Hot List
@@ -534,6 +553,7 @@ export default function ClientPage() {
     if (toSave.length > 0) await supabase.from('mini_adventures').insert(toSave)
     setDesignEditing(false)
     setDesignLoading(false)
+    flash()
   }
 
   const toggleAdventureComplete = async (adventure) => {
@@ -585,7 +605,7 @@ export default function ClientPage() {
       priority_3: weeklyPriorities.priority_3 || '',
       priority_4: weeklyPriorities.priority_4 || '',
     }, { onConflict: 'client_id,week_of' }).select().single()
-    if (data) setWeeklyPriorities(data)
+    if (data) { setWeeklyPriorities(data); flash() }
     setPrioritiesSaving(false)
   }
 
@@ -729,6 +749,7 @@ export default function ClientPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
+      <SaveToast show={showToast} />
 
       {/* Header */}
       <header className="bg-zinc-950 border-b border-zinc-800 px-4 py-4 flex items-center justify-between sticky top-0 z-10">
@@ -763,7 +784,7 @@ export default function ClientPage() {
         {/* Tabs */}
         <div className="flex border-b border-zinc-800 mb-7 gap-1 sm:gap-5 overflow-x-auto scrollbar-none -mx-4 px-4 sm:mx-0 sm:px-0">
           {tabs.map(tab => (
-            <button key={tab.id} onClick={() => setActiveTab(tab.id)}
+            <button key={tab.id} onClick={() => switchTab(tab.id)}
               className={`pb-3 pt-1 px-2 sm:px-0 text-xs sm:text-sm font-semibold uppercase tracking-wider transition border-b-2 -mb-px whitespace-nowrap flex-shrink-0 ${
                 activeTab === tab.id ? 'border-gold text-gold' : 'border-transparent text-zinc-500 hover:text-zinc-300'
               }`}>
@@ -774,7 +795,7 @@ export default function ClientPage() {
 
         {/* ── MORNING OPS™ ──────────────────────────────────────────────── */}
         {activeTab === 'morning-ops' && (
-          <div>
+          <div className="fade-in">
             {/* Date nav */}
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -947,7 +968,7 @@ export default function ClientPage() {
 
         {/* ── DESIGN™ ──────────────────────────────────────────────────────── */}
         {activeTab === 'design' && (
-          <div>
+          <div className="fade-in">
             <div className="flex items-center justify-between mb-7">
               <div>
                 <h2 className="text-base font-bold text-white uppercase tracking-widest">Design™</h2>
@@ -1075,7 +1096,7 @@ export default function ClientPage() {
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Mini Adventures</h3>
                   <div className="space-y-3">
                     {adventuresForm.map((adv, i) => (
-                      <div key={i} className={`bg-zinc-900 border rounded-lg p-4 flex items-start gap-4 ${adv.completed ? 'border-gold/30' : 'border-zinc-800'}`}>
+                      <div key={i} className={`bg-zinc-900 border rounded-lg p-4 flex items-start gap-4 card-lift ${adv.completed ? 'border-gold/30' : 'border-zinc-800'}`}>
                         <button onClick={() => toggleAdventureComplete(adv)} className="mt-0.5 flex-shrink-0">
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${adv.completed ? 'bg-gold border-gold' : 'border-zinc-600 hover:border-gold'}`}>
                             {adv.completed && <svg className="w-3 h-3 text-zinc-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
@@ -1145,7 +1166,7 @@ export default function ClientPage() {
 
         {/* ── WEEKLY WAR MAP™ ───────────────────────────────────────────────── */}
         {activeTab === 'war-map' && (
-          <div>
+          <div className="fade-in">
 
             {/* Week header + completion status */}
             <div className="flex items-center justify-between mb-6">
@@ -1282,15 +1303,15 @@ export default function ClientPage() {
                 </button>
                 <div className="flex border border-zinc-700 rounded overflow-hidden">
                   <button onClick={() => setCalendarView('day')}
-                    className={`px-2.5 sm:px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'day' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white'}`}>
+                    className={`px-3 sm:px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'day' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white active:text-white'}`}>
                     Day
                   </button>
                   <button onClick={() => setCalendarView('week')}
-                    className={`px-2.5 sm:px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'week' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white'}`}>
+                    className={`px-3 sm:px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'week' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white active:text-white'}`}>
                     Week
                   </button>
                   <button onClick={() => setCalendarView('month')}
-                    className={`px-2.5 sm:px-3 py-1.5 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'month' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white'}`}>
+                    className={`px-3 sm:px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'month' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white active:text-white'}`}>
                     Month
                   </button>
                 </div>
@@ -1320,7 +1341,7 @@ export default function ClientPage() {
                   )}
 
                   {/* Scrollable time grid */}
-                  <div ref={weekViewRef} className="overflow-y-auto" style={{ maxHeight: '65vh' }}>
+                  <div ref={weekViewRef} className="overflow-y-auto scrollbar-thin" style={{ maxHeight: '65vh' }}>
                     <div className="relative" style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
                       {/* Hour slots */}
                       {HOURS.map((h, i) => (
@@ -1362,7 +1383,7 @@ export default function ClientPage() {
             {/* ── WEEK VIEW ─────────────────────────────────────────────── */}
             {calendarView === 'week' && (
               <div className="border border-zinc-800 rounded-lg overflow-hidden">
-                <div ref={weekViewRef} className="overflow-auto" style={{ maxHeight: '560px' }}>
+                <div ref={weekViewRef} className="overflow-auto scrollbar-thin" style={{ maxHeight: '560px' }}>
                   <div style={{ minWidth: '560px' }}>
                     {/* Day headers — sticky top */}
                     <div className="flex sticky top-0 z-20 bg-zinc-950 border-b border-zinc-800" style={{ paddingLeft: '48px' }}>
@@ -1476,7 +1497,7 @@ export default function ClientPage() {
                       <div key={day}
                         className={`bg-zinc-950 h-16 sm:h-20 md:h-24 p-1 sm:p-1.5 cursor-pointer active:bg-zinc-900/60 hover:bg-zinc-900/60 transition ${isSelected ? 'ring-1 ring-inset ring-gold bg-zinc-900/40' : ''}`}
                         onClick={() => setSelectedDay(isSelected ? null : dateStr)}>
-                        <div className={`w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold ${isToday ? 'bg-gold text-zinc-950' : 'text-zinc-500'}`}>
+                        <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-bold ${isToday ? 'bg-gold text-zinc-950' : 'text-zinc-500'}`}>
                           {day}
                         </div>
                         <div className="space-y-0.5 mt-0.5 hidden sm:block">
@@ -1492,9 +1513,9 @@ export default function ClientPage() {
                         {dayTasks.length > 0 && (
                           <div className="flex gap-0.5 mt-0.5 sm:hidden justify-center">
                             {dayTasks.slice(0, 3).map((task, idx) => (
-                              <div key={idx} className={`w-1 h-1 rounded-full ${task.completed ? 'bg-zinc-600' : 'bg-gold'}`} />
+                              <div key={idx} className={`w-1.5 h-1.5 rounded-full ${task.completed ? 'bg-zinc-600' : 'bg-gold'}`} />
                             ))}
-                            {dayTasks.length > 3 && <div className="w-1 h-1 rounded-full bg-zinc-600" />}
+                            {dayTasks.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
                           </div>
                         )}
                       </div>
@@ -1616,7 +1637,7 @@ export default function ClientPage() {
             {taskModal && (
               <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center sm:p-4"
                 onClick={() => setTaskModal(null)}>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-t-xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+                <div className="bg-zinc-900 border border-zinc-800 rounded-t-xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-thin slide-up"
                   onClick={e => e.stopPropagation()}>
 
                   {/* Mobile drag handle */}
@@ -1745,7 +1766,7 @@ export default function ClientPage() {
 
         {/* ── DASHBOARD — Daily KPI Tracker ─────────────────────────────── */}
         {activeTab === 'dashboard' && (
-          <div>
+          <div className="fade-in">
             {/* Month nav */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-base font-bold text-white uppercase tracking-widest">Dashboard</h2>
@@ -1763,7 +1784,7 @@ export default function ClientPage() {
             </div>
 
             {/* KPI Table */}
-            <div className="overflow-x-auto border border-zinc-800 rounded-lg -mx-4 sm:mx-0">
+            <div className="overflow-x-auto scrollbar-thin border border-zinc-800 rounded-lg -mx-4 sm:mx-0">
               <table className="text-[11px] w-max min-w-full">
                 <thead>
                   {/* Group headers */}
@@ -1864,7 +1885,7 @@ export default function ClientPage() {
 
         {/* ── HOT LIST — Lead Pipeline ─────────────────────────────────────── */}
         {activeTab === 'hot-list' && (
-          <div>
+          <div className="fade-in">
             <div className="mb-6">
               <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
               <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client. Drag cards between columns.</p>
@@ -1901,7 +1922,7 @@ export default function ClientPage() {
                             onTouchStart={e => handleTouchStart(e, lead)}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={handleTouchEnd}
-                            className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group cursor-grab active:cursor-grabbing hover:border-zinc-600 transition select-none">
+                            className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group cursor-grab active:cursor-grabbing hover:border-zinc-600 transition select-none card-lift">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1">
                                 <p className="text-sm font-semibold text-white leading-tight">{lead.name}</p>
@@ -1910,7 +1931,7 @@ export default function ClientPage() {
                                 )}
                               </div>
                               <button onClick={() => deleteLead(lead.id)}
-                                className="text-zinc-700 hover:text-red-400 active:text-red-400 transition opacity-0 group-hover:opacity-100 flex-shrink-0">
+                                className="text-zinc-700 hover:text-red-400 active:text-red-400 transition sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0">
                                 <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                               </button>
                             </div>
@@ -1959,7 +1980,7 @@ export default function ClientPage() {
 
         {/* ── CHECK-IN ─────────────────────────────────────────────────────── */}
         {activeTab === 'check-in' && (
-          <div className="max-w-lg">
+          <div className="max-w-lg fade-in">
             <h2 className="text-base font-semibold text-white uppercase tracking-wider mb-1">Weekly Check-In</h2>
             <p className="text-zinc-500 text-sm mb-7">Reflect on your week with your coach.</p>
             {checkinSuccess && <div className="mb-5 p-3.5 bg-emerald-900/20 border border-emerald-900 rounded text-emerald-400 text-xs uppercase tracking-wider font-semibold">Check-in submitted successfully</div>}
@@ -2003,10 +2024,16 @@ export default function ClientPage() {
 
         {/* ── PROJECTS ─────────────────────────────────────────────────────── */}
         {activeTab === 'projects' && (
-          <div>
+          <div className="fade-in">
             <h2 className="text-base font-semibold text-white uppercase tracking-wider mb-5">Your Projects</h2>
             {projects.length === 0 ? (
-              <p className="text-center py-12 text-zinc-600 text-sm">No projects yet — your coach will add them.</p>
+              <div className="text-center py-16">
+                <div className="inline-flex items-center justify-center w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-lg mb-4">
+                  <svg className="w-6 h-6 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+                </div>
+                <p className="text-zinc-500 text-sm font-medium">No projects yet</p>
+                <p className="text-zinc-700 text-xs mt-1">Your coach will add them when you're ready.</p>
+              </div>
             ) : (
               <div className="space-y-3">
                 {projects.map(p => {
@@ -2018,7 +2045,7 @@ export default function ClientPage() {
                     planning: 'bg-violet-500/10 text-violet-400 border-violet-500/30',
                   }
                   return (
-                    <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                    <div key={p.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 card-lift">
                       <div className="flex items-center gap-2.5 mb-2 flex-wrap">
                         <h3 className="font-semibold text-white">{p.name}</h3>
                         <span className={`px-2.5 py-0.5 rounded border text-xs font-semibold uppercase tracking-wide ${statusColors[p.status] || 'bg-zinc-700 text-zinc-300 border-zinc-600'}`}>{p.status}</span>
