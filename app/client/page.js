@@ -353,6 +353,17 @@ export default function ClientPage() {
     setTaskModal({ mode: 'view', task })
   }
 
+  const openEditModal = (task) => {
+    setModalForm({
+      title: task.title || '',
+      date: task.scheduled_date || todayStr,
+      time: task.scheduled_time ? task.scheduled_time.slice(0, 5) : '',
+      duration: task.duration_minutes || 60,
+      recurring: task.recurring || 'none',
+    })
+    setTaskModal({ mode: 'edit', taskId: task.id })
+  }
+
   const saveTaskModal = async () => {
     if (!modalForm.title.trim() || !modalForm.date) return
     if (taskModal.mode === 'new') {
@@ -367,14 +378,17 @@ export default function ClientPage() {
         week_of: getMonday(new Date(modalForm.date)),
       }]).select().single()
       if (data) setWarMapTasks(prev => [data, ...prev])
-    } else if (taskModal.mode === 'schedule') {
-      const { data } = await supabase.from('war_map_tasks').update({
-        status: 'schedule',
+    } else if (taskModal.mode === 'schedule' || taskModal.mode === 'edit') {
+      const updates = {
+        title: modalForm.title.trim(),
         scheduled_date: modalForm.date,
         scheduled_time: modalForm.time || null,
         duration_minutes: Number(modalForm.duration),
         recurring: modalForm.recurring,
-      }).eq('id', taskModal.taskId).select().single()
+      }
+      if (taskModal.mode === 'schedule') updates.status = 'schedule'
+      const { data } = await supabase.from('war_map_tasks').update(updates)
+        .eq('id', taskModal.taskId).select().single()
       if (data) setWarMapTasks(prev => prev.map(t => t.id === taskModal.taskId ? data : t))
     }
     setTaskModal(null)
@@ -1082,7 +1096,7 @@ export default function ClientPage() {
 
                   <div className="flex items-center justify-between mb-5">
                     <h3 className="text-sm font-bold text-white uppercase tracking-widest">
-                      {taskModal.mode === 'view' ? 'Task' : taskModal.mode === 'schedule' ? 'Schedule Task' : 'Add Task'}
+                      {taskModal.mode === 'view' ? 'Task' : taskModal.mode === 'edit' ? 'Edit Task' : taskModal.mode === 'schedule' ? 'Schedule Task' : 'Add Task'}
                     </h3>
                     <button onClick={() => setTaskModal(null)} className="text-zinc-500 hover:text-white active:text-white transition p-1">
                       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
@@ -1115,9 +1129,15 @@ export default function ClientPage() {
                       )}
                       <div className="flex gap-3 pt-2">
                         {!taskModal.task.completed && (
+                          <button onClick={() => openEditModal(taskModal.task)}
+                            className="flex-1 py-2.5 border border-zinc-700 hover:border-gold hover:text-gold text-zinc-300 font-bold text-xs uppercase tracking-widest rounded transition">
+                            Edit
+                          </button>
+                        )}
+                        {!taskModal.task.completed && (
                           <button onClick={() => { completeTask(taskModal.task.id); setTaskModal(null) }}
                             className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded transition">
-                            Mark Done
+                            Done
                           </button>
                         )}
                         <button onClick={() => { deleteTask(taskModal.task.id); setTaskModal(null) }}
@@ -1130,7 +1150,7 @@ export default function ClientPage() {
                     <div className="space-y-4">
                       <div>
                         <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Task</label>
-                        <input autoFocus={taskModal.mode === 'new'} value={modalForm.title}
+                        <input autoFocus={taskModal.mode === 'new' || taskModal.mode === 'edit'} value={modalForm.title}
                           onChange={e => setModalForm({ ...modalForm, title: e.target.value })}
                           readOnly={taskModal.mode === 'schedule'}
                           placeholder="What needs to be done?"
@@ -1178,7 +1198,7 @@ export default function ClientPage() {
                       <div className="flex gap-3 pt-1">
                         <button onClick={saveTaskModal} disabled={!modalForm.title.trim() || !modalForm.date}
                           className="flex-1 py-3 bg-gold hover:bg-gold-light disabled:opacity-40 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
-                          {taskModal.mode === 'schedule' ? 'Schedule Task' : 'Add to Calendar'}
+                          {taskModal.mode === 'edit' ? 'Save Changes' : taskModal.mode === 'schedule' ? 'Schedule Task' : 'Add to Calendar'}
                         </button>
                         <button onClick={() => setTaskModal(null)}
                           className="px-4 py-3 border border-zinc-700 text-zinc-400 hover:text-white text-xs uppercase tracking-widest font-semibold rounded transition">
