@@ -1436,56 +1436,128 @@ export default function AdminPage() {
               {/* ══════════════════════════════════════════════════════════════ */}
               {/* ── HOT LIST — Lead Pipeline ─────────────────────────────── */}
               {/* ══════════════════════════════════════════════════════════════ */}
-              {activeTab === 'hot-list' && (
+              {activeTab === 'hot-list' && (() => {
+                const stageCounts = {}
+                LEAD_STAGES.forEach(s => { stageCounts[s.id] = leads.filter(l => l.status === s.id).length })
+                const totalLeads = leads.length
+                const wonCount = stageCounts['client_won'] || 0
+                const ghostedCount = stageCounts['ghosted'] || 0
+                const activeLeads = totalLeads - wonCount - ghostedCount
+                const conversionRate = totalLeads > 0 ? Math.round((wonCount / totalLeads) * 100) : 0
+
+                return (
                 <div className="fade-in">
-                  <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Lead Pipeline</h3>
-                    <span className="text-xs text-zinc-600">{leads.length} total leads</span>
+                  {/* Funnel Metrics */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-6">
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-center">
+                      <p className="text-3xl font-black text-white">{totalLeads}</p>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Total Leads</p>
+                    </div>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-center">
+                      <p className="text-3xl font-black text-sky-400">{activeLeads}</p>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Active Pipeline</p>
+                    </div>
+                    <div className="bg-zinc-900 border border-emerald-900/30 rounded-xl p-5 text-center">
+                      <p className="text-3xl font-black text-emerald-400">{wonCount}</p>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Won</p>
+                    </div>
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-center">
+                      <p className={`text-3xl font-black ${conversionRate >= 20 ? 'text-emerald-400' : conversionRate >= 10 ? 'text-amber-400' : 'text-zinc-400'}`}>{conversionRate}%</p>
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Win Rate</p>
+                    </div>
                   </div>
 
-                  {leads.length === 0 ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">No leads in the pipeline yet.</p>
-                  ) : (
-                    <>
-                      {/* Stage summary */}
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-6 gap-3 mb-6">
+                  {/* Visual Funnel */}
+                  {totalLeads > 0 && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Pipeline Funnel</h3>
+                      <div className="space-y-2">
                         {LEAD_STAGES.map(stage => {
-                          const stageLeads = leads.filter(l => l.status === stage.id)
+                          const count = stageCounts[stage.id] || 0
+                          const pct = totalLeads > 0 ? Math.round((count / totalLeads) * 100) : 0
                           return (
-                            <div key={stage.id} className={`${stage.bg} border ${stage.border} rounded-xl p-4`}>
-                              <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${stage.color}`}>{stage.label}</p>
-                              <p className={`text-2xl font-black ${stage.color}`}>{stageLeads.length}</p>
+                            <div key={stage.id} className="flex items-center gap-3">
+                              <p className={`text-[10px] font-bold uppercase tracking-widest w-24 text-right ${stage.color}`}>{stage.label}</p>
+                              <div className="flex-1 h-6 bg-zinc-800 rounded-full overflow-hidden relative">
+                                <div className={`h-full rounded-full ${stage.id === 'new_lead' ? 'bg-sky-500' : stage.id === 'dm_sent' ? 'bg-violet-500' : stage.id === 'follow_up' ? 'bg-amber-500' : stage.id === 'call_booked' ? 'bg-gold' : stage.id === 'client_won' ? 'bg-emerald-500' : 'bg-red-500'} transition-all duration-500`} style={{ width: `${Math.max(pct, count > 0 ? 8 : 0)}%` }} />
+                                <span className="absolute inset-0 flex items-center justify-center text-[10px] font-bold text-white/80">{count}</span>
+                              </div>
+                              <span className="text-xs text-zinc-600 w-10 text-right">{pct}%</span>
                             </div>
                           )
                         })}
                       </div>
+                    </div>
+                  )}
 
-                      {/* Lead names per stage */}
-                      <div className="space-y-4">
+                  {/* Kanban Board */}
+                  {leads.length === 0 ? (
+                    <p className="text-center py-12 text-zinc-600 text-sm">No leads in the pipeline yet.</p>
+                  ) : (
+                    <div className="overflow-x-auto -mx-4 sm:mx-0 pb-4">
+                      <div className="flex gap-3 px-4 sm:px-0" style={{ minWidth: '900px' }}>
                         {LEAD_STAGES.map(stage => {
                           const stageLeads = leads.filter(l => l.status === stage.id)
-                          if (stageLeads.length === 0) return null
                           return (
-                            <div key={stage.id}>
-                              <p className={`text-xs font-bold uppercase tracking-widest mb-2 ${stage.color}`}>{stage.label}</p>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                            <div key={stage.id} className="flex-1 min-w-[140px]">
+                              <div className={`rounded-t-lg border-t-2 ${stage.border} px-3 py-2.5 bg-zinc-900`}>
+                                <div className="flex items-center justify-between">
+                                  <h3 className={`text-[10px] font-bold uppercase tracking-wider ${stage.color}`}>{stage.label}</h3>
+                                  <span className="text-xs font-bold text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">{stageLeads.length}</span>
+                                </div>
+                              </div>
+                              <div className="bg-zinc-900/50 border border-t-0 border-zinc-800 rounded-b-lg p-2 min-h-[120px] space-y-1.5">
                                 {stageLeads.map(lead => (
-                                  <div key={lead.id} className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center justify-between">
-                                    <div>
-                                      <p className="text-white text-sm font-medium">{lead.name}</p>
-                                      {lead.instagram && <p className="text-zinc-600 text-xs mt-0.5">@{lead.instagram}</p>}
-                                    </div>
+                                  <div key={lead.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-2.5">
+                                    <p className="text-sm font-semibold text-white leading-tight">{lead.name}</p>
+                                    {lead.instagram && <p className="text-xs text-violet-400 mt-0.5">@{lead.instagram.replace('@', '')}</p>}
+                                    <p className="text-[10px] text-zinc-600 mt-1">
+                                      {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                    </p>
                                   </div>
                                 ))}
+                                {stageLeads.length === 0 && <p className="text-zinc-700 text-xs text-center py-4">Empty</p>}
                               </div>
                             </div>
                           )
                         })}
                       </div>
-                    </>
+                    </div>
+                  )}
+
+                  {/* All Leads Table */}
+                  {leads.length > 0 && (
+                    <div className="mt-6">
+                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">All Leads</h3>
+                      <div className="overflow-x-auto border border-zinc-800 rounded-xl">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="bg-zinc-900 border-b border-zinc-800">
+                              <th className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Name</th>
+                              <th className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Instagram</th>
+                              <th className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Stage</th>
+                              <th className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Last Updated</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {leads.sort((a, b) => new Date(b.updated_at || b.created_at) - new Date(a.updated_at || a.created_at)).map(lead => {
+                              const stage = LEAD_STAGES.find(s => s.id === lead.status) || {}
+                              return (
+                                <tr key={lead.id} className="border-b border-zinc-900 hover:bg-zinc-900/60 transition">
+                                  <td className="px-4 py-3 text-white font-medium">{lead.name}</td>
+                                  <td className="px-4 py-3 text-violet-400">{lead.instagram ? `@${lead.instagram.replace('@', '')}` : '—'}</td>
+                                  <td className="px-4 py-3"><span className={`text-xs font-bold uppercase tracking-widest ${stage.color || 'text-zinc-500'}`}>{stage.label || lead.status}</span></td>
+                                  <td className="px-4 py-3 text-zinc-500">{formatDate(lead.updated_at || lead.created_at)}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
                   )}
                 </div>
-              )}
+              )})()}
 
               {/* ══════════════════════════════════════════════════════════════ */}
               {/* ── WAR MAP — Weekly Priorities + Tasks ───────────────────── */}
