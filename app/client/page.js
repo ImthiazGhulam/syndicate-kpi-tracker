@@ -236,6 +236,8 @@ export default function ClientPage() {
   const [newLeadIG, setNewLeadIG] = useState('')
   const [dragLead, setDragLead] = useState(null)
   const [dragOverCol, setDragOverCol] = useState(null)
+  const [editingLead, setEditingLead] = useState(null)
+  const [leadForm, setLeadForm] = useState({ name: '', instagram: '', notes: '' })
 
   // Check-in form
   const [checkinForm, setCheckinForm] = useState({
@@ -573,6 +575,24 @@ export default function ClientPage() {
   const deleteLead = async (leadId) => {
     await supabase.from('leads').delete().eq('id', leadId)
     setLeads(prev => prev.filter(l => l.id !== leadId))
+    if (editingLead?.id === leadId) setEditingLead(null)
+  }
+
+  const openLeadModal = (lead) => {
+    setLeadForm({ name: lead.name || '', instagram: lead.instagram || '', notes: lead.notes || '' })
+    setEditingLead(lead)
+  }
+
+  const saveLeadEdit = async () => {
+    if (!editingLead || !leadForm.name.trim()) return
+    const { data } = await supabase.from('leads').update({
+      name: leadForm.name.trim(),
+      instagram: leadForm.instagram.trim() || null,
+      notes: leadForm.notes.trim() || null,
+      updated_at: new Date().toISOString(),
+    }).eq('id', editingLead.id).select().single()
+    if (data) setLeads(prev => prev.map(l => l.id === editingLead.id ? data : l))
+    setEditingLead(null)
   }
 
   // Drag & drop
@@ -2723,17 +2743,24 @@ export default function ClientPage() {
                             onTouchEnd={handleTouchEnd}
                             className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group cursor-grab active:cursor-grabbing hover:border-zinc-600 transition select-none card-lift">
                             <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0 flex-1">
+                              <div className="min-w-0 flex-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); openLeadModal(lead) }}>
                                 <p className="text-sm font-semibold text-white leading-tight">{lead.name}</p>
                                 {lead.instagram && (
                                   <p className="text-xs text-violet-400 mt-0.5 truncate">@{lead.instagram.replace('@', '')}</p>
                                 )}
                               </div>
-                              <button onClick={() => deleteLead(lead.id)}
-                                className="text-zinc-700 hover:text-red-400 active:text-red-400 transition sm:opacity-0 sm:group-hover:opacity-100 flex-shrink-0">
-                                <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                              </button>
+                              <div className="flex items-center gap-0.5 flex-shrink-0">
+                                <button onClick={(e) => { e.stopPropagation(); openLeadModal(lead) }}
+                                  className="text-zinc-700 hover:text-gold active:text-gold transition p-0.5">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </button>
+                                <button onClick={(e) => { e.stopPropagation(); deleteLead(lead.id) }}
+                                  className="text-zinc-700 hover:text-red-400 active:text-red-400 transition sm:opacity-0 sm:group-hover:opacity-100 p-0.5">
+                                  <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                                </button>
+                              </div>
                             </div>
+                            {lead.notes && <p className="text-[10px] text-zinc-500 mt-1 line-clamp-2">{lead.notes}</p>}
                             <p className="text-[10px] text-zinc-600 mt-1.5">
                             Moved: {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                             </p>
@@ -2787,6 +2814,77 @@ export default function ClientPage() {
                     </div>
                   )
                 })}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Lead Edit Modal */}
+        {editingLead && (
+          <div className="fixed inset-0 bg-black/80 z-50 flex items-end sm:items-center justify-center sm:p-4" onClick={() => setEditingLead(null)}>
+            <div className="bg-zinc-900 border border-zinc-800 rounded-t-xl sm:rounded-lg p-5 sm:p-6 w-full sm:max-w-md shadow-2xl max-h-[90vh] overflow-y-auto scrollbar-thin slide-up" onClick={e => e.stopPropagation()}>
+              <div className="flex justify-center mb-3 sm:hidden"><div className="w-10 h-1 bg-zinc-700 rounded-full" /></div>
+              <div className="flex items-center justify-between mb-5">
+                <h3 className="text-sm font-bold text-white uppercase tracking-widest">Edit Lead</h3>
+                <button onClick={() => setEditingLead(null)} className="text-zinc-500 hover:text-white active:text-white transition p-1">
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                </button>
+              </div>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Name</label>
+                  <input value={leadForm.name} onChange={e => setLeadForm(f => ({ ...f, name: e.target.value }))}
+                    className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Instagram</label>
+                  <input value={leadForm.instagram} onChange={e => setLeadForm(f => ({ ...f, instagram: e.target.value }))}
+                    placeholder="@handle"
+                    className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 transition text-sm" />
+                  {leadForm.instagram && (
+                    <a href={`https://instagram.com/${leadForm.instagram.replace('@', '')}`} target="_blank" rel="noopener noreferrer"
+                      className="text-xs text-violet-400 hover:text-violet-300 mt-1.5 inline-block">
+                      Open @{leadForm.instagram.replace('@', '')} on Instagram →
+                    </a>
+                  )}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Notes</label>
+                  <textarea value={leadForm.notes} onChange={e => setLeadForm(f => ({ ...f, notes: e.target.value }))}
+                    rows={4} placeholder="Add notes, links, context..."
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+                  {/* Render clickable links from notes */}
+                  {leadForm.notes && (() => {
+                    const urls = leadForm.notes.match(/https?:\/\/[^\s]+/g)
+                    if (!urls || urls.length === 0) return null
+                    return (
+                      <div className="mt-2 space-y-1">
+                        {urls.map((url, i) => (
+                          <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                            className="block text-xs text-gold hover:text-gold-light truncate transition">
+                            {url}
+                          </a>
+                        ))}
+                      </div>
+                    )
+                  })()}
+                </div>
+                <div className="bg-zinc-800/50 rounded-lg px-4 py-3">
+                  <div className="flex justify-between text-xs text-zinc-600">
+                    <span>Stage: <span className="text-zinc-400 font-semibold">{LEAD_STAGES.find(s => s.id === editingLead.status)?.label || editingLead.status}</span></span>
+                    <span>Moved: {new Date(editingLead.updated_at || editingLead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                  </div>
+                </div>
+                <div className="flex gap-3 pt-1">
+                  <button onClick={saveLeadEdit}
+                    className="flex-1 py-3 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                    Save
+                  </button>
+                  <button onClick={() => { deleteLead(editingLead.id); setEditingLead(null) }}
+                    className="py-3 px-4 border border-red-900 hover:bg-red-900/20 text-red-400 font-bold text-xs uppercase tracking-widest rounded transition">
+                    Delete
+                  </button>
+                </div>
               </div>
             </div>
           </div>
