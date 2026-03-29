@@ -1713,7 +1713,7 @@ export default function PlaybookPage() {
 
       {/* Main content */}
       <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
-        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7 mt-14 md:mt-0" onBlur={saveAll}
+        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7 mt-14 md:mt-0" onBlur={saveAll}>
           {/* Saving indicator */}
           {saving && (
             <div className="flex items-center gap-2 mb-4">
