@@ -220,8 +220,12 @@ export default function ClientPage() {
   const [checkinLoading, setCheckinLoading] = useState(false)
   const [checkinSuccess, setCheckinSuccess] = useState(false)
 
+  // Identity Chamber
+  const [identityAffirmations, setIdentityAffirmations] = useState('')
+  const [identitySaving, setIdentitySaving] = useState(false)
+
   // Morning Ops
-  const [dailyPulse, setDailyPulse] = useState({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
+  const [dailyPulse, setDailyPulse] = useState({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', identity_read: false, completed: false, completed_at: null })
   const [dailyPulseDate, setDailyPulseDate] = useState(() => new Date().toISOString().split('T')[0])
   const [pulseSaving, setPulseSaving] = useState(false)
 
@@ -302,7 +306,7 @@ export default function ClientPage() {
     const today = new Date().toISOString().split('T')[0]
     const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes] = await Promise.all([
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -312,6 +316,7 @@ export default function ClientPage() {
       supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
       supabase.from('daily_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),
       supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true }),
+      supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle(),
     ])
 
     if (dkpiRes.data) {
@@ -349,6 +354,7 @@ export default function ClientPage() {
       setDailyPulse({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
     }
     if (leadsRes.data) setLeads(leadsRes.data)
+    if (identityRes.data) setIdentityAffirmations(identityRes.data.affirmations || '')
     setLoading(false)
   }
 
@@ -399,6 +405,7 @@ export default function ClientPage() {
     gratitude_5: dailyPulse.gratitude_5 || '',
     gratitude_6: dailyPulse.gratitude_6 || '',
     let_go: dailyPulse.let_go || '',
+    identity_read: dailyPulse.identity_read || false,
   })
 
   const savePulse = async () => {
@@ -527,6 +534,19 @@ export default function ClientPage() {
       }
     }
     touchDragRef.current = null
+  }
+
+  // Identity Chamber
+  const saveIdentity = async () => {
+    if (!clientData) return
+    setIdentitySaving(true)
+    await supabase.from('identity_change').upsert({
+      client_id: clientData.id,
+      affirmations: identityAffirmations,
+      updated_at: new Date().toISOString(),
+    }, { onConflict: 'client_id' })
+    setIdentitySaving(false)
+    flash()
   }
 
   const submitCheckin = async (e) => {
@@ -737,6 +757,7 @@ export default function ClientPage() {
   const kpiDaysWithData = kpiDays.filter(d => monthlyKpis[d]).length || 1
 
   const tabs = [
+    { id: 'identity',    label: 'Identity Chamber™',  icon: '🪞' },
     { id: 'design',      label: 'Design™',          icon: '🎯' },
     { id: 'war-map',     label: 'Weekly War Map™',   icon: '⚔️' },
     { id: 'morning-ops', label: 'Morning Ops™',      icon: '☀️' },
@@ -809,7 +830,7 @@ export default function ClientPage() {
       )}
 
       {/* Main content */}
-      <div className="flex-1 md:ml-60">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
         {/* Mobile header */}
         <header className="md:hidden bg-zinc-950 border-b border-zinc-800 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
           <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-zinc-400 hover:text-white active:text-white transition">
@@ -819,7 +840,7 @@ export default function ClientPage() {
           <div className="w-9" /> {/* Spacer for centering */}
         </header>
 
-        <div className="max-w-5xl mx-auto p-4 md:p-7">
+        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7">
 
           {/* Page title */}
           <div className="mb-7">
@@ -828,6 +849,57 @@ export default function ClientPage() {
             </h1>
             <p className="text-zinc-600 text-xs mt-1">Welcome back, {clientData.name.split(' ')[0]} · {clientData.business}</p>
           </div>
+
+        {/* ── IDENTITY CHANGE™ ────────────────────────────────────────── */}
+        {activeTab === 'identity' && (
+          <div className="fade-in max-w-2xl">
+            <div className="mb-8">
+              <p className="text-zinc-500 text-sm leading-relaxed">
+                Write your affirmations in the present tense. Read them every morning before starting your day.
+                These are not wishes — they are declarations of who you are becoming.
+              </p>
+            </div>
+
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 sm:p-7">
+              <div className="flex items-center gap-3 mb-5 pb-4 border-b border-zinc-800">
+                <span className="text-2xl">🪞</span>
+                <div>
+                  <h3 className="text-sm font-bold text-white uppercase tracking-widest">My Identity</h3>
+                  <p className="text-zinc-600 text-xs mt-0.5">I am. I have. I do. I create.</p>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                {Array.from({ length: 20 }, (_, i) => {
+                  const lines = (identityAffirmations || '').split('\n')
+                  const value = lines[i] || ''
+                  return (
+                    <div key={i} className="flex items-center gap-3">
+                      <span className="text-xs font-bold text-zinc-700 w-5 text-right flex-shrink-0">{i + 1}</span>
+                      <input
+                        value={value}
+                        onChange={e => {
+                          const updated = [...lines]
+                          while (updated.length <= i) updated.push('')
+                          updated[i] = e.target.value
+                          setIdentityAffirmations(updated.join('\n').replace(/\n+$/, ''))
+                        }}
+                        onBlur={saveIdentity}
+                        placeholder={i === 0 ? 'I am a powerful leader who...' : i === 1 ? 'I attract abundance and...' : i === 2 ? 'I am disciplined, focused, and...' : ''}
+                        className="flex-1 px-4 py-2.5 bg-zinc-800 border border-zinc-700/50 rounded text-white placeholder-zinc-700 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
+                      />
+                    </div>
+                  )
+                })}
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-zinc-800 flex items-center justify-between">
+                <p className="text-zinc-700 text-xs italic">"The person you become is more important than the things you achieve."</p>
+                {identitySaving && <span className="text-xs text-zinc-500 animate-pulse">Saving...</span>}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* ── MORNING OPS™ ──────────────────────────────────────────────── */}
         {activeTab === 'morning-ops' && (
@@ -979,8 +1051,28 @@ export default function ClientPage() {
               </div>
             </div>
 
+            {/* Identity check */}
+            <div className="mt-8 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-4">
+              <button
+                onClick={() => {
+                  const updated = { ...dailyPulse, identity_read: !dailyPulse.identity_read }
+                  setDailyPulse(updated)
+                  // auto-save
+                  supabase.from('daily_pulse').upsert({ ...buildPulsePayload(), identity_read: !dailyPulse.identity_read }, { onConflict: 'client_id,date' })
+                }}
+                className="flex items-center gap-3 w-full text-left">
+                <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition flex-shrink-0 ${dailyPulse.identity_read ? 'bg-gold border-gold' : 'border-zinc-600 hover:border-gold'}`}>
+                  {dailyPulse.identity_read && <svg className="w-3.5 h-3.5 text-zinc-950" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-white">I have read my Identity Chamber™</p>
+                  <p className="text-xs text-zinc-600 mt-0.5">Read your affirmations before completing Morning Ops</p>
+                </div>
+              </button>
+            </div>
+
             {/* Complete button */}
-            <div className="mt-10 pt-6 border-t border-zinc-800">
+            <div className="mt-6 pt-6 border-t border-zinc-800">
               {dailyPulse.completed ? (
                 <div className="bg-zinc-900 border border-emerald-900/40 rounded-lg p-5 text-center">
                   <svg className="w-10 h-10 text-emerald-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
