@@ -189,10 +189,22 @@ export default function ClientPage() {
   const [clientData, setClientData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState('progress')
-  const [showToast, setShowToast] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const toastRef = useRef(null)
 
-  const flash = () => { setShowToast(true); setTimeout(() => setShowToast(false), 2000) }
+  const flash = () => {
+    if (toastRef.current) {
+      toastRef.current.style.display = 'flex'
+      toastRef.current.style.animation = 'none'
+      toastRef.current.offsetHeight // force reflow
+      toastRef.current.style.animation = ''
+      toastRef.current.classList.add('toast-in')
+      clearTimeout(toastRef.current._timer)
+      toastRef.current._timer = setTimeout(() => {
+        if (toastRef.current) toastRef.current.style.display = 'none'
+      }, 2000)
+    }
+  }
   const switchTab = (id) => { setActiveTab(id); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
 
   // Data
@@ -467,10 +479,8 @@ export default function ClientPage() {
 
   const savePulse = async () => {
     if (!clientData) return
-    setPulseSaving(true)
-    const { data } = await supabase.from('daily_pulse').upsert(buildPulsePayload(), { onConflict: 'client_id,date' }).select().single()
-    if (data) { setDailyPulse(data); flash() }
-    setPulseSaving(false)
+    await supabase.from('daily_pulse').upsert(buildPulsePayload(), { onConflict: 'client_id,date' })
+    flash()
   }
 
   const completePulse = async () => {
@@ -617,11 +627,9 @@ export default function ClientPage() {
 
   const saveEvening = async (overrides = {}) => {
     if (!clientData) return
-    setEveningSaving(true)
     const payload = { ...buildEveningPayload(), ...overrides }
-    const { data } = await supabase.from('evening_pulse').upsert(payload, { onConflict: 'client_id,date' }).select().single()
-    if (data) { setEveningPulse(data); flash() }
-    setEveningSaving(false)
+    await supabase.from('evening_pulse').upsert(payload, { onConflict: 'client_id,date' })
+    flash()
   }
 
   const completeEvening = async () => {
@@ -654,7 +662,6 @@ export default function ClientPage() {
 
   const saveMonthly = async (overrides = {}) => {
     if (!clientData) return
-    setMonthlySaving(true)
     const payload = {
       client_id: clientData.id, month: reviewMonth, year: reviewYear,
       revenue: monthlyReview.revenue || 0, target_hit: monthlyReview.target_hit,
@@ -665,9 +672,8 @@ export default function ClientPage() {
       mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
       ...overrides,
     }
-    const { data } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
-    if (data) { setMonthlyReview(data); flash() }
-    setMonthlySaving(false)
+    await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' })
+    flash()
   }
 
   const completeMonthly = async () => {
@@ -691,13 +697,11 @@ export default function ClientPage() {
   // Identity Chamber
   const saveIdentity = async () => {
     if (!clientData) return
-    setIdentitySaving(true)
     await supabase.from('identity_change').upsert({
       client_id: clientData.id,
       affirmations: identityAffirmations,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'client_id' })
-    setIdentitySaving(false)
     flash()
   }
 
@@ -724,11 +728,9 @@ export default function ClientPage() {
 
   const saveReview = async (overrides = {}) => {
     if (!clientData) return
-    setReviewSaving(true)
     const payload = { ...buildReviewPayload(), ...overrides }
-    const { data } = await supabase.from('weekly_review').upsert(payload, { onConflict: 'client_id,week_of' }).select().single()
-    if (data) { setWeeklyReview(data); flash() }
-    setReviewSaving(false)
+    await supabase.from('weekly_review').upsert(payload, { onConflict: 'client_id,week_of' })
+    flash()
   }
 
   const completeReview = async () => {
@@ -860,8 +862,7 @@ export default function ClientPage() {
 
   // Weekly priorities
   const savePriorities = async () => {
-    setPrioritiesSaving(true)
-    const { data } = await supabase.from('war_map_weekly').upsert({
+    await supabase.from('war_map_weekly').upsert({
       client_id: clientData.id,
       week_of: warMapWeek,
       number_one_priority: weeklyPriorities.number_one_priority || '',
@@ -869,9 +870,8 @@ export default function ClientPage() {
       priority_3: weeklyPriorities.priority_3 || '',
       priority_4: weeklyPriorities.priority_4 || '',
       revenue_target: weeklyPriorities.revenue_target || null,
-    }, { onConflict: 'client_id,week_of' }).select().single()
-    if (data) { setWeeklyPriorities(data); flash() }
-    setPrioritiesSaving(false)
+    }, { onConflict: 'client_id,week_of' })
+    flash()
   }
 
   const completeWarMap = async () => {
@@ -1110,7 +1110,10 @@ export default function ClientPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex">
-      <SaveToast show={showToast} />
+      <div ref={toastRef} className="fixed top-4 right-4 z-50 hidden items-center gap-2 px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded-lg shadow-lg toast-in">
+        <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+        <span className="text-xs font-semibold text-zinc-300 uppercase tracking-wider">Saved</span>
+      </div>
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800 z-20">
