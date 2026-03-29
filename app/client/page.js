@@ -188,7 +188,7 @@ export default function ClientPage() {
   const [user, setUser] = useState(null)
   const [clientData, setClientData] = useState(null)
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState('design')
+  const [activeTab, setActiveTab] = useState('progress')
   const [showToast, setShowToast] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
@@ -233,6 +233,11 @@ export default function ClientPage() {
   const [weeklyReview, setWeeklyReview] = useState({})
   const [reviewWeek, setReviewWeek] = useState(() => getMonday())
   const [reviewSaving, setReviewSaving] = useState(false)
+
+  // Dashboard — programme progress
+  const [weekMorningOps, setWeekMorningOps] = useState([])
+  const [weekDebriefs, setWeekDebriefs] = useState([])
+  const [weekKpis, setWeekKpis] = useState([])
 
   // Morning Ops
   const [dailyPulse, setDailyPulse] = useState({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', identity_read: false, completed: false, completed_at: null })
@@ -316,7 +321,7 @@ export default function ClientPage() {
     const today = new Date().toISOString().split('T')[0]
     const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes] = await Promise.all([
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -329,6 +334,9 @@ export default function ClientPage() {
       supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle(),
       supabase.from('evening_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),
       supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
+      supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
+      supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
+      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
     ])
 
     if (dkpiRes.data) {
@@ -371,6 +379,9 @@ export default function ClientPage() {
     else setEveningPulse({})
     if (reviewRes.data) setWeeklyReview(reviewRes.data)
     else setWeeklyReview({})
+    if (weekPulsesRes.data) setWeekMorningOps(weekPulsesRes.data)
+    if (weekDebriefsRes.data) setWeekDebriefs(weekDebriefsRes.data)
+    if (weekKpisRes.data) setWeekKpis(weekKpisRes.data)
     setLoading(false)
   }
 
@@ -853,16 +864,45 @@ export default function ClientPage() {
   })
   const kpiDaysWithData = kpiDays.filter(d => monthlyKpis[d]).length || 1
 
+  // ── Dashboard Scores ─────────────────────────────────────────────────────────
+  const dashWeekDays = getWeekDays(getMonday())
+  const todayDayIndex = dashWeekDays.indexOf(todayStr)
+  const daysElapsed = todayDayIndex >= 0 ? todayDayIndex + 1 : 7
+
+  const morningOpsCompleted = weekMorningOps.filter(p => p.completed).length
+  const debriefsCompleted = weekDebriefs.filter(p => p.completed).length
+  const identityReads = weekMorningOps.filter(p => p.identity_read).length
+  const kpiDaysFilled = weekKpis.length
+  const warMapDone = weeklyPriorities.completed ? 1 : 0
+  const lockInDone = weeklyReview.completed ? 1 : 0
+  const designDone = lifeDesign ? 1 : 0
+  const identityChamberFilled = identityAffirmations.trim().length > 0 ? 1 : 0
+
+  const scores = {
+    morningOps:  { value: morningOpsCompleted, max: daysElapsed, pct: Math.round((morningOpsCompleted / daysElapsed) * 100), label: 'Morning Ops™', icon: '☀️', color: 'text-amber-400', bar: 'bg-amber-400' },
+    debrief:     { value: debriefsCompleted, max: daysElapsed, pct: Math.round((debriefsCompleted / daysElapsed) * 100), label: 'The Debrief™', icon: '🌙', color: 'text-indigo-400', bar: 'bg-indigo-400' },
+    identity:    { value: identityReads, max: daysElapsed, pct: Math.round((identityReads / daysElapsed) * 100), label: 'Identity Read', icon: '🪞', color: 'text-violet-400', bar: 'bg-violet-400' },
+    warMap:      { value: warMapDone, max: 1, pct: warMapDone * 100, label: 'War Map™', icon: '⚔️', color: 'text-sky-400', bar: 'bg-sky-400' },
+    lockIn:      { value: lockInDone, max: 1, pct: lockInDone * 100, label: 'The Lock In™', icon: '🔒', color: 'text-gold', bar: 'bg-gold' },
+    tracker:     { value: kpiDaysFilled, max: daysElapsed, pct: Math.round((kpiDaysFilled / daysElapsed) * 100), label: 'Business Tracker', icon: '📊', color: 'text-emerald-400', bar: 'bg-emerald-400' },
+  }
+
+  const overallPct = Math.round(
+    (scores.morningOps.pct * 0.25 + scores.debrief.pct * 0.20 + scores.identity.pct * 0.10 +
+     scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15 + scores.tracker.pct * 0.15)
+  )
+
   const tabs = [
+    { id: 'progress',    label: 'Command Centre',      icon: '🏠' },
     { id: 'identity',    label: 'Identity Chamber™',  icon: '🪞' },
-    { id: 'design',      label: 'Design™',          icon: '🎯' },
-    { id: 'war-map',     label: 'Weekly War Map™',   icon: '⚔️' },
-    { id: 'morning-ops', label: 'Morning Ops™',      icon: '☀️' },
-    { id: 'dashboard',   label: 'Dashboard',         icon: '📊' },
-    { id: 'hot-list',    label: 'Hot List',           icon: '🔥' },
-    { id: 'debrief',     label: 'The Debrief™',      icon: '🌙' },
-    { id: 'lock-in',     label: 'The Lock In™',      icon: '🔒' },
-    { id: 'projects',    label: 'Projects',           icon: '📋' },
+    { id: 'design',      label: 'Design™',            icon: '🎯' },
+    { id: 'war-map',     label: 'Weekly War Map™',    icon: '⚔️' },
+    { id: 'morning-ops', label: 'Morning Ops™',       icon: '☀️' },
+    { id: 'dashboard',   label: 'Business Tracker',   icon: '📊' },
+    { id: 'hot-list',    label: 'Hot List',            icon: '🔥' },
+    { id: 'debrief',     label: 'The Debrief™',       icon: '🌙' },
+    { id: 'lock-in',     label: 'The Lock In™',       icon: '🔒' },
+    { id: 'projects',    label: 'Projects',            icon: '📋' },
   ]
 
   // ── Render ────────────────────────────────────────────────────────────────────
@@ -949,6 +989,223 @@ export default function ClientPage() {
           </div>
 
         {/* ── IDENTITY CHANGE™ ────────────────────────────────────────── */}
+        {/* ── COMMAND CENTRE — Programme Progress ────────────────────────── */}
+        {activeTab === 'progress' && (
+          <div className="fade-in">
+
+            {/* Hero Score Card */}
+            <div className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-8 mb-6">
+              {/* Background glow */}
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gold/[0.04] rounded-full blur-3xl -mr-32 -mt-32" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gold/[0.03] rounded-full blur-3xl -ml-24 -mb-24" />
+
+              <div className="relative flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
+                {/* Progress Ring */}
+                <div className="relative flex-shrink-0">
+                  <svg className="w-36 h-36 sm:w-44 sm:h-44 -rotate-90" viewBox="0 0 160 160">
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#27272a" strokeWidth="8" />
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#C9A84C" strokeWidth="8"
+                      strokeDasharray={`${(overallPct / 100) * 439.8} 439.8`}
+                      strokeLinecap="round"
+                      className="transition-all duration-1000" />
+                    {/* Inner glow ring */}
+                    <circle cx="80" cy="80" r="70" fill="none" stroke="#C9A84C" strokeWidth="2" opacity="0.15" />
+                  </svg>
+                  <div className="absolute inset-0 flex flex-col items-center justify-center">
+                    <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">{overallPct}</span>
+                    <span className="text-xs font-bold text-gold uppercase tracking-widest">percent</span>
+                  </div>
+                </div>
+
+                {/* Score Info */}
+                <div className="text-center sm:text-left flex-1">
+                  <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-wider mb-1">Programme Score</h2>
+                  <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">
+                    Week of {new Date(getMonday()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
+                  </p>
+                  <div className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${
+                    overallPct >= 90 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
+                    overallPct >= 70 ? 'bg-gold/20 text-gold border border-gold/30' :
+                    overallPct >= 50 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
+                    'bg-red-500/20 text-red-400 border border-red-500/30'
+                  }`}>
+                    {overallPct >= 90 ? 'Elite' : overallPct >= 70 ? 'Strong' : overallPct >= 50 ? 'Building' : 'Needs Work'}
+                  </div>
+                  <p className="text-zinc-600 text-xs mt-3 italic leading-relaxed">
+                    {overallPct >= 90 ? '"You\'re operating at the highest level. This is what elite looks like."' :
+                     overallPct >= 70 ? '"Solid week. You\'re in the game. Now go harder."' :
+                     overallPct >= 50 ? '"You\'ve got the foundation. Time to raise the standard."' :
+                     '"The programme works when you do. Commit fully this week."'}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Score Breakdown — 6 Cards */}
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+              {Object.values(scores).map(s => (
+                <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-xl">{s.icon}</span>
+                    <span className={`text-xl font-black ${s.pct >= 80 ? s.color : s.pct > 0 ? 'text-zinc-400' : 'text-zinc-700'}`}>{s.pct}%</span>
+                  </div>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">{s.label}</p>
+                  <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full ${s.bar} transition-all duration-700`} style={{ width: `${s.pct}%` }} />
+                  </div>
+                  <p className="text-zinc-700 text-[10px] mt-1.5">{s.value} of {s.max}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* This Week — Day by Day Grid */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 sm:p-6 mb-6">
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-5">This Week at a Glance</h3>
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
+                {dashWeekDays.map((dateStr) => {
+                  const { day } = formatDayHeader(dateStr)
+                  const dateNum = new Date(dateStr).getDate()
+                  const isToday = dateStr === todayStr
+                  const isFuture = dateStr > todayStr
+                  const hasMorning = weekMorningOps.some(p => p.date === dateStr && p.completed)
+                  const hasEvening = weekDebriefs.some(p => p.date === dateStr && p.completed)
+                  const hasKpi = weekKpis.some(k => k.date === dateStr)
+                  const hasIdentity = weekMorningOps.some(p => p.date === dateStr && p.identity_read)
+                  const dayScore = [hasMorning, hasEvening, hasKpi, hasIdentity].filter(Boolean).length
+                  return (
+                    <div key={dateStr} className={`text-center rounded-xl py-3 px-1 transition ${
+                      isToday ? 'bg-gold/10 border-2 border-gold/40 shadow-lg shadow-gold/5' :
+                      isFuture ? 'opacity-25 bg-zinc-800/30' :
+                      dayScore === 4 ? 'bg-emerald-500/10 border border-emerald-500/20' :
+                      dayScore > 0 ? 'bg-zinc-800/60 border border-zinc-800' : 'bg-zinc-800/30 border border-zinc-800/50'
+                    }`}>
+                      <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">{day}</p>
+                      <p className={`text-lg font-black my-1 ${isToday ? 'text-gold' : dayScore === 4 ? 'text-emerald-400' : 'text-zinc-400'}`}>{dateNum}</p>
+                      <div className="flex justify-center gap-1 flex-wrap">
+                        <div className={`w-2.5 h-2.5 rounded-full transition ${hasMorning ? 'bg-amber-400 shadow-sm shadow-amber-400/30' : 'bg-zinc-700/50'}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full transition ${hasEvening ? 'bg-indigo-400 shadow-sm shadow-indigo-400/30' : 'bg-zinc-700/50'}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full transition ${hasIdentity ? 'bg-violet-400 shadow-sm shadow-violet-400/30' : 'bg-zinc-700/50'}`} />
+                        <div className={`w-2.5 h-2.5 rounded-full transition ${hasKpi ? 'bg-emerald-400 shadow-sm shadow-emerald-400/30' : 'bg-zinc-700/50'}`} />
+                      </div>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="flex items-center gap-5 mt-5 justify-center flex-wrap">
+                {[
+                  { color: 'bg-amber-400', label: 'Morning Ops' },
+                  { color: 'bg-indigo-400', label: 'Debrief' },
+                  { color: 'bg-violet-400', label: 'Identity' },
+                  { color: 'bg-emerald-400', label: 'Tracker' },
+                ].map(l => (
+                  <div key={l.label} className="flex items-center gap-1.5">
+                    <div className={`w-2.5 h-2.5 rounded-full ${l.color}`} />
+                    <span className="text-[10px] text-zinc-500 font-medium">{l.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Two-column: Foundations + Business */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+              {/* Programme Foundations */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Programme Foundations</h3>
+                <div className="space-y-3">
+                  {/* Identity Chamber */}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${identityChamberFilled ? 'bg-violet-500/20' : 'bg-zinc-800'}`}>🪞</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">Identity Chamber™</p>
+                      <p className="text-zinc-600 text-xs">{identityChamberFilled ? `${identityAffirmations.split('\n').filter(l => l.trim()).length} affirmations` : 'Not set'}</p>
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${identityChamberFilled ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+                  </div>
+                  {/* Design */}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${designDone ? 'bg-gold/20' : 'bg-zinc-800'}`}>🎯</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">Design™</p>
+                      <p className="text-zinc-600 text-xs">{designDone ? `${adventuresForm.filter(a => a.completed).length}/6 adventures` : 'Not started'}</p>
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${designDone ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+                  </div>
+                  {/* War Map */}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${warMapDone ? 'bg-sky-500/20' : 'bg-zinc-800'}`}>⚔️</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">War Map™</p>
+                      <p className="text-zinc-600 text-xs">{warMapDone ? 'Completed' : 'Pending'}</p>
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${warMapDone ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+                  </div>
+                  {/* Lock In */}
+                  <div className="flex items-center gap-3">
+                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${lockInDone ? 'bg-gold/20' : 'bg-zinc-800'}`}>🔒</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-white">The Lock In™</p>
+                      <p className="text-zinc-600 text-xs">{lockInDone ? 'Week reviewed' : 'Pending'}</p>
+                    </div>
+                    <div className={`w-3 h-3 rounded-full ${lockInDone ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+                  </div>
+                </div>
+              </div>
+
+              {/* Business Snapshot */}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Business Snapshot</h3>
+                <div className="space-y-4">
+                  {[
+                    { label: 'Revenue', value: `£${(kpiTotals.revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}`, color: 'text-emerald-400', bar: 'bg-emerald-400' },
+                    { label: 'New Followers', value: kpiTotals.new_followers || 0, color: 'text-sky-400', bar: 'bg-sky-400' },
+                    { label: 'Calls Taken', value: kpiTotals.calls_taken || 0, color: 'text-gold', bar: 'bg-gold' },
+                    { label: 'Deals Closed', value: kpiTotals.closed || 0, color: 'text-violet-400', bar: 'bg-violet-400' },
+                  ].map(m => (
+                    <div key={m.label}>
+                      <div className="flex items-center justify-between mb-1">
+                        <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">{m.label}</p>
+                        <p className={`text-sm font-bold ${m.color}`}>{m.value}</p>
+                      </div>
+                      <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full ${m.bar} transition-all duration-700`} style={{ width: `${Math.min(100, typeof m.value === 'number' ? m.value * 5 : 50)}%` }} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Pipeline Summary */}
+            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-5">Pipeline</h3>
+              <div className="flex items-end justify-between gap-1">
+                {[
+                  { id: 'new_lead', label: 'New', color: 'bg-sky-400' },
+                  { id: 'dm_sent', label: 'DM\'d', color: 'bg-violet-400' },
+                  { id: 'follow_up', label: 'Follow Up', color: 'bg-amber-400' },
+                  { id: 'call_booked', label: 'Call', color: 'bg-gold' },
+                  { id: 'client_won', label: 'Won', color: 'bg-emerald-400' },
+                  { id: 'ghosted', label: 'Ghost', color: 'bg-red-400' },
+                ].map(s => {
+                  const count = leads.filter(l => l.status === s.id).length
+                  const counts = {}; leads.forEach(l => { counts[l.status] = (counts[l.status] || 0) + 1 })
+                  const maxCount = Math.max(1, ...Object.values(counts))
+                  return (
+                    <div key={s.id} className="flex-1 text-center">
+                      <p className="text-lg font-black text-white mb-1">{count}</p>
+                      <div className="mx-auto w-full max-w-[40px]">
+                        <div className={`${s.color} rounded-t-sm mx-auto transition-all duration-500`} style={{ height: `${Math.max(4, (count / Math.max(1, maxCount)) * 60)}px`, width: '100%' }} />
+                      </div>
+                      <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-semibold mt-2">{s.label}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+          </div>
+        )}
+
         {activeTab === 'identity' && (
           <div className="fade-in max-w-2xl">
             <div className="mb-8">
