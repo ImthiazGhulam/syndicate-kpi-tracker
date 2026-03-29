@@ -24,8 +24,8 @@ for (let h = 6; h <= 21; h++) {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const KPI_COLS = [
-  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true, rolling: true },
-  { key: 'new_followers', label: 'New Followers', group: 'audience', input: true, rolling: true },
+  { key: 'total_followers', label: 'Total Followers', group: 'audience', computed: true },
+  { key: 'new_followers', label: 'New Followers', group: 'audience', input: true },
   { key: 'qual_followers', label: 'Qual. Followers', group: 'audience', input: true },
   { key: 'ad_spend', label: 'Ad Spend (£)', group: 'audience', input: true, step: '0.01' },
   { key: 'cost_per_qual', label: 'Cost/Qual', group: 'audience', calc: r => r.qual_followers ? '£' + (r.ad_spend / r.qual_followers).toFixed(2) : '—' },
@@ -503,31 +503,47 @@ export default function ClientPage() {
   }
 
   // Daily KPI tracker
+  // Recalculate total_followers for all days based on Day 1 starting total + cumulative new followers
+  const recalcTotalFollowers = (data) => {
+    const updated = { ...data }
+    // Find the first day with a total_followers entry (the starting count)
+    let startingTotal = 0
+    let startIdx = -1
+    for (let i = 0; i < kpiDays.length; i++) {
+      const d = kpiDays[i]
+      if (updated[d]?.total_followers > 0) {
+        startingTotal = Number(updated[d].total_followers)
+        startIdx = i
+        break
+      }
+    }
+    if (startIdx < 0) return updated
+
+    // Day 1's total stays as entered. From Day 2 onwards, total = previous total + today's new
+    let runningTotal = startingTotal
+    for (let i = startIdx + 1; i < kpiDays.length; i++) {
+      const d = kpiDays[i]
+      const newFollowers = Number(updated[d]?.new_followers) || 0
+      if (newFollowers > 0 || updated[d]?.new_followers === 0) {
+        runningTotal = runningTotal + newFollowers
+        updated[d] = { ...(updated[d] || {}), total_followers: runningTotal }
+      } else if (updated[d] && Object.keys(updated[d]).length > 0) {
+        // Day has some data but no new_followers entered — carry forward
+        runningTotal = runningTotal
+        updated[d] = { ...(updated[d] || {}), total_followers: runningTotal }
+      } else {
+        break
+      }
+    }
+    return updated
+  }
+
   const updateKpi = (dateStr, key, value) => {
     setMonthlyKpis(prev => {
       const updated = { ...prev, [dateStr]: { ...(prev[dateStr] || {}), [key]: value === '' ? 0 : Number(value) } }
-
-      // Cascade total_followers forward through the month
+      // Recalculate totals whenever new_followers or the starting total changes
       if (key === 'new_followers' || key === 'total_followers') {
-        const startIdx = kpiDays.indexOf(dateStr)
-        if (startIdx >= 0) {
-          // Walk forward from the current day, auto-filling total_followers for each subsequent day
-          for (let i = startIdx; i < kpiDays.length - 1; i++) {
-            const thisDay = kpiDays[i]
-            const nextDay = kpiDays[i + 1]
-            const thisTotal = Number(updated[thisDay]?.total_followers) || 0
-            const nextNew = Number(updated[nextDay]?.new_followers) || 0
-            if (thisTotal > 0 && nextNew > 0) {
-              // Auto-fill next day: previous total + next day's new followers
-              updated[nextDay] = { ...(updated[nextDay] || {}), total_followers: thisTotal + nextNew }
-            } else if (thisTotal > 0 && !updated[nextDay]?.total_followers) {
-              // If next day has no data at all, stop cascading
-              break
-            } else {
-              break
-            }
-          }
-        }
+        return recalcTotalFollowers(updated)
       }
       return updated
     })
@@ -536,10 +552,25 @@ export default function ClientPage() {
   const saveKpiDay = async (dateStr) => {
     const row = monthlyKpis[dateStr] || {}
     const payload = { client_id: clientData.id, date: dateStr }
-    KPI_COLS.filter(c => c.input).forEach(c => {
+    KPI_COLS.filter(c => c.input || c.computed).forEach(c => {
       payload[c.key] = Number(row[c.key]) || 0
     })
     await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
+    // Also save any days that were auto-calculated (cascaded total_followers)
+    const dayIdx = kpiDays.indexOf(dateStr)
+    if (dayIdx >= 0) {
+      for (let i = dayIdx + 1; i < kpiDays.length; i++) {
+        const d = kpiDays[i]
+        const r = monthlyKpis[d]
+        if (r?.total_followers > 0) {
+          const p = { client_id: clientData.id, date: d }
+          KPI_COLS.filter(c => c.input || c.computed).forEach(c => { p[c.key] = Number(r[c.key]) || 0 })
+          await supabase.from('daily_kpis').upsert(p, { onConflict: 'client_id,date' })
+        } else {
+          break
+        }
+      }
+    }
     flash()
   }
 
@@ -2599,11 +2630,19 @@ export default function ClientPage() {
                           {day}
                         </td>
                         {KPI_COLS.map(col => {
-                          // Auto-suggest total_followers from previous day
+                          // total_followers: editable on Day 1, auto-calculated after
+                          const isComputedFollowers = col.computed && col.key === 'total_followers'
+                          const isFirstDayForTotal = isComputedFollowers && i === 0
+                          const isAutoCalcDay = isComputedFollowers && i > 0
+
                           return (
-                          <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''} ${col.rolling && row[col.key] ? 'bg-sky-900/5' : ''}`}>
+                          <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''} ${isAutoCalcDay ? 'bg-sky-900/5' : ''}`}>
                             {col.calc ? (
                               <span className="px-1.5 py-1 block">{col.calc(row)}</span>
+                            ) : isAutoCalcDay ? (
+                              <span className={`px-1.5 py-1 block text-xs ${row.total_followers ? 'text-sky-400 font-medium' : 'text-zinc-700'}`}>
+                                {row.total_followers || '—'}
+                              </span>
                             ) : (
                               <input
                                 type="number"
@@ -2612,7 +2651,7 @@ export default function ClientPage() {
                                 value={row[col.key] || ''}
                                 onChange={e => updateKpi(dateStr, col.key, e.target.value)}
                                 onBlur={() => saveKpiDay(dateStr)}
-                                placeholder="0"
+                                placeholder={isFirstDayForTotal ? 'Start' : '0'}
                                 className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
                               />
                             )}
@@ -2626,22 +2665,21 @@ export default function ClientPage() {
                   <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
                     <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
                     {KPI_COLS.map(col => {
-                      if (col.rolling) {
-                        // For rolling numbers, show % change (first to last)
-                        const daysWithData = kpiDays.filter(d => monthlyKpis[d]?.[col.key] > 0)
-                        const firstVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[0]]?.[col.key]) || 0 : 0
-                        const lastVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[daysWithData.length - 1]]?.[col.key]) || 0 : 0
-                        const change = lastVal - firstVal
-                        const pctChange = firstVal > 0 ? Math.round((change / firstVal) * 100) : 0
+                      // Total Followers: show latest count + % growth from start
+                      if (col.computed && col.key === 'total_followers') {
+                        const daysWithData = kpiDays.filter(d => monthlyKpis[d]?.total_followers > 0)
+                        const firstVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[0]]?.total_followers) || 0 : 0
+                        const lastVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[daysWithData.length - 1]]?.total_followers) || 0 : 0
+                        const growth = firstVal > 0 ? Math.round(((lastVal - firstVal) / firstVal) * 100) : 0
                         return (
                           <td key={col.key} className="px-1.5 py-2 text-center">
                             <div>
-                              <span className={`text-xs font-bold ${change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
-                                {change > 0 ? '+' : ''}{pctChange}%
-                              </span>
-                              <p className={`text-[9px] ${change > 0 ? 'text-emerald-400/60' : change < 0 ? 'text-red-400/60' : 'text-zinc-600'}`}>
-                                {change > 0 ? '+' : ''}{change}
-                              </p>
+                              <span className="text-xs font-bold text-sky-400">{lastVal.toLocaleString()}</span>
+                              {firstVal > 0 && (
+                                <p className={`text-[9px] font-bold ${growth > 0 ? 'text-emerald-400' : growth < 0 ? 'text-red-400' : 'text-zinc-600'}`}>
+                                  {growth > 0 ? '↑' : growth < 0 ? '↓' : ''}{Math.abs(growth)}%
+                                </p>
+                              )}
                             </div>
                           </td>
                         )
