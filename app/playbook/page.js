@@ -279,6 +279,15 @@ export default function PlaybookPage() {
   const [icpData, setIcpData] = useState(defaultIcp())
   const [dipData, setDipData] = useState(defaultDip())
   const [bangBangData, setBangBangData] = useState(defaultBangBang())
+  const [frameworkData, setFrameworkData] = useState({
+    pillars: [
+      { name: '', description: '', modules: [{ name: '', description: '' }, { name: '', description: '' }, { name: '', description: '' }] },
+      { name: '', description: '', modules: [{ name: '', description: '' }, { name: '', description: '' }, { name: '', description: '' }] },
+      { name: '', description: '', modules: [{ name: '', description: '' }, { name: '', description: '' }, { name: '', description: '' }] },
+    ],
+    framework_name: '',
+    tagline: '',
+  })
   const [saving, setSaving] = useState(false)
   const [showToast, setShowToast] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
@@ -319,6 +328,7 @@ export default function PlaybookPage() {
       setIcpData({ ...defaultIcp(), ...(data.icp || {}) })
       setDipData({ ...defaultDip(), ...(data.dip || {}) })
       setBangBangData({ ...defaultBangBang(), ...(data.bang_bang || {}) })
+      if (data.framework) setFrameworkData(prev => ({ ...prev, ...data.framework }))
     } else {
       // Create new playbook
       const { data: newPb } = await supabase
@@ -360,11 +370,11 @@ export default function PlaybookPage() {
     saveTimerRef.current = setTimeout(() => {
       const s = computeScores()
       saveToSupabase({
-        icp: icpData, dip: dipData, bang_bang: bangBangData, current_stage: currentStage,
-        scores: { icp_score: s.icp.total, dip_score: s.dip.total, bb_score: s.bangBang.total, total_score: s.overall.total, band: s.overall.band, flags: s.flags }
+        icp: icpData, dip: dipData, bang_bang: bangBangData, framework: frameworkData, current_stage: currentStage,
+        scores: { icp_score: s.icp.total, dip_score: s.dip.total, bb_score: s.bangBang.total, fw_score: s.framework.total, total_score: s.overall.total, band: s.overall.band, flags: s.flags }
       })
     }, 500)
-  }, [playbook, saveToSupabase, icpData, dipData, bangBangData, currentStage])
+  }, [playbook, saveToSupabase, icpData, dipData, bangBangData, frameworkData, currentStage])
 
   // Save when switching stages
   useEffect(() => {
@@ -476,6 +486,39 @@ export default function PlaybookPage() {
   }
 
   // ── Scoring Engine ────────────────────────────────────────────────────────
+
+  // ── Framework Updaters ─────────────────────────────────────────────────────
+  const updateFramework = (key, val) => setFrameworkData(prev => ({ ...prev, [key]: val }))
+  const updatePillar = (pillarIdx, key, val) => {
+    setFrameworkData(prev => {
+      const pillars = [...prev.pillars]
+      pillars[pillarIdx] = { ...pillars[pillarIdx], [key]: val }
+      return { ...prev, pillars }
+    })
+  }
+  const updateModule = (pillarIdx, modIdx, key, val) => {
+    setFrameworkData(prev => {
+      const pillars = [...prev.pillars]
+      const modules = [...pillars[pillarIdx].modules]
+      modules[modIdx] = { ...modules[modIdx], [key]: val }
+      pillars[pillarIdx] = { ...pillars[pillarIdx], modules }
+      return { ...prev, pillars }
+    })
+  }
+  const addModule = (pillarIdx) => {
+    setFrameworkData(prev => {
+      const pillars = [...prev.pillars]
+      pillars[pillarIdx] = { ...pillars[pillarIdx], modules: [...pillars[pillarIdx].modules, { name: '', description: '' }] }
+      return { ...prev, pillars }
+    })
+  }
+  const removeModule = (pillarIdx, modIdx) => {
+    setFrameworkData(prev => {
+      const pillars = [...prev.pillars]
+      pillars[pillarIdx] = { ...pillars[pillarIdx], modules: pillars[pillarIdx].modules.filter((_, i) => i !== modIdx) }
+      return { ...prev, pillars }
+    })
+  }
 
   const computeScores = () => {
     let icpDemo = 0
@@ -597,18 +640,35 @@ export default function PlaybookPage() {
     }
 
     const icpTotal = Math.round((icpDemo + icpPsycho) * 10) / 10
-    const total = Math.round((icpTotal + dipScore + bbScore) * 10) / 10
+    // Framework Score (10 points)
+    let fwScore = 0
+    if (frameworkData.framework_name) fwScore += 1
+    if (frameworkData.tagline && frameworkData.tagline.split(/\s+/).length >= 4) fwScore += 1
+    frameworkData.pillars.forEach(p => {
+      if (p.name) fwScore += 1
+      const filledMods = p.modules.filter(m => m.name).length
+      if (filledMods >= 2) fwScore += 1
+      else if (filledMods >= 1) fwScore += 0.5
+    })
+    fwScore = Math.min(Math.round(fwScore * 10) / 10, 10)
+
+    if (!frameworkData.framework_name) flags.push({ severity: 'low', message: 'Give your signature framework a name — it becomes your intellectual property' })
+    const emptyPillars = frameworkData.pillars.filter(p => !p.name).length
+    if (emptyPillars > 0) flags.push({ severity: 'low', message: `${emptyPillars} of 3 pillars are unnamed — each pillar should represent a key area your offer addresses` })
+
+    const total = Math.round((icpTotal + dipScore + bbScore + fwScore) * 10) / 10
 
     let band = 'Needs Work'
-    if (total >= 35) band = 'Offer-Ready'
-    else if (total >= 29) band = 'Strong Foundation'
-    else if (total >= 21) band = 'Getting There'
+    if (total >= 42) band = 'Offer-Ready'
+    else if (total >= 34) band = 'Strong Foundation'
+    else if (total >= 24) band = 'Getting There'
 
     return {
       icp: { demo: Math.round(icpDemo * 10) / 10, psycho: Math.round(icpPsycho * 10) / 10, total: icpTotal, max: 15 },
       dip: { total: Math.round(dipScore * 10) / 10, max: 10 },
       bangBang: { total: Math.round(bbScore * 10) / 10, max: 15 },
-      overall: { total, max: 40, band },
+      framework: { total: fwScore, max: 10 },
+      overall: { total, max: 50, band },
       flags,
     }
   }
@@ -723,7 +783,8 @@ export default function PlaybookPage() {
     { num: 1, label: 'ICP Builder', icon: '1' },
     { num: 2, label: 'The Dip', icon: '2' },
     { num: 3, label: 'Bang Bang Offer', icon: '3' },
-    { num: 4, label: 'Blueprint', icon: '4' },
+    { num: 4, label: 'Signature Framework™', icon: '4' },
+    { num: 5, label: 'Blueprint', icon: '5' },
   ]
 
   // ── Stage completion checks ───────────────────────────────────────────────
@@ -1406,7 +1467,7 @@ export default function PlaybookPage() {
           &larr; The Dip
         </button>
         <button onClick={() => goToStage(4)} className="px-6 py-2.5 bg-gold text-zinc-950 rounded-lg text-xs font-bold uppercase tracking-wider hover:bg-gold-light transition">
-          View Blueprint &rarr;
+          Signature Framework™ &rarr;
         </button>
       </div>
     </div>
@@ -1414,7 +1475,98 @@ export default function PlaybookPage() {
 
   // ── Stage 4: Blueprint Summary ────────────────────────────────────────────
 
-  const renderStage4 = () => {
+  // ── Stage 4: Signature Framework™ ────────────────────────────────────────
+
+  const renderStage4 = () => (
+    <div>
+      <div className="mb-6">
+        <h1 className="text-xl font-bold text-white mb-1">Signature Framework™</h1>
+        <p className="text-zinc-500 text-sm">Define the three core pillars of your offer. Each pillar addresses a key area your clients need to transform — and within each, you deliver through specific modules or methods.</p>
+      </div>
+
+      {/* Framework Name */}
+      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+        <SectionHeading title="Your Framework" description="Give your signature methodology a name. This becomes your intellectual property — the thing only you deliver." />
+        <FieldGroup label="Framework Name">
+          <TextInput value={frameworkData.framework_name} onChange={v => updateFramework('framework_name', v)} placeholder="e.g. The Syndicate Method™, The Growth Engine™, The 90-Day Accelerator™" />
+        </FieldGroup>
+        <FieldGroup label="Framework Tagline">
+          <TextInput value={frameworkData.tagline} onChange={v => updateFramework('tagline', v)} placeholder="A single sentence that captures what your framework delivers" />
+        </FieldGroup>
+      </div>
+
+      {/* Three Pillars */}
+      <SectionHeading title="The Three Pillars" description="Your offer resolves three key areas for your client. Think of these as the transformation categories — not the deliverables. What are the three big shifts your clients go through?" />
+
+      <div className="space-y-6">
+        {frameworkData.pillars.map((pillar, pi) => (
+          <div key={pi} className="bg-zinc-900 border border-zinc-800 rounded-xl overflow-hidden">
+            <div className={`px-5 py-4 border-b border-zinc-800 ${pi === 0 ? 'bg-sky-500/5' : pi === 1 ? 'bg-violet-500/5' : 'bg-gold/5'}`}>
+              <div className="flex items-center gap-3">
+                <span className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black ${pi === 0 ? 'bg-sky-500/20 text-sky-400' : pi === 1 ? 'bg-violet-500/20 text-violet-400' : 'bg-gold/20 text-gold'}`}>{pi + 1}</span>
+                <div className="flex-1">
+                  <input
+                    value={pillar.name}
+                    onChange={e => updatePillar(pi, 'name', e.target.value)}
+                    placeholder={pi === 0 ? 'e.g. Build the Business' : pi === 1 ? 'e.g. Rewire the Mindset' : 'e.g. Design the Lifestyle'}
+                    className="w-full bg-transparent text-white font-bold text-sm placeholder-zinc-600 focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="p-5">
+              <FieldGroup label="What does this pillar address?">
+                <TextArea value={pillar.description} onChange={v => updatePillar(pi, 'description', v)} placeholder="Describe the key transformation area this pillar covers. What problem does it solve? What shift does it create?" rows={2} />
+              </FieldGroup>
+
+              <div className="mt-4">
+                <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-3">Modules / Methods within this pillar</label>
+                <div className="space-y-3">
+                  {pillar.modules.map((mod, mi) => (
+                    <div key={mi} className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg p-3">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className={`text-[10px] font-bold uppercase tracking-widest ${pi === 0 ? 'text-sky-400' : pi === 1 ? 'text-violet-400' : 'text-gold'}`}>Module {mi + 1}</span>
+                        {pillar.modules.length > 1 && (
+                          <button onClick={() => removeModule(pi, mi)} className="text-zinc-700 hover:text-red-400 transition text-xs">Remove</button>
+                        )}
+                      </div>
+                      <input
+                        value={mod.name}
+                        onChange={e => updateModule(pi, mi, 'name', e.target.value)}
+                        placeholder={pi === 0 && mi === 0 ? 'e.g. Premium Positioning' : pi === 0 && mi === 1 ? 'e.g. Offer Architecture' : 'Module name'}
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm mb-2"
+                      />
+                      <input
+                        value={mod.description}
+                        onChange={e => updateModule(pi, mi, 'description', e.target.value)}
+                        placeholder="What does this module deliver or teach?"
+                        className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
+                      />
+                    </div>
+                  ))}
+                  <button onClick={() => addModule(pi)} className="text-xs text-gold hover:text-gold-light transition font-semibold">+ Add module</button>
+                </div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Navigation */}
+      <div className="flex justify-between mt-8">
+        <button onClick={() => goToStage(3)} className="px-6 py-2.5 bg-zinc-800 text-zinc-300 font-semibold text-sm rounded-lg hover:bg-zinc-700 transition">
+          &larr; Bang Bang Offer
+        </button>
+        <button onClick={() => goToStage(5)} className="px-6 py-2.5 bg-gold text-black font-semibold text-sm rounded-lg hover:bg-gold-light transition">
+          View Blueprint &rarr;
+        </button>
+      </div>
+    </div>
+  )
+
+  // ── Stage 5: Blueprint Summary ────────────────────────────────────────────
+
+  const renderStage5 = () => {
     const SummaryField = ({ label, value }) => {
       if (!value || (Array.isArray(value) && value.length === 0)) return null
       const display = Array.isArray(value) ? value.filter(x => x).join(', ') : value
@@ -1450,9 +1602,37 @@ export default function PlaybookPage() {
               <ProgressBar score={scores.icp.total} max={scores.icp.max} label="ICP" color="bg-sky-400" />
               <ProgressBar score={scores.dip.total} max={scores.dip.max} label="The Dip" color="bg-violet-400" />
               <ProgressBar score={scores.bangBang.total} max={scores.bangBang.max} label="Bang Bang Offer" color="bg-gold" />
+              <ProgressBar score={scores.framework.total} max={scores.framework.max} label="Signature Framework™" color="bg-emerald-400" />
             </div>
           </div>
         </div>
+
+        {/* Stage 4 — Signature Framework Summary */}
+        {frameworkData.framework_name && (
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+            <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4">Stage 4 — Signature Framework™</h3>
+            <div className="mb-4">
+              <p className="text-white text-lg font-bold">{frameworkData.framework_name}</p>
+              {frameworkData.tagline && <p className="text-zinc-400 text-sm mt-1 italic">{frameworkData.tagline}</p>}
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {frameworkData.pillars.map((pillar, pi) => pillar.name && (
+                <div key={pi} className={`border rounded-lg p-4 ${pi === 0 ? 'border-sky-500/30 bg-sky-500/5' : pi === 1 ? 'border-violet-500/30 bg-violet-500/5' : 'border-gold/30 bg-gold/5'}`}>
+                  <p className={`text-sm font-bold mb-2 ${pi === 0 ? 'text-sky-400' : pi === 1 ? 'text-violet-400' : 'text-gold'}`}>{pillar.name}</p>
+                  {pillar.description && <p className="text-zinc-400 text-xs mb-3">{pillar.description}</p>}
+                  <div className="space-y-1">
+                    {pillar.modules.filter(m => m.name).map((mod, mi) => (
+                      <div key={mi} className="flex items-center gap-2">
+                        <span className="w-1 h-1 rounded-full bg-zinc-600 flex-shrink-0" />
+                        <p className="text-zinc-300 text-xs">{mod.name}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Flags */}
         {scores.flags.length > 0 && (
@@ -1730,6 +1910,7 @@ export default function PlaybookPage() {
           {currentStage === 2 && renderStage2()}
           {currentStage === 3 && renderStage3()}
           {currentStage === 4 && renderStage4()}
+          {currentStage === 5 && renderStage5()}
         </div>
       </div>
     </div>
