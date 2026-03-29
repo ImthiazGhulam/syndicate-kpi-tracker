@@ -511,7 +511,7 @@ export default function ClientPage() {
     let startIdx = -1
     for (let i = 0; i < kpiDays.length; i++) {
       const d = kpiDays[i]
-      if (updated[d]?.total_followers > 0) {
+      if (Number(updated[d]?.total_followers) > 0) {
         startingTotal = Number(updated[d].total_followers)
         startIdx = i
         break
@@ -519,21 +519,14 @@ export default function ClientPage() {
     }
     if (startIdx < 0) return updated
 
-    // Day 1's total stays as entered. From Day 2 onwards, total = previous total + today's new
+    // From the day AFTER the starting day, accumulate new followers onto the running total
     let runningTotal = startingTotal
     for (let i = startIdx + 1; i < kpiDays.length; i++) {
       const d = kpiDays[i]
       const newFollowers = Number(updated[d]?.new_followers) || 0
-      if (newFollowers > 0 || updated[d]?.new_followers === 0) {
-        runningTotal = runningTotal + newFollowers
-        updated[d] = { ...(updated[d] || {}), total_followers: runningTotal }
-      } else if (updated[d] && Object.keys(updated[d]).length > 0) {
-        // Day has some data but no new_followers entered — carry forward
-        runningTotal = runningTotal
-        updated[d] = { ...(updated[d] || {}), total_followers: runningTotal }
-      } else {
-        break
-      }
+      // Always carry the total forward, adding any new followers for this day
+      runningTotal = runningTotal + newFollowers
+      updated[d] = { ...(updated[d] || {}), total_followers: runningTotal }
     }
     return updated
   }
