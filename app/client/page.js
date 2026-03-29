@@ -24,7 +24,7 @@ for (let h = 6; h <= 21; h++) {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const KPI_COLS = [
-  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true },
+  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true, rolling: true },
   { key: 'new_followers', label: 'New Followers', group: 'audience', input: true },
   { key: 'qual_followers', label: 'Qual. Followers', group: 'audience', input: true },
   { key: 'ad_spend', label: 'Ad Spend (£)', group: 'audience', input: true, step: '0.01' },
@@ -502,10 +502,35 @@ export default function ClientPage() {
 
   // Daily KPI tracker
   const updateKpi = (dateStr, key, value) => {
-    setMonthlyKpis(prev => ({
-      ...prev,
-      [dateStr]: { ...(prev[dateStr] || {}), [key]: value === '' ? 0 : Number(value) }
-    }))
+    setMonthlyKpis(prev => {
+      const updated = { ...prev, [dateStr]: { ...(prev[dateStr] || {}), [key]: value === '' ? 0 : Number(value) } }
+
+      // Auto-fill: when new_followers or total_followers changes, cascade forward
+      if (key === 'new_followers' || key === 'total_followers') {
+        const dayIdx = kpiDays.indexOf(dateStr)
+        if (dayIdx >= 0) {
+          const todayTotal = Number(updated[dateStr]?.total_followers) || 0
+          const todayNew = Number(updated[dateStr]?.new_followers) || 0
+          // If setting new_followers and no total set yet, auto-calc total
+          if (key === 'new_followers' && dayIdx > 0) {
+            const prevDay = kpiDays[dayIdx - 1]
+            const prevTotal = Number(updated[prevDay]?.total_followers) || 0
+            if (prevTotal > 0 && !updated[dateStr]?.total_followers) {
+              updated[dateStr] = { ...updated[dateStr], total_followers: prevTotal + Number(value) }
+            }
+          }
+          // Auto-fill next day's total_followers if it's empty
+          if (dayIdx < kpiDays.length - 1) {
+            const nextDay = kpiDays[dayIdx + 1]
+            const currentTotal = Number(updated[dateStr]?.total_followers) || 0
+            if (currentTotal > 0 && !updated[nextDay]?.total_followers) {
+              // Don't overwrite if already set
+            }
+          }
+        }
+      }
+      return updated
+    })
   }
 
   const saveKpiDay = async (dateStr) => {
@@ -2555,7 +2580,16 @@ export default function ClientPage() {
                         <td className={`sticky left-0 z-10 px-2 py-1 text-center font-bold border-r border-zinc-800 ${isToday ? 'bg-gold/20 text-gold' : 'bg-zinc-950 text-zinc-500'}`}>
                           {day}
                         </td>
-                        {KPI_COLS.map(col => (
+                        {KPI_COLS.map(col => {
+                          // Auto-suggest total_followers from previous day
+                          let suggestedValue = null
+                          if (col.key === 'total_followers' && !row[col.key] && i > 0) {
+                            const prevDay = kpiDays[i - 1]
+                            const prevTotal = Number(monthlyKpis[prevDay]?.total_followers) || 0
+                            const todayNew = Number(row.new_followers) || 0
+                            if (prevTotal > 0) suggestedValue = prevTotal + todayNew
+                          }
+                          return (
                           <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''}`}>
                             {col.calc ? (
                               <span className="px-1.5 py-1 block">{col.calc(row)}</span>
@@ -2564,31 +2598,54 @@ export default function ClientPage() {
                                 type="number"
                                 min="0"
                                 step={col.step || '1'}
-                                value={row[col.key] || ''}
+                                value={row[col.key] || (suggestedValue ? suggestedValue : '')}
                                 onChange={e => updateKpi(dateStr, col.key, e.target.value)}
-                                onBlur={() => saveKpiDay(dateStr)}
-                                placeholder="0"
+                                onBlur={() => {
+                                  // If total_followers was auto-suggested, save it
+                                  if (col.key === 'total_followers' && !row[col.key] && suggestedValue) {
+                                    updateKpi(dateStr, 'total_followers', suggestedValue)
+                                  }
+                                  saveKpiDay(dateStr)
+                                }}
+                                placeholder={suggestedValue ? String(suggestedValue) : '0'}
                                 className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
                               />
                             )}
                           </td>
-                        ))}
+                          )
+                        })}
                       </tr>
                     )
                   })}
                   {/* Totals row */}
                   <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
                     <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
-                    {KPI_COLS.map(col => (
-                      <td key={col.key} className="px-1.5 py-2 text-center text-white">
-                        {col.calc
-                          ? col.calc(kpiTotals)
-                          : col.step === '0.01'
-                            ? `£${kpiTotals[col.key]?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`
-                            : kpiTotals[col.key] || 0
-                        }
-                      </td>
-                    ))}
+                    {KPI_COLS.map(col => {
+                      if (col.rolling) {
+                        // For rolling numbers, show net change (last value - first value)
+                        const daysWithData = kpiDays.filter(d => monthlyKpis[d]?.[col.key] > 0)
+                        const firstVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[0]]?.[col.key]) || 0 : 0
+                        const lastVal = daysWithData.length > 0 ? Number(monthlyKpis[daysWithData[daysWithData.length - 1]]?.[col.key]) || 0 : 0
+                        const change = lastVal - firstVal
+                        return (
+                          <td key={col.key} className="px-1.5 py-2 text-center">
+                            <span className={change > 0 ? 'text-emerald-400' : change < 0 ? 'text-red-400' : 'text-zinc-500'}>
+                              {change > 0 ? '+' : ''}{change}
+                            </span>
+                          </td>
+                        )
+                      }
+                      return (
+                        <td key={col.key} className="px-1.5 py-2 text-center text-white">
+                          {col.calc
+                            ? col.calc(kpiTotals)
+                            : col.step === '0.01'
+                              ? `£${kpiTotals[col.key]?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`
+                              : kpiTotals[col.key] || 0
+                          }
+                        </td>
+                      )
+                    })}
                   </tr>
                 </tbody>
               </table>
