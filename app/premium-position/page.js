@@ -359,7 +359,11 @@ export default function PremiumPositionPage() {
     if (!record) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      saveToSupabase({ bucket: bucketData, brand_star: starData, hero: heroData, remarkable: remarkableData, current_stage: currentStage })
+      const s = computeScores()
+      saveToSupabase({
+        bucket: bucketData, brand_star: starData, hero: heroData, remarkable: remarkableData, current_stage: currentStage,
+        scores: { bucket_score: s.bucket.total, star_score: s.star.total, hero_score: s.hero.total, remarkable_score: s.remarkable.total, total_score: s.overall.total, band: s.overall.band, flags: s.flags }
+      })
     }, 500)
   }, [record, saveToSupabase, bucketData, starData, heroData, remarkableData, currentStage])
 

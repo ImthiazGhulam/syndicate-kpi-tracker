@@ -358,7 +358,11 @@ export default function PlaybookPage() {
     if (!playbook) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
     saveTimerRef.current = setTimeout(() => {
-      saveToSupabase({ icp: icpData, dip: dipData, bang_bang: bangBangData, current_stage: currentStage })
+      const s = computeScores()
+      saveToSupabase({
+        icp: icpData, dip: dipData, bang_bang: bangBangData, current_stage: currentStage,
+        scores: { icp_score: s.icp.total, dip_score: s.dip.total, bb_score: s.bangBang.total, total_score: s.overall.total, band: s.overall.band, flags: s.flags }
+      })
     }, 500)
   }, [playbook, saveToSupabase, icpData, dipData, bangBangData, currentStage])
 
