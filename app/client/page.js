@@ -24,7 +24,7 @@ for (let h = 6; h <= 21; h++) {
 const MONTH_NAMES = ['January','February','March','April','May','June','July','August','September','October','November','December']
 
 const KPI_COLS = [
-  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true },
+  { key: 'total_followers', label: 'Total Followers', group: 'audience', input: true, autoCalc: true },
   { key: 'new_followers', label: 'New Followers', group: 'audience', input: true },
   { key: 'qual_followers', label: 'Qual. Followers', group: 'audience', input: true },
   { key: 'ad_spend', label: 'Ad Spend (£)', group: 'audience', input: true, step: '0.01' },
@@ -2576,6 +2576,21 @@ export default function ClientPage() {
                           {day}
                         </td>
                         {KPI_COLS.map(col => {
+                          // Auto-calc total_followers for Day 2+:
+                          // Day N total = Day (N-1) total + Day (N-1) new
+                          if (col.autoCalc && col.key === 'total_followers' && i > 0) {
+                            const prevDay = kpiDays[i - 1]
+                            const prevRow = monthlyKpis[prevDay] || {}
+                            const calcTotal = (Number(prevRow.total_followers) || 0) + (Number(prevRow.new_followers) || 0)
+                            return (
+                              <td key={col.key} className="px-0.5 py-0.5 text-center bg-sky-900/5">
+                                <span className={`px-1.5 py-1 block text-xs font-medium ${calcTotal > 0 ? 'text-sky-400' : 'text-zinc-700'}`}>
+                                  {calcTotal > 0 ? calcTotal.toLocaleString() : '—'}
+                                </span>
+                              </td>
+                            )
+                          }
+
                           return (
                           <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''}`}>
                             {col.calc ? (
@@ -2588,7 +2603,7 @@ export default function ClientPage() {
                                 value={row[col.key] || ''}
                                 onChange={e => updateKpi(dateStr, col.key, e.target.value)}
                                 onBlur={() => saveKpiDay(dateStr)}
-                                placeholder="0"
+                                placeholder={col.autoCalc && i === 0 ? 'Start' : '0'}
                                 className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
                               />
                             )}
