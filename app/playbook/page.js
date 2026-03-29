@@ -136,12 +136,13 @@ const ALIGNMENT_QUESTIONS = [
 
 // ── Reusable Sub-components (outside main component to prevent remounting) ──
 
-function TextInput({ value, onChange, placeholder, type = 'text', step }) {
+function TextInput({ value, onChange, placeholder, type = 'text', step, onBlur }) {
   return (
     <input
       type={type}
       value={value || ''}
       onChange={e => onChange(e.target.value)}
+      onBlur={onBlur}
       placeholder={placeholder}
       step={step}
       className="w-full px-4 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
@@ -149,12 +150,13 @@ function TextInput({ value, onChange, placeholder, type = 'text', step }) {
   )
 }
 
-function TextArea({ value, onChange, placeholder, rows = 3 }) {
+function TextArea({ value, onChange, placeholder, rows = 3, onBlur }) {
   return (
     <textarea
       rows={rows}
       value={value || ''}
       onChange={e => onChange(e.target.value)}
+      onBlur={onBlur}
       placeholder={placeholder}
       className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm"
     />
@@ -284,38 +286,22 @@ export default function PlaybookPage() {
 
   const saveToSupabase = useCallback(async (fields) => {
     if (!playbook) return
-    setSaving(true)
     await supabase.from('offer_playbooks').update({
       ...fields,
       updated_at: new Date().toISOString(),
     }).eq('id', playbook.id)
-    setSaving(false)
   }, [playbook])
 
-  const debouncedSave = useCallback((fields) => {
+  // Save on blur — called when user leaves a field
+  const saveAll = useCallback(() => {
+    if (!playbook) return
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
-    saveTimerRef.current = setTimeout(() => saveToSupabase(fields), 2000)
-  }, [saveToSupabase])
+    saveTimerRef.current = setTimeout(() => {
+      saveToSupabase({ icp: icpData, dip: dipData, bang_bang: bangBangData, current_stage: currentStage })
+    }, 500)
+  }, [playbook, saveToSupabase, icpData, dipData, bangBangData, currentStage])
 
-  // Auto-save ICP
-  useEffect(() => {
-    if (!playbook) return
-    debouncedSave({ icp: icpData })
-  }, [icpData])
-
-  // Auto-save Dip
-  useEffect(() => {
-    if (!playbook) return
-    debouncedSave({ dip: dipData })
-  }, [dipData])
-
-  // Auto-save Bang Bang
-  useEffect(() => {
-    if (!playbook) return
-    debouncedSave({ bang_bang: bangBangData })
-  }, [bangBangData])
-
-  // Save current stage
+  // Save when switching stages
   useEffect(() => {
     if (!playbook) return
     saveToSupabase({ current_stage: currentStage })
@@ -662,6 +648,7 @@ export default function PlaybookPage() {
   // ── Stage Navigation ──────────────────────────────────────────────────────
 
   const goToStage = (stage) => {
+    saveAll()
     setCurrentStage(stage)
     setSidebarOpen(false)
     window.scrollTo({ top: 0, behavior: 'smooth' })
@@ -1727,7 +1714,7 @@ export default function PlaybookPage() {
 
       {/* Main content */}
       <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
-        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7 mt-14 md:mt-0">
+        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7 mt-14 md:mt-0" onBlur={saveAll}
           {/* Saving indicator */}
           {saving && (
             <div className="flex items-center gap-2 mb-4">
