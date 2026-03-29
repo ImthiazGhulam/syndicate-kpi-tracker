@@ -234,6 +234,12 @@ export default function ClientPage() {
   const [reviewWeek, setReviewWeek] = useState(() => getMonday())
   const [reviewSaving, setReviewSaving] = useState(false)
 
+  // Monthly Review
+  const [monthlyReview, setMonthlyReview] = useState({})
+  const [reviewMonth, setReviewMonth] = useState(new Date().getMonth())
+  const [reviewYear, setReviewYear] = useState(new Date().getFullYear())
+  const [monthlySaving, setMonthlySaving] = useState(false)
+
   // Dashboard — programme progress
   const [weekMorningOps, setWeekMorningOps] = useState([])
   const [weekDebriefs, setWeekDebriefs] = useState([])
@@ -321,7 +327,7 @@ export default function ClientPage() {
     const today = new Date().toISOString().split('T')[0]
     const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0]
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes] = await Promise.all([
+    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
       supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
@@ -337,6 +343,7 @@ export default function ClientPage() {
       supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
       supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', new Date(new Date(monday).getTime() + 6*86400000).toISOString().split('T')[0]),
+      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', new Date().getFullYear()).maybeSingle(),
     ])
 
     if (dkpiRes.data) {
@@ -382,6 +389,8 @@ export default function ClientPage() {
     if (weekPulsesRes.data) setWeekMorningOps(weekPulsesRes.data)
     if (weekDebriefsRes.data) setWeekDebriefs(weekDebriefsRes.data)
     if (weekKpisRes.data) setWeekKpis(weekKpisRes.data)
+    if (monthlyRes.data) setMonthlyReview(monthlyRes.data)
+    else setMonthlyReview({})
     setLoading(false)
   }
 
@@ -602,6 +611,53 @@ export default function ClientPage() {
     }, { onConflict: 'client_id,date' }).select().single()
     if (data) setEveningPulse(data)
     setEveningSaving(false)
+  }
+
+  // Monthly Review
+  const fetchMonthlyReview = async (m, y) => {
+    if (!clientData) return
+    const { data } = await supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle()
+    setMonthlyReview(data || {})
+  }
+
+  useEffect(() => {
+    if (clientData) fetchMonthlyReview(reviewMonth, reviewYear)
+  }, [reviewMonth, reviewYear, clientData?.id])
+
+  const saveMonthly = async (overrides = {}) => {
+    if (!clientData) return
+    setMonthlySaving(true)
+    const payload = {
+      client_id: clientData.id, month: reviewMonth, year: reviewYear,
+      revenue: monthlyReview.revenue || 0, target_hit: monthlyReview.target_hit,
+      month_rating: monthlyReview.month_rating, biggest_win: monthlyReview.biggest_win || '',
+      biggest_challenge: monthlyReview.biggest_challenge || '', key_learning: monthlyReview.key_learning || '',
+      improve: monthlyReview.improve || '', goal_1: monthlyReview.goal_1 || '',
+      goal_2: monthlyReview.goal_2 || '', goal_3: monthlyReview.goal_3 || '',
+      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '',
+      ...overrides,
+    }
+    const { data } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
+    if (data) { setMonthlyReview(data); flash() }
+    setMonthlySaving(false)
+  }
+
+  const completeMonthly = async () => {
+    if (!clientData) return
+    setMonthlySaving(true)
+    const payload = {
+      client_id: clientData.id, month: reviewMonth, year: reviewYear,
+      revenue: monthlyReview.revenue || 0, target_hit: monthlyReview.target_hit,
+      month_rating: monthlyReview.month_rating, biggest_win: monthlyReview.biggest_win || '',
+      biggest_challenge: monthlyReview.biggest_challenge || '', key_learning: monthlyReview.key_learning || '',
+      improve: monthlyReview.improve || '', goal_1: monthlyReview.goal_1 || '',
+      goal_2: monthlyReview.goal_2 || '', goal_3: monthlyReview.goal_3 || '',
+      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '',
+      completed: true, completed_at: new Date().toISOString(),
+    }
+    const { data } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
+    if (data) setMonthlyReview(data)
+    setMonthlySaving(false)
   }
 
   // Identity Chamber
@@ -892,18 +948,31 @@ export default function ClientPage() {
      scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15 + scores.tracker.pct * 0.15)
   )
 
-  const tabs = [
-    { id: 'progress',    label: 'Command Centre',      icon: '🏠' },
-    { id: 'identity',    label: 'Identity Chamber™',  icon: '🪞' },
-    { id: 'design',      label: 'Design™',            icon: '🎯' },
-    { id: 'war-map',     label: 'Weekly War Map™',    icon: '⚔️' },
-    { id: 'morning-ops', label: 'Morning Ops™',       icon: '☀️' },
-    { id: 'dashboard',   label: 'Business Tracker',   icon: '📊' },
-    { id: 'hot-list',    label: 'Hot List',            icon: '🔥' },
-    { id: 'debrief',     label: 'The Debrief™',       icon: '🌙' },
-    { id: 'lock-in',     label: 'The Lock In™',       icon: '🔒' },
-    { id: 'projects',    label: 'Projects',            icon: '📋' },
+  const navSections = [
+    { items: [
+      { id: 'progress',    label: 'Command Centre',      icon: '🏠' },
+      { id: 'projects',    label: 'Projects',             icon: '📋' },
+    ]},
+    { heading: 'Daily', items: [
+      { id: 'identity',    label: 'Identity Chamber™',   icon: '🪞' },
+      { id: 'morning-ops', label: 'Morning Ops™',        icon: '☀️' },
+      { id: 'dashboard',   label: 'Business Tracker',    icon: '📊' },
+      { id: 'hot-list',    label: 'Hot List',             icon: '🔥' },
+      { id: 'debrief',     label: 'The Debrief™',        icon: '🌙' },
+    ]},
+    { heading: 'Weekly', items: [
+      { id: 'war-map',     label: 'Weekly War Map™',     icon: '⚔️' },
+      { id: 'lock-in',     label: 'The Lock In™',        icon: '🔒' },
+    ]},
+    { heading: 'Monthly', items: [
+      { id: 'monthly',     label: 'Monthly Review',       icon: '📅' },
+    ]},
+    { heading: 'Yearly', items: [
+      { id: 'design',      label: 'Design™',              icon: '🎯' },
+    ]},
   ]
+
+  const allTabs = navSections.flatMap(s => s.items)
 
   // ── Render ────────────────────────────────────────────────────────────────────
 
@@ -921,17 +990,24 @@ export default function ClientPage() {
       </div>
 
       {/* Nav items */}
-      <div className="flex-1 py-3 overflow-y-auto scrollbar-thin">
-        {tabs.map(tab => (
-          <button key={tab.id} onClick={() => switchTab(tab.id)}
-            className={`w-full flex items-center gap-3 px-5 py-3 text-sm font-medium transition ${
-              activeTab === tab.id
-                ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
-            }`}>
-            <span className="text-base w-6 text-center">{tab.icon}</span>
-            <span className="tracking-wide">{tab.label}</span>
-          </button>
+      <div className="flex-1 py-2 overflow-y-auto scrollbar-thin">
+        {navSections.map((section, si) => (
+          <div key={si}>
+            {section.heading && (
+              <p className="px-5 pt-5 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">{section.heading}</p>
+            )}
+            {section.items.map(tab => (
+              <button key={tab.id} onClick={() => switchTab(tab.id)}
+                className={`w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-medium transition ${
+                  activeTab === tab.id
+                    ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                }`}>
+                <span className="text-sm w-5 text-center">{tab.icon}</span>
+                <span className="tracking-wide">{tab.label}</span>
+              </button>
+            ))}
+          </div>
         ))}
       </div>
 
@@ -983,7 +1059,7 @@ export default function ClientPage() {
           {/* Page title */}
           <div className="mb-7">
             <h1 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
-              {tabs.find(t => t.id === activeTab)?.icon} {tabs.find(t => t.id === activeTab)?.label}
+              {allTabs.find(t => t.id === activeTab)?.icon} {allTabs.find(t => t.id === activeTab)?.label}
             </h1>
             <p className="text-zinc-600 text-xs mt-1">Welcome back, {clientData.name.split(' ')[0]} · {clientData.business}</p>
           </div>
@@ -2810,6 +2886,133 @@ export default function ClientPage() {
                   <button onClick={completeReview} disabled={reviewSaving}
                     className="w-full sm:w-auto px-10 py-4 bg-gold hover:bg-gold-light disabled:opacity-40 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
                     {reviewSaving ? 'Submitting...' : 'Complete The Lock In™'}
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ── MONTHLY REVIEW ──────────────────────────────────────────────── */}
+        {activeTab === 'monthly' && (
+          <div className="fade-in">
+            {/* Month nav */}
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-zinc-500 text-xs">Reflect on the month. Recalibrate for the next.</p>
+              <div className="flex items-center gap-1">
+                <button onClick={() => { if (reviewMonth === 0) { setReviewMonth(11); setReviewYear(y => y - 1) } else setReviewMonth(m => m - 1) }}
+                  className="p-2 text-zinc-500 hover:text-white active:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-sm font-semibold text-white min-w-[140px] text-center">{MONTH_NAMES[reviewMonth]} {reviewYear}</span>
+                <button onClick={() => { if (reviewMonth === 11) { setReviewMonth(0); setReviewYear(y => y + 1) } else setReviewMonth(m => m + 1) }}
+                  className="p-2 text-zinc-500 hover:text-white active:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+            </div>
+
+            {monthlyReview.completed && (
+              <div className="flex items-center gap-2 px-3 py-2 bg-emerald-900/20 border border-emerald-900/40 rounded mb-6">
+                <svg className="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                <span className="text-emerald-400 text-xs font-semibold uppercase tracking-widest">Completed</span>
+              </div>
+            )}
+
+            <div className="space-y-6 mt-6">
+              {/* Revenue */}
+              <div>
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">Total Revenue This Month (£)</label>
+                <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
+                  placeholder="0.00"
+                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-lg font-bold" />
+              </div>
+
+              {/* Target hit */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Did I hit my monthly target?</label>
+                <div className="flex gap-3">
+                  {[true, false].map(val => (
+                    <button key={String(val)} onClick={() => { setMonthlyReview(prev => ({ ...prev, target_hit: val })); saveMonthly({ target_hit: val }) }}
+                      className={`flex-1 py-3 rounded-lg text-sm font-bold uppercase tracking-widest transition border ${
+                        monthlyReview.target_hit === val
+                          ? val ? 'bg-emerald-600 border-emerald-500 text-white' : 'bg-red-900/40 border-red-800 text-red-400'
+                          : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                      }`}>
+                      {val ? 'Yes' : 'No'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Month rating */}
+              <div>
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-3">
+                  How was this month overall? — <span className="text-white">{monthlyReview.month_rating || '—'}/10</span>
+                </label>
+                <div className="flex gap-1.5">
+                  {[1,2,3,4,5,6,7,8,9,10].map(n => (
+                    <button key={n} onClick={() => { setMonthlyReview(prev => ({ ...prev, month_rating: n })); saveMonthly({ month_rating: n }) }}
+                      className={`flex-1 py-2.5 rounded text-sm font-bold transition ${
+                        n <= (monthlyReview.month_rating || 0)
+                          ? n <= 3 ? 'bg-red-900/40 text-red-400' : n <= 6 ? 'bg-amber-900/40 text-amber-400' : 'bg-emerald-900/40 text-emerald-400'
+                          : 'bg-zinc-800 text-zinc-600 hover:bg-zinc-700'
+                      }`}>
+                      {n}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Reflection prompts */}
+              {[
+                { key: 'biggest_win', label: 'Biggest win this month', color: 'text-emerald-400' },
+                { key: 'biggest_challenge', label: 'Biggest challenge this month', color: 'text-red-400' },
+                { key: 'key_learning', label: 'Key learning — what did this month teach me?', color: 'text-sky-400' },
+                { key: 'mindset_shift', label: 'How has my mindset shifted this month?', color: 'text-violet-400' },
+                { key: 'energy_focus', label: 'Where should I focus my energy next month?', color: 'text-amber-400' },
+                { key: 'improve', label: 'What do I need to improve?', color: 'text-zinc-400' },
+              ].map(({ key, label, color }) => (
+                <div key={key}>
+                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${color}`}>{label}</label>
+                  <textarea value={monthlyReview[key] || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, [key]: e.target.value }))} onBlur={() => saveMonthly()}
+                    rows={3} placeholder="Write here..."
+                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+                </div>
+              ))}
+
+              {/* Goals for next month */}
+              <div className="pt-4 border-t border-zinc-800">
+                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-4">Top 3 Goals for Next Month</label>
+                <div className="space-y-3">
+                  {[1, 2, 3].map(n => (
+                    <div key={n} className="flex items-center gap-3">
+                      <span className="text-gold font-bold text-sm w-5 flex-shrink-0">{n}</span>
+                      <input value={monthlyReview[`goal_${n}`] || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, [`goal_${n}`]: e.target.value }))} onBlur={() => saveMonthly()}
+                        placeholder={`Goal ${n}`}
+                        className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            {/* Complete button */}
+            <div className="mt-10 pt-6 border-t border-zinc-800">
+              {monthlyReview.completed ? (
+                <div className="bg-zinc-900 border border-emerald-900/40 rounded-lg p-5 text-center">
+                  <svg className="w-10 h-10 text-emerald-400 mx-auto mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
+                  <p className="text-white font-semibold text-sm mb-1">Monthly Review Complete</p>
+                  <p className="text-zinc-500 text-xs">
+                    Submitted {monthlyReview.completed_at ? new Date(monthlyReview.completed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
+                  </p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <p className="text-zinc-500 text-xs mb-4 uppercase tracking-widest">Close out the month. Set the tone for the next.</p>
+                  <button onClick={completeMonthly} disabled={monthlySaving}
+                    className="w-full sm:w-auto px-10 py-4 bg-gold hover:bg-gold-light disabled:opacity-40 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                    {monthlySaving ? 'Submitting...' : 'Complete Monthly Review'}
                   </button>
                 </div>
               )}
