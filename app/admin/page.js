@@ -138,6 +138,7 @@ export default function AdminPage() {
   const [warMapWeekly, setWarMapWeekly] = useState(null)
   const [weeklyReview, setWeeklyReview] = useState(null)
   const [monthlyReview, setMonthlyReview] = useState(null)
+  const [allMonthlyReviews, setAllMonthlyReviews] = useState([])
   const [identityChange, setIdentityChange] = useState(null)
   const [lifeDesign, setLifeDesign] = useState(null)
   const [adventures, setAdventures] = useState(defaultAdventures())
@@ -254,7 +255,7 @@ export default function AdminPage() {
 
     const [
       dkpiRes, morningRes, eveningRes, warWeeklyRes, reviewRes,
-      monthlyRes, identityRes, designRes, adventuresRes, warTasksRes,
+      monthlyRes, allMonthlyRes, identityRes, designRes, adventuresRes, warTasksRes,
       projectsRes, leadsRes, weekKpisRes,
     ] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd).order('date'),
@@ -263,6 +264,7 @@ export default function AdminPage() {
       supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
       supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', year).maybeSingle(),
+      supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month'),
       supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle(),
       supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle(),
       supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),
@@ -278,6 +280,7 @@ export default function AdminPage() {
     setWarMapWeekly(warWeeklyRes.data || null)
     setWeeklyReview(reviewRes.data || null)
     setMonthlyReview(monthlyRes.data || null)
+    setAllMonthlyReviews(allMonthlyRes.data || [])
     setIdentityChange(identityRes.data || null)
     setLifeDesign(designRes.data || null)
     setWeekKpis(weekKpisRes.data || [])
@@ -1032,6 +1035,80 @@ export default function AdminPage() {
                       <p className="text-zinc-600 text-xs mt-1.5">per week</p>
                     </div>
                   </div>
+
+                  {/* Revenue Month-on-Month */}
+                  {allMonthlyReviews.length > 0 && (() => {
+                    const months = allMonthlyReviews.filter(r => r.revenue > 0 || r.revenue_target > 0)
+                      .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+                    if (months.length === 0) return null
+                    const maxVal = Math.max(...months.map(m => Math.max(Number(m.revenue) || 0, Number(m.revenue_target) || 0)), 1)
+                    return (
+                      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mt-6">
+                        <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-5">Revenue — Month on Month</h3>
+                        <div className="flex items-end gap-2 sm:gap-3" style={{ minHeight: '200px' }}>
+                          {months.map(m => {
+                            const rev = Number(m.revenue) || 0
+                            const target = Number(m.revenue_target) || 0
+                            const revH = Math.max(4, (rev / maxVal) * 180)
+                            const targetH = target > 0 ? Math.max(4, (target / maxVal) * 180) : 0
+                            const hit = target > 0 && rev >= target
+                            const monthLabel = MONTH_NAMES[m.month]?.slice(0, 3) || ''
+                            return (
+                              <div key={`${m.year}-${m.month}`} className="flex-1 flex flex-col items-center gap-1">
+                                {/* Values */}
+                                <div className="text-center mb-1">
+                                  <p className={`text-[10px] font-bold ${hit ? 'text-emerald-400' : rev > 0 ? 'text-white' : 'text-zinc-700'}`}>
+                                    £{rev >= 1000 ? `${(rev/1000).toFixed(1)}k` : rev}
+                                  </p>
+                                </div>
+                                {/* Bars */}
+                                <div className="flex items-end gap-0.5 w-full justify-center">
+                                  {/* Target bar (outline) */}
+                                  {targetH > 0 && (
+                                    <div className="w-3 sm:w-4 rounded-t border border-dashed border-zinc-600 bg-transparent" style={{ height: `${targetH}px` }} />
+                                  )}
+                                  {/* Revenue bar (solid) */}
+                                  <div className={`w-3 sm:w-4 rounded-t transition-all duration-500 ${hit ? 'bg-emerald-400' : rev > 0 ? 'bg-gold' : 'bg-zinc-800'}`} style={{ height: `${revH}px` }} />
+                                </div>
+                                {/* Label */}
+                                <p className="text-[9px] sm:text-[10px] text-zinc-600 font-semibold uppercase tracking-wider mt-1">{monthLabel}</p>
+                              </div>
+                            )
+                          })}
+                        </div>
+                        {/* Legend */}
+                        <div className="flex items-center gap-5 mt-4 justify-center">
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm bg-gold" />
+                            <span className="text-[10px] text-zinc-500">Revenue</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm bg-emerald-400" />
+                            <span className="text-[10px] text-zinc-500">Target Hit</span>
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-sm border border-dashed border-zinc-600" />
+                            <span className="text-[10px] text-zinc-500">Target</span>
+                          </div>
+                        </div>
+                        {/* Summary stats */}
+                        <div className="grid grid-cols-3 gap-3 mt-5 pt-4 border-t border-zinc-800">
+                          <div className="text-center">
+                            <p className="text-lg font-black text-gold">£{months.reduce((s, m) => s + (Number(m.revenue) || 0), 0).toLocaleString()}</p>
+                            <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Total</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-black text-white">£{Math.round(months.reduce((s, m) => s + (Number(m.revenue) || 0), 0) / months.length).toLocaleString()}</p>
+                            <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Monthly Avg</p>
+                          </div>
+                          <div className="text-center">
+                            <p className="text-lg font-black text-emerald-400">{months.filter(m => m.revenue_target > 0 && m.revenue >= m.revenue_target).length}/{months.filter(m => m.revenue_target > 0).length}</p>
+                            <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Targets Hit</p>
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               )})()}
 
