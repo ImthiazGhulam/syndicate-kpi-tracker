@@ -262,9 +262,9 @@ function AdminPageInner() {
       const hasIdentity = (Array.isArray(identityRes.data) ? identityRes.data : []).find(r => r.client_id === c.id)?.affirmations?.trim().length > 0 ? 1 : 0
 
       const score = Math.round(
-        (elapsed > 0 ? mornings / elapsed : 0) * 25 +
-        (elapsed > 0 ? debriefs / elapsed : 0) * 20 +
-        (elapsed > 0 ? identityReads / elapsed : 0) * 10 +
+        Math.min(1, elapsed > 0 ? mornings / elapsed : 0) * 25 +
+        Math.min(1, elapsed > 0 ? debriefs / elapsed : 0) * 20 +
+        Math.min(1, elapsed > 0 ? identityReads / elapsed : 0) * 10 +
         warMap * 15 + lockIn * 15 +
         0 * 15 // tracker — would need another fetch, skip for overview
       )
@@ -445,19 +445,20 @@ function AdminPageInner() {
   const warMapDone = warMapWeekly?.completed ? 1 : 0
   const lockInDone = weeklyReview?.completed ? 1 : 0
 
+  const capPct = (val, max) => Math.min(100, Math.round((val / max) * 100))
   const scores = {
-    morningOps: { value: morningOpsCompleted, max: daysElapsed, pct: Math.round((morningOpsCompleted / daysElapsed) * 100), label: 'Morning Ops', icon: 'sun', color: 'text-amber-400', bar: 'bg-amber-400' },
-    debrief:    { value: debriefsCompleted, max: daysElapsed, pct: Math.round((debriefsCompleted / daysElapsed) * 100), label: 'The Debrief', icon: 'moon', color: 'text-indigo-400', bar: 'bg-indigo-400' },
-    identity:   { value: identityReads, max: daysElapsed, pct: Math.round((identityReads / daysElapsed) * 100), label: 'Identity Read', icon: 'mirror', color: 'text-violet-400', bar: 'bg-violet-400' },
+    morningOps: { value: Math.min(morningOpsCompleted, daysElapsed), max: daysElapsed, pct: capPct(morningOpsCompleted, daysElapsed), label: 'Morning Ops', icon: 'sun', color: 'text-amber-400', bar: 'bg-amber-400' },
+    debrief:    { value: Math.min(debriefsCompleted, daysElapsed), max: daysElapsed, pct: capPct(debriefsCompleted, daysElapsed), label: 'The Debrief', icon: 'moon', color: 'text-indigo-400', bar: 'bg-indigo-400' },
+    identity:   { value: Math.min(identityReads, daysElapsed), max: daysElapsed, pct: capPct(identityReads, daysElapsed), label: 'Identity Read', icon: 'mirror', color: 'text-violet-400', bar: 'bg-violet-400' },
     warMap:     { value: warMapDone, max: 1, pct: warMapDone * 100, label: 'War Map', icon: 'sword', color: 'text-sky-400', bar: 'bg-sky-400' },
     lockIn:     { value: lockInDone, max: 1, pct: lockInDone * 100, label: 'The Lock In', icon: 'lock', color: 'text-gold', bar: 'bg-gold' },
-    tracker:    { value: kpiDaysFilled, max: daysElapsed, pct: Math.round((kpiDaysFilled / daysElapsed) * 100), label: 'Business Tracker', icon: 'chart', color: 'text-emerald-400', bar: 'bg-emerald-400' },
+    tracker:    { value: Math.min(kpiDaysFilled, daysElapsed), max: daysElapsed, pct: capPct(kpiDaysFilled, daysElapsed), label: 'Business Tracker', icon: 'chart', color: 'text-emerald-400', bar: 'bg-emerald-400' },
   }
 
-  const overallPct = selectedClient ? Math.round(
+  const overallPct = selectedClient ? Math.min(100, Math.round(
     scores.morningOps.pct * 0.25 + scores.debrief.pct * 0.20 + scores.identity.pct * 0.10 +
     scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15 + scores.tracker.pct * 0.15
-  ) : 0
+  )) : 0
 
   // ── Project CRUD ───────────────────────────────────────────────────────────
 

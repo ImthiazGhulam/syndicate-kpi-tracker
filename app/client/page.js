@@ -1103,19 +1103,20 @@ export default function ClientPage() {
   const designDone = lifeDesign ? 1 : 0
   const identityChamberFilled = identityAffirmations.trim().length > 0 ? 1 : 0
 
+  const capPct = (val, max) => Math.min(100, Math.round((val / max) * 100))
   const scores = {
-    morningOps:  { value: morningOpsCompleted, max: daysElapsed, pct: Math.round((morningOpsCompleted / daysElapsed) * 100), label: 'Morning Ops™', icon: '☀️', color: 'text-amber-400', bar: 'bg-amber-400' },
-    debrief:     { value: debriefsCompleted, max: daysElapsed, pct: Math.round((debriefsCompleted / daysElapsed) * 100), label: 'The Debrief™', icon: '🌙', color: 'text-indigo-400', bar: 'bg-indigo-400' },
-    identity:    { value: identityReads, max: daysElapsed, pct: Math.round((identityReads / daysElapsed) * 100), label: 'Identity Read', icon: '🪞', color: 'text-violet-400', bar: 'bg-violet-400' },
+    morningOps:  { value: Math.min(morningOpsCompleted, daysElapsed), max: daysElapsed, pct: capPct(morningOpsCompleted, daysElapsed), label: 'Morning Ops™', icon: '☀️', color: 'text-amber-400', bar: 'bg-amber-400' },
+    debrief:     { value: Math.min(debriefsCompleted, daysElapsed), max: daysElapsed, pct: capPct(debriefsCompleted, daysElapsed), label: 'The Debrief™', icon: '🌙', color: 'text-indigo-400', bar: 'bg-indigo-400' },
+    identity:    { value: Math.min(identityReads, daysElapsed), max: daysElapsed, pct: capPct(identityReads, daysElapsed), label: 'Identity Read', icon: '🪞', color: 'text-violet-400', bar: 'bg-violet-400' },
     warMap:      { value: warMapDone, max: 1, pct: warMapDone * 100, label: 'War Map™', icon: '⚔️', color: 'text-sky-400', bar: 'bg-sky-400' },
     lockIn:      { value: lockInDone, max: 1, pct: lockInDone * 100, label: 'The Lock In™', icon: '🔒', color: 'text-gold', bar: 'bg-gold' },
-    tracker:     { value: kpiDaysFilled, max: daysElapsed, pct: Math.round((kpiDaysFilled / daysElapsed) * 100), label: 'Business Tracker', icon: '📊', color: 'text-emerald-400', bar: 'bg-emerald-400' },
+    tracker:     { value: Math.min(kpiDaysFilled, daysElapsed), max: daysElapsed, pct: capPct(kpiDaysFilled, daysElapsed), label: 'Business Tracker', icon: '📊', color: 'text-emerald-400', bar: 'bg-emerald-400' },
   }
 
-  const overallPct = Math.round(
+  const overallPct = Math.min(100, Math.round(
     (scores.morningOps.pct * 0.25 + scores.debrief.pct * 0.20 + scores.identity.pct * 0.10 +
      scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15 + scores.tracker.pct * 0.15)
-  )
+  ))
 
   const navSections = [
     { items: [
