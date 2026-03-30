@@ -258,7 +258,13 @@ export default function ClientPage() {
 
   // The Lock In — weekly review
   const [weeklyReview, setWeeklyReview] = useState({})
-  const [reviewWeek, setReviewWeek] = useState(() => getMonday())
+  // Lock In reviews the previous week — on Sunday, review the current (ending) week; Mon-Sat, review last week
+  const [reviewWeek, setReviewWeek] = useState(() => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0=Sun
+    if (dayOfWeek === 0) return getMonday() // Sunday: review this week (ending today)
+    return shiftWeek(getMonday(), -1) // Mon-Sat: review last week
+  })
   const [reviewSaving, setReviewSaving] = useState(false)
   const [allLockIns, setAllLockIns] = useState([])
   const [allWarMaps, setAllWarMaps] = useState([])
@@ -293,7 +299,13 @@ export default function ClientPage() {
   // Weekly War Map
   const [warMapTasks, setWarMapTasks] = useState([])
   const [warMapInput, setWarMapInput] = useState('')
-  const [warMapWeek, setWarMapWeek] = useState(() => getMonday())
+  // War Map plans the upcoming week — on Sunday, plan next week; Mon-Sat, plan this week
+  const [warMapWeek, setWarMapWeek] = useState(() => {
+    const today = new Date()
+    const dayOfWeek = today.getDay() // 0=Sun
+    if (dayOfWeek === 0) return shiftWeek(getMonday(), 1) // Sunday: plan next week
+    return getMonday() // Mon-Sat: plan this week
+  })
   const [weeklyPriorities, setWeeklyPriorities] = useState({ number_one_priority: '', priority_2: '', priority_3: '', priority_4: '', completed: false, completed_at: null })
   const [prioritiesSaving, setPrioritiesSaving] = useState(false)
   const [calendarView, setCalendarView] = useState('month')
@@ -1956,7 +1968,7 @@ export default function ClientPage() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-base font-bold text-white uppercase tracking-widest">Weekly War Map™</h2>
-                <p className="text-zinc-600 text-xs mt-1">Week of {new Date(warMapWeek).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <p className="text-zinc-600 text-xs mt-1">Plan the week ahead. Complete on Sunday.</p>
               </div>
               {weeklyPriorities.completed && (
                 <div className="flex items-center gap-2 px-3 py-1.5 bg-emerald-900/20 border border-emerald-900/40 rounded">
@@ -3101,7 +3113,7 @@ export default function ClientPage() {
           <div className="fade-in">
             {/* Week nav */}
             <div className="flex items-center justify-between mb-2">
-              <p className="text-zinc-500 text-xs">Reflect. Assess. Recommit.</p>
+              <p className="text-zinc-500 text-xs">Review the week that's ending. Complete on Sunday.</p>
               <div className="flex items-center gap-1">
                 <button onClick={() => setReviewWeek(w => shiftWeek(w, -1))}
                   className="p-2 text-zinc-500 hover:text-white active:text-white transition rounded hover:bg-zinc-800">
