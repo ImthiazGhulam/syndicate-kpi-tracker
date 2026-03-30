@@ -238,7 +238,7 @@ function AdminPageInner() {
     const sunday = getWeekDays(monday)[6]
     const today = new Date().toISOString().split('T')[0]
     const todayIdx = getWeekDays(monday).indexOf(today)
-    const elapsed = todayIdx >= 0 ? todayIdx + 1 : 7
+    const elapsed = Math.max(1, todayIdx >= 0 ? todayIdx + 1 : 1)
 
     // Fetch this week's morning ops and debriefs for ALL clients
     const safe = async (fn) => { try { return await fn } catch(e) { console.error('Health query failed:', e); return { data: [] } } }
@@ -421,7 +421,7 @@ function AdminPageInner() {
   const todayStr = new Date().toISOString().split('T')[0]
   const dashWeekDays = getWeekDays(getMonday())
   const todayDayIndex = dashWeekDays.indexOf(todayStr)
-  const daysElapsed = todayDayIndex >= 0 ? todayDayIndex + 1 : 7
+  const daysElapsed = Math.max(1, todayDayIndex >= 0 ? todayDayIndex + 1 : 1)
 
   const morningOpsCompleted = weekMorningOps.filter(p => p.completed).length
   const debriefsCompleted = weekDebriefs.filter(p => p.completed).length

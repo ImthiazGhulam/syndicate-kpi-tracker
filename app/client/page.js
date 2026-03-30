@@ -1076,16 +1076,23 @@ export default function ClientPage() {
     const d = i + 1
     return `${kpiYear}-${String(kpiMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
   })
+  // Monthly KPI totals (for Business Tracker tab)
   const kpiTotals = {}
   KPI_COLS.filter(c => c.input).forEach(c => {
     kpiTotals[c.key] = kpiDays.reduce((sum, d) => sum + (Number(monthlyKpis[d]?.[c.key]) || 0), 0)
   })
   const kpiDaysWithData = kpiDays.filter(d => monthlyKpis[d]).length || 1
 
-  // ── Dashboard Scores ─────────────────────────────────────────────────────────
+  // Weekly KPI totals (for Command Centre revenue targets)
+  const weeklyKpiTotals = {}
   const dashWeekDays = getWeekDays(getMonday())
+  KPI_COLS.filter(c => c.input).forEach(c => {
+    weeklyKpiTotals[c.key] = dashWeekDays.reduce((sum, d) => sum + (Number(monthlyKpis[d]?.[c.key]) || 0), 0)
+  })
+
+  // ── Dashboard Scores ─────────────────────────────────────────────────────────
   const todayDayIndex = dashWeekDays.indexOf(todayStr)
-  const daysElapsed = todayDayIndex >= 0 ? todayDayIndex + 1 : 7
+  const daysElapsed = Math.max(1, todayDayIndex >= 0 ? todayDayIndex + 1 : 1)
 
   const morningOpsCompleted = weekMorningOps.filter(p => p.completed).length
   const debriefsCompleted = weekDebriefs.filter(p => p.completed).length
@@ -1405,7 +1412,7 @@ export default function ClientPage() {
                   <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Revenue Targets</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {weeklyPriorities.revenue_target > 0 && (() => {
-                      const weekRevenue = kpiTotals.revenue || 0
+                      const weekRevenue = weeklyKpiTotals.revenue || 0
                       const weekTarget = Number(weeklyPriorities.revenue_target)
                       const weekPct = Math.round((weekRevenue / weekTarget) * 100)
                       const hit = weekRevenue >= weekTarget
@@ -1450,25 +1457,25 @@ export default function ClientPage() {
                 </div>
               )}
 
-              {/* Business Snapshot */}
+              {/* Business Snapshot — This Week */}
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-                <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Business Snapshot</h3>
+                <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">This Week's Numbers</h3>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Revenue</p>
-                    <p className="text-lg font-bold text-emerald-400">£{(kpiTotals.revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}</p>
+                    <p className="text-lg font-bold text-emerald-400">£{(weeklyKpiTotals.revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Followers</p>
-                    <p className="text-lg font-bold text-sky-400">{kpiTotals.new_followers || 0}</p>
+                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">New Followers</p>
+                    <p className="text-lg font-bold text-sky-400">{weeklyKpiTotals.new_followers || 0}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Calls Taken</p>
-                    <p className="text-lg font-bold text-gold">{kpiTotals.calls_taken || 0}</p>
+                    <p className="text-lg font-bold text-gold">{weeklyKpiTotals.calls_taken || 0}</p>
                   </div>
                   <div>
                     <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Closed</p>
-                    <p className="text-lg font-bold text-violet-400">{kpiTotals.closed || 0}</p>
+                    <p className="text-lg font-bold text-violet-400">{weeklyKpiTotals.closed || 0}</p>
                   </div>
                 </div>
               </div>
@@ -1601,7 +1608,7 @@ export default function ClientPage() {
                   </div>
                   <div className="text-right">
                     <p className="text-[10px] text-zinc-600 uppercase tracking-widest">Earned so far</p>
-                    <p className="text-emerald-400 font-bold text-lg mt-0.5">£{(kpiTotals.revenue || 0).toLocaleString()}</p>
+                    <p className="text-emerald-400 font-bold text-lg mt-0.5">£{(weeklyKpiTotals.revenue || 0).toLocaleString()}</p>
                   </div>
                 </div>
               )}
