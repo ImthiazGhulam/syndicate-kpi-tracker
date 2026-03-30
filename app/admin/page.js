@@ -275,6 +275,29 @@ export default function AdminPage() {
     setShowProjectForm(false)
     setEditingProject(null)
 
+    // Reset all data from previous client
+    setDailyKpis([])
+    setWeekMorningOps([])
+    setWeekDebriefs([])
+    setWarMapWeekly(null)
+    setWeeklyReview(null)
+    setMonthlyReview(null)
+    setAllMonthlyReviews([])
+    setIdentityChange(null)
+    setLifeDesign(null)
+    setAdventures(defaultAdventures())
+    setWarMapTasks([])
+    setProjects([])
+    setProjectTasks({})
+    setLeads([])
+    setWeekKpis([])
+    setClientPlaybook(null)
+    setClientPremiumPos(null)
+    setAllClientLockIns([])
+    setAllClientWarMaps([])
+
+    try {
+
     const year = new Date().getFullYear()
     const monday = getMonday()
     const sunday = getWeekDays(monday)[6]
@@ -353,6 +376,10 @@ export default function AdminPage() {
       setProjectTasks(taskMap)
     } else {
       setProjectTasks({})
+    }
+
+    } catch (err) {
+      console.error('Error loading client data:', err)
     }
   }
 
