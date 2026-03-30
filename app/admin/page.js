@@ -168,6 +168,7 @@ function AdminPageInner() {
   const [adminView, setAdminView] = useState('clients') // 'clients' | 'content'
   const [competitors, setCompetitors] = useState([])
   const [competitorPosts, setCompetitorPosts] = useState([])
+  const [selectedCompetitor, setSelectedCompetitor] = useState(null) // null = overview, id = specific
 
   // All-clients health data
   const [clientHealth, setClientHealth] = useState({})
@@ -711,7 +712,26 @@ function AdminPageInner() {
                 </div>
               ) : (
                 <div>
-                  {/* Competitor Overview Cards */}
+                  {/* Competitor Selector Tabs */}
+                  <div className="flex flex-wrap gap-2 mb-6">
+                    <button onClick={() => setSelectedCompetitor(null)}
+                      className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wider transition border ${!selectedCompetitor ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>
+                      Overview
+                    </button>
+                    {competitors.map(comp => {
+                      const posts = competitorPosts.filter(p => p.competitor_id === comp.id)
+                      return (
+                        <button key={comp.id} onClick={() => setSelectedCompetitor(comp.id)}
+                          className={`px-4 py-2 rounded-lg text-xs font-semibold transition border flex items-center gap-2 ${selectedCompetitor === comp.id ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'}`}>
+                          @{comp.instagram_handle}
+                          {posts.length > 0 && <span className="text-[10px] text-zinc-600">{posts.length}</span>}
+                        </button>
+                      )
+                    })}
+                  </div>
+
+                  {/* Overview Mode */}
+                  {!selectedCompetitor && (
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
                     {competitors.map(comp => {
                       const posts = competitorPosts.filter(p => p.competitor_id === comp.id)
@@ -719,18 +739,13 @@ function AdminPageInner() {
                       const avgComments = posts.length > 0 ? Math.round(posts.reduce((s, p) => s + (p.comments || 0), 0) / posts.length) : 0
                       const engRate = comp.followers > 0 ? ((avgLikes + avgComments) / comp.followers * 100).toFixed(2) : '0'
                       return (
-                        <div key={comp.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift">
+                        <button key={comp.id} onClick={() => setSelectedCompetitor(comp.id)} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift text-left hover:border-zinc-700 transition">
                           <div className="flex items-center gap-3 mb-4">
-                            {comp.profile_pic_url ? (
-                              <img src={comp.profile_pic_url} alt={comp.name} className="w-12 h-12 rounded-full border-2 border-zinc-700" />
-                            ) : (
-                              <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-lg">{comp.name[0]}</div>
-                            )}
+                            <div className="w-10 h-10 rounded-full bg-zinc-800 flex items-center justify-center text-sm font-bold text-zinc-400">{comp.name[0]}</div>
                             <div className="flex-1 min-w-0">
                               <p className="text-white font-semibold text-sm truncate">{comp.name}</p>
                               <p className="text-violet-400 text-xs">@{comp.instagram_handle}</p>
                             </div>
-                            {comp.is_verified && <span className="text-sky-400 text-xs">✓</span>}
                           </div>
                           <div className="grid grid-cols-3 gap-2 mb-3">
                             <div className="text-center">
@@ -747,10 +762,80 @@ function AdminPageInner() {
                             </div>
                           </div>
                           {comp.bio && <p className="text-zinc-500 text-xs leading-relaxed line-clamp-2">{comp.bio}</p>}
-                        </div>
+                        </button>
                       )
                     })}
                   </div>
+                  )}
+
+                  {/* Selected Competitor View */}
+                  {selectedCompetitor && (() => {
+                    const comp = competitors.find(c => c.id === selectedCompetitor)
+                    if (!comp) return null
+                    const posts = competitorPosts.filter(p => p.competitor_id === comp.id).sort((a, b) => ((b.likes || 0) + (b.comments || 0)) - ((a.likes || 0) + (a.comments || 0)))
+                    const avgLikes = posts.length > 0 ? Math.round(posts.reduce((s, p) => s + (p.likes || 0), 0) / posts.length) : 0
+                    const avgComments = posts.length > 0 ? Math.round(posts.reduce((s, p) => s + (p.comments || 0), 0) / posts.length) : 0
+                    const engRate = comp.followers > 0 ? ((avgLikes + avgComments) / comp.followers * 100).toFixed(2) : '0'
+                    const topPost = posts[0]
+
+                    return (
+                      <div>
+                        {/* Profile Header */}
+                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
+                          <div className="flex items-center gap-4 mb-4">
+                            <div className="w-14 h-14 rounded-full bg-zinc-800 flex items-center justify-center text-xl font-bold text-zinc-400">{comp.name[0]}</div>
+                            <div>
+                              <h2 className="text-white font-bold text-lg">{comp.name}</h2>
+                              <p className="text-violet-400 text-sm">@{comp.instagram_handle}</p>
+                            </div>
+                          </div>
+                          {comp.bio && <p className="text-zinc-400 text-sm leading-relaxed mb-4">{comp.bio}</p>}
+                          <div className="grid grid-cols-4 gap-4">
+                            <div className="text-center">
+                              <p className="text-xl font-black text-white">{comp.followers >= 1000000 ? (comp.followers / 1000000).toFixed(1) + 'M' : comp.followers >= 1000 ? (comp.followers / 1000).toFixed(1) + 'K' : comp.followers}</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Followers</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xl font-black text-gold">{engRate}%</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Eng Rate</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xl font-black text-sky-400">{posts.length}</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Posts</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-xl font-black text-emerald-400">{avgLikes.toLocaleString()}</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Avg Likes</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* All Posts for This Competitor */}
+                        <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Posts — sorted by engagement</h3>
+                        <div className="space-y-3">
+                          {posts.map(post => (
+                            <div key={post.id} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                              <div className="flex items-start gap-3">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-zinc-300 text-sm leading-relaxed mb-2">{post.caption ? (post.caption.length > 300 ? post.caption.slice(0, 300) + '...' : post.caption) : 'No caption'}</p>
+                                  <div className="flex items-center gap-4 flex-wrap">
+                                    <span className="text-xs text-zinc-500">❤️ {(post.likes || 0).toLocaleString()}</span>
+                                    <span className="text-xs text-zinc-500">💬 {(post.comments || 0).toLocaleString()}</span>
+                                    {post.views > 0 && <span className="text-xs text-zinc-500">👁️ {post.views.toLocaleString()}</span>}
+                                    {post.posted_at && <span className="text-xs text-zinc-600">{new Date(post.posted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                                    {post.post_url && (
+                                      <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="text-xs text-gold hover:text-gold-light transition">View post →</a>
+                                    )}
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                          {posts.length === 0 && <p className="text-zinc-600 text-sm text-center py-8">No posts scraped for this competitor yet.</p>}
+                        </div>
+                      </div>
+                    )
+                  })()}
 
                   {/* Top Performing Posts */}
                   <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
