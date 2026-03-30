@@ -252,14 +252,14 @@ function AdminPageInner() {
 
     const health = {}
     clientList.forEach(c => {
-      const mp = morningRes.data?.filter(r => r.client_id === c.id) || []
-      const ep = eveningRes.data?.filter(r => r.client_id === c.id) || []
+      const mp = (Array.isArray(morningRes.data) ? morningRes.data : []).filter(r => r.client_id === c.id)
+      const ep = (Array.isArray(eveningRes.data) ? eveningRes.data : []).filter(r => r.client_id === c.id)
       const mornings = mp.filter(r => r.completed).length
       const debriefs = ep.filter(r => r.completed).length
       const identityReads = mp.filter(r => r.identity_read).length
-      const warMap = warWeeklyRes.data?.find(r => r.client_id === c.id)?.completed ? 1 : 0
-      const lockIn = reviewRes.data?.find(r => r.client_id === c.id)?.completed ? 1 : 0
-      const hasIdentity = identityRes.data?.find(r => r.client_id === c.id)?.affirmations?.trim().length > 0 ? 1 : 0
+      const warMap = (Array.isArray(warWeeklyRes.data) ? warWeeklyRes.data : []).find(r => r.client_id === c.id)?.completed ? 1 : 0
+      const lockIn = (Array.isArray(reviewRes.data) ? reviewRes.data : []).find(r => r.client_id === c.id)?.completed ? 1 : 0
+      const hasIdentity = (Array.isArray(identityRes.data) ? identityRes.data : []).find(r => r.client_id === c.id)?.affirmations?.trim().length > 0 ? 1 : 0
 
       const score = Math.round(
         (elapsed > 0 ? mornings / elapsed : 0) * 25 +
@@ -361,20 +361,20 @@ function AdminPageInner() {
       safe(supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle()),
     ])
 
-    setDailyKpis(dkpiRes.data || [])
-    setWeekMorningOps(morningRes.data || [])
-    setWeekDebriefs(eveningRes.data || [])
-    setWarMapWeekly(warWeeklyRes.data || null)
-    setWeeklyReview(reviewRes.data || null)
-    setMonthlyReview(monthlyRes.data || null)
-    setAllMonthlyReviews(allMonthlyRes.data || [])
-    setIdentityChange(identityRes.data || null)
-    setLifeDesign(designRes.data || null)
-    setWeekKpis(weekKpisRes.data || [])
-    setClientPlaybook(playbookRes.data || null)
-    setClientPremiumPos(premiumPosRes.data || null)
-    setAllClientLockIns(allLockInsRes.data || [])
-    setAllClientWarMaps(allWarMapsRes.data || [])
+    setDailyKpis(Array.isArray(dkpiRes.data) ? dkpiRes.data : [])
+    setWeekMorningOps(Array.isArray(morningRes.data) ? morningRes.data : [])
+    setWeekDebriefs(Array.isArray(eveningRes.data) ? eveningRes.data : [])
+    setWarMapWeekly(warWeeklyRes.data && !Array.isArray(warWeeklyRes.data) ? warWeeklyRes.data : null)
+    setWeeklyReview(reviewRes.data && !Array.isArray(reviewRes.data) ? reviewRes.data : null)
+    setMonthlyReview(monthlyRes.data && !Array.isArray(monthlyRes.data) ? monthlyRes.data : null)
+    setAllMonthlyReviews(Array.isArray(allMonthlyRes.data) ? allMonthlyRes.data : [])
+    setIdentityChange(identityRes.data && !Array.isArray(identityRes.data) ? identityRes.data : null)
+    setLifeDesign(designRes.data && !Array.isArray(designRes.data) ? designRes.data : null)
+    setWeekKpis(Array.isArray(weekKpisRes.data) ? weekKpisRes.data : [])
+    setClientPlaybook(playbookRes.data && !Array.isArray(playbookRes.data) ? playbookRes.data : null)
+    setClientPremiumPos(premiumPosRes.data && !Array.isArray(premiumPosRes.data) ? premiumPosRes.data : null)
+    setAllClientLockIns(Array.isArray(allLockInsRes.data) ? allLockInsRes.data : [])
+    setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
     setAdminReviewWeek(monday)
     setAdminWarMapWeek(monday)
 
@@ -387,8 +387,8 @@ function AdminPageInner() {
       setAdventures(defaultAdventures())
     }
 
-    setWarMapTasks(warTasksRes.data || [])
-    setLeads(leadsRes.data || [])
+    setWarMapTasks(Array.isArray(warTasksRes.data) ? warTasksRes.data : [])
+    setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : [])
 
     const projs = projectsRes.data || []
     setProjects(projs)
