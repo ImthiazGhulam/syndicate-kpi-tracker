@@ -82,7 +82,8 @@ export async function POST(request) {
     // Case 1: Apify webhook notification — has resource.defaultDatasetId
     if (body.resource && body.resource.defaultDatasetId) {
       const datasetId = body.resource.defaultDatasetId
-      const res = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?format=json`)
+      const apifyToken = process.env.APIFY_API_TOKEN || ''
+      const res = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?format=json&token=${apifyToken}`)
       if (!res.ok) {
         return NextResponse.json({ error: 'Failed to fetch Apify dataset', status: res.status }, { status: 500 })
       }
