@@ -165,6 +165,9 @@ function AdminPageInner() {
   const [loading, setLoading] = useState(true)
   const [clientLoading, setClientLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [adminView, setAdminView] = useState('clients') // 'clients' | 'content'
+  const [competitors, setCompetitors] = useState([])
+  const [competitorPosts, setCompetitorPosts] = useState([])
 
   // All-clients health data
   const [clientHealth, setClientHealth] = useState({})
@@ -431,6 +434,17 @@ function AdminPageInner() {
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/login') }
 
+  const fetchContentData = async () => {
+    try {
+      const [compRes, postsRes] = await Promise.all([
+        supabase.from('competitors').select('*').order('followers', { ascending: false }),
+        supabase.from('competitor_posts').select('*, competitors(name, instagram_handle)').order('posted_at', { ascending: false }).limit(100),
+      ])
+      if (compRes.data) setCompetitors(compRes.data)
+      if (postsRes.data) setCompetitorPosts(postsRes.data)
+    } catch (err) { console.error('Content fetch error:', err) }
+  }
+
   // ── Programme Score ────────────────────────────────────────────────────────
 
   const todayStr = new Date().toISOString().split('T')[0]
@@ -620,6 +634,18 @@ function AdminPageInner() {
         </button>
       </header>
 
+      {/* Top nav: Clients / Content */}
+      <div className="bg-zinc-950 border-b border-zinc-800 px-4 py-2 flex items-center gap-2">
+        <button onClick={() => { setAdminView('clients'); fetchContentData() }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${adminView === 'clients' ? 'bg-gold/10 text-gold border border-gold/30' : 'text-zinc-500 hover:text-white border border-transparent'}`}>
+          👥 Clients
+        </button>
+        <button onClick={() => { setAdminView('content'); fetchContentData() }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${adminView === 'content' ? 'bg-gold/10 text-gold border border-gold/30' : 'text-zinc-500 hover:text-white border border-transparent'}`}>
+          📱 Content Intel
+        </button>
+      </div>
+
       <div className="flex flex-1 overflow-hidden">
 
         {/* Sidebar */}
@@ -663,7 +689,152 @@ function AdminPageInner() {
 
         {/* Main */}
         <main className="flex-1 overflow-y-auto p-4 md:p-7">
-          {!selectedClient ? (() => {
+
+          {/* ════════ CONTENT INTEL VIEW ════════ */}
+          {adminView === 'content' ? (
+            <div className="fade-in max-w-5xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold text-white tracking-tight">📱 Content Intel</h1>
+                <p className="text-zinc-500 text-sm mt-1">Competitor tracking and content trends from Instagram.</p>
+              </div>
+
+              {competitors.length === 0 ? (
+                <div className="text-center py-16">
+                  <span className="text-4xl block mb-4">📡</span>
+                  <p className="text-zinc-400 text-sm font-medium mb-2">No competitor data yet</p>
+                  <p className="text-zinc-600 text-xs mb-4 max-w-sm mx-auto">Connect your Apify Instagram scraper to start tracking competitors. Data will appear here automatically.</p>
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 max-w-md mx-auto text-left">
+                    <p className="text-xs font-bold text-gold uppercase tracking-widest mb-3">Setup</p>
+                    <p className="text-zinc-400 text-xs leading-relaxed">Set your Apify webhook URL to:</p>
+                    <code className="block mt-2 px-3 py-2 bg-zinc-800 rounded text-emerald-400 text-xs break-all">{typeof window !== 'undefined' ? window.location.origin : ''}/api/scraper</code>
+                  </div>
+                </div>
+              ) : (
+                <div>
+                  {/* Competitor Overview Cards */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                    {competitors.map(comp => {
+                      const posts = competitorPosts.filter(p => p.competitor_id === comp.id)
+                      const avgLikes = posts.length > 0 ? Math.round(posts.reduce((s, p) => s + (p.likes || 0), 0) / posts.length) : 0
+                      const avgComments = posts.length > 0 ? Math.round(posts.reduce((s, p) => s + (p.comments || 0), 0) / posts.length) : 0
+                      const engRate = comp.followers > 0 ? ((avgLikes + avgComments) / comp.followers * 100).toFixed(2) : '0'
+                      return (
+                        <div key={comp.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 card-lift">
+                          <div className="flex items-center gap-3 mb-4">
+                            {comp.profile_pic_url ? (
+                              <img src={comp.profile_pic_url} alt={comp.name} className="w-12 h-12 rounded-full border-2 border-zinc-700" />
+                            ) : (
+                              <div className="w-12 h-12 rounded-full bg-zinc-800 flex items-center justify-center text-lg">{comp.name[0]}</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-semibold text-sm truncate">{comp.name}</p>
+                              <p className="text-violet-400 text-xs">@{comp.instagram_handle}</p>
+                            </div>
+                            {comp.is_verified && <span className="text-sky-400 text-xs">✓</span>}
+                          </div>
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div className="text-center">
+                              <p className="text-lg font-black text-white">{comp.followers >= 1000000 ? (comp.followers / 1000000).toFixed(1) + 'M' : comp.followers >= 1000 ? (comp.followers / 1000).toFixed(1) + 'K' : comp.followers}</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Followers</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-lg font-black text-gold">{engRate}%</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Eng Rate</p>
+                            </div>
+                            <div className="text-center">
+                              <p className="text-lg font-black text-sky-400">{posts.length}</p>
+                              <p className="text-[9px] text-zinc-600 uppercase tracking-widest font-bold">Posts</p>
+                            </div>
+                          </div>
+                          {comp.bio && <p className="text-zinc-500 text-xs leading-relaxed line-clamp-2">{comp.bio}</p>}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Top Performing Posts */}
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+                    <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Top Performing Posts This Week</h3>
+                    {competitorPosts.length === 0 ? (
+                      <p className="text-zinc-600 text-sm">No posts scraped yet.</p>
+                    ) : (
+                      <div className="space-y-3">
+                        {competitorPosts
+                          .sort((a, b) => ((b.likes || 0) + (b.comments || 0)) - ((a.likes || 0) + (a.comments || 0)))
+                          .slice(0, 10)
+                          .map(post => (
+                            <div key={post.id} className="flex items-start gap-4 bg-zinc-800/50 rounded-lg p-4">
+                              {post.thumbnail_url && (
+                                <img src={post.thumbnail_url} alt="" className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
+                              )}
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                  <span className="text-violet-400 text-xs font-semibold">@{post.competitors?.instagram_handle || '?'}</span>
+                                  <span className={`text-[10px] px-1.5 py-0.5 rounded font-semibold uppercase ${post.post_type === 'video' ? 'bg-red-900/20 text-red-400' : post.post_type === 'carousel' ? 'bg-sky-900/20 text-sky-400' : 'bg-zinc-700 text-zinc-400'}`}>{post.post_type || 'post'}</span>
+                                  {post.posted_at && <span className="text-zinc-600 text-[10px]">{new Date(post.posted_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>}
+                                </div>
+                                <p className="text-zinc-300 text-xs leading-relaxed line-clamp-2">{post.caption}</p>
+                                <div className="flex items-center gap-4 mt-2">
+                                  <span className="text-xs text-zinc-500">❤️ {(post.likes || 0).toLocaleString()}</span>
+                                  <span className="text-xs text-zinc-500">💬 {(post.comments || 0).toLocaleString()}</span>
+                                  {post.views > 0 && <span className="text-xs text-zinc-500">👁️ {post.views.toLocaleString()}</span>}
+                                  {post.saves > 0 && <span className="text-xs text-zinc-500">🔖 {post.saves.toLocaleString()}</span>}
+                                </div>
+                              </div>
+                              {post.post_url && (
+                                <a href={post.post_url} target="_blank" rel="noopener noreferrer" className="text-zinc-600 hover:text-gold transition flex-shrink-0">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" /></svg>
+                                </a>
+                              )}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Trending Hashtags */}
+                  {competitorPosts.some(p => p.hashtags?.length > 0) && (
+                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Trending Hashtags</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {(() => {
+                          const tagCounts = {}
+                          competitorPosts.forEach(p => (p.hashtags || []).forEach(t => { tagCounts[t] = (tagCounts[t] || 0) + 1 }))
+                          return Object.entries(tagCounts)
+                            .sort((a, b) => b[1] - a[1])
+                            .slice(0, 30)
+                            .map(([tag, count]) => (
+                              <span key={tag} className="px-2.5 py-1 bg-zinc-800 border border-zinc-700 rounded text-xs text-zinc-300">
+                                {tag} <span className="text-zinc-600 ml-1">×{count}</span>
+                              </span>
+                            ))
+                        })()}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Content Type Breakdown */}
+                  <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Content Type Performance</h3>
+                    <div className="grid grid-cols-3 gap-4">
+                      {['video', 'carousel', 'image'].map(type => {
+                        const typePosts = competitorPosts.filter(p => p.post_type === type)
+                        const avgEng = typePosts.length > 0 ? Math.round(typePosts.reduce((s, p) => s + (p.likes || 0) + (p.comments || 0), 0) / typePosts.length) : 0
+                        return (
+                          <div key={type} className="text-center">
+                            <p className="text-2xl font-black text-white">{typePosts.length}</p>
+                            <p className="text-[10px] text-zinc-500 uppercase tracking-widest font-bold mt-1">{type === 'video' ? '🎬 Reels' : type === 'carousel' ? '📸 Carousels' : '🖼️ Images'}</p>
+                            <p className="text-xs text-zinc-600 mt-1">Avg {avgEng.toLocaleString()} eng</p>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+
+          ) : !selectedClient ? (() => {
             const healthEntries = clients.map(c => ({ ...c, health: clientHealth[c.id] || {} }))
             const critical = healthEntries.filter(c => c.health.status === 'critical')
             const atRisk = healthEntries.filter(c => c.health.status === 'at-risk')
