@@ -639,16 +639,22 @@ export default function ClientPage() {
     if (clientData) fetchEveningPulse(eveningPulseDate)
   }, [eveningPulseDate, clientData?.id])
 
-  const buildEveningPayload = () => {
-    const p = { client_id: clientData.id, date: eveningPulseDate }
-    const fields = ['priority_completed','went_well','do_differently','learned','show_up_rating','not_to_plan','proud_of','love_about_self',
-      'gratitude_1','gratitude_2','gratitude_3','gratitude_4','gratitude_5','gratitude_6',
-      'win_1_title','win_1_action','win_1_progress','win_2_title','win_2_action','win_2_progress',
-      'win_3_title','win_3_action','win_3_progress','win_4_title','win_4_action','win_4_progress',
-      'win_5_title','win_5_action','win_5_progress']
-    fields.forEach(f => { if (eveningPulse[f] !== undefined) p[f] = eveningPulse[f] })
-    return p
-  }
+  const buildEveningPayload = () => ({
+    client_id: clientData.id, date: eveningPulseDate,
+    priority_completed: eveningPulse.priority_completed ?? null,
+    went_well: eveningPulse.went_well || '', do_differently: eveningPulse.do_differently || '',
+    learned: eveningPulse.learned || '', show_up_rating: eveningPulse.show_up_rating ?? null,
+    not_to_plan: eveningPulse.not_to_plan || '', proud_of: eveningPulse.proud_of || '',
+    love_about_self: eveningPulse.love_about_self || '',
+    gratitude_1: eveningPulse.gratitude_1 || '', gratitude_2: eveningPulse.gratitude_2 || '',
+    gratitude_3: eveningPulse.gratitude_3 || '', gratitude_4: eveningPulse.gratitude_4 || '',
+    gratitude_5: eveningPulse.gratitude_5 || '', gratitude_6: eveningPulse.gratitude_6 || '',
+    win_1_title: eveningPulse.win_1_title || '', win_1_action: eveningPulse.win_1_action || '', win_1_progress: eveningPulse.win_1_progress || '',
+    win_2_title: eveningPulse.win_2_title || '', win_2_action: eveningPulse.win_2_action || '', win_2_progress: eveningPulse.win_2_progress || '',
+    win_3_title: eveningPulse.win_3_title || '', win_3_action: eveningPulse.win_3_action || '', win_3_progress: eveningPulse.win_3_progress || '',
+    win_4_title: eveningPulse.win_4_title || '', win_4_action: eveningPulse.win_4_action || '', win_4_progress: eveningPulse.win_4_progress || '',
+    win_5_title: eveningPulse.win_5_title || '', win_5_action: eveningPulse.win_5_action || '', win_5_progress: eveningPulse.win_5_progress || '',
+  })
 
   const saveEvening = async (overrides = {}) => {
     if (!clientData) return
@@ -741,15 +747,26 @@ export default function ClientPage() {
     if (clientData) fetchWeeklyReview(reviewWeek)
   }, [reviewWeek, clientData?.id])
 
-  const buildReviewPayload = () => {
-    const p = { client_id: clientData.id, week_of: reviewWeek }
-    const fields = ['revenue','target_hit','week_rating','went_well','not_to_plan','patterns','energy_drain','energy_boost','one_fix',
-      'win_1_title','win_1_action','win_1_progress','win_2_title','win_2_action','win_2_progress',
-      'win_3_title','win_3_action','win_3_progress','win_4_title','win_4_action','win_4_progress',
-      'win_5_title','win_5_action','win_5_progress','next_focus','next_income_target','next_differently']
-    fields.forEach(f => { if (weeklyReview[f] !== undefined) p[f] = weeklyReview[f] })
-    return p
-  }
+  const buildReviewPayload = () => ({
+    client_id: clientData.id, week_of: reviewWeek,
+    revenue: weeklyReview.revenue || 0,
+    target_hit: weeklyReview.target_hit ?? null,
+    week_rating: weeklyReview.week_rating ?? null,
+    went_well: weeklyReview.went_well || '',
+    not_to_plan: weeklyReview.not_to_plan || '',
+    patterns: weeklyReview.patterns || '',
+    energy_drain: weeklyReview.energy_drain || '',
+    energy_boost: weeklyReview.energy_boost || '',
+    one_fix: weeklyReview.one_fix || '',
+    win_1_title: weeklyReview.win_1_title || '', win_1_action: weeklyReview.win_1_action || '', win_1_progress: weeklyReview.win_1_progress || '',
+    win_2_title: weeklyReview.win_2_title || '', win_2_action: weeklyReview.win_2_action || '', win_2_progress: weeklyReview.win_2_progress || '',
+    win_3_title: weeklyReview.win_3_title || '', win_3_action: weeklyReview.win_3_action || '', win_3_progress: weeklyReview.win_3_progress || '',
+    win_4_title: weeklyReview.win_4_title || '', win_4_action: weeklyReview.win_4_action || '', win_4_progress: weeklyReview.win_4_progress || '',
+    win_5_title: weeklyReview.win_5_title || '', win_5_action: weeklyReview.win_5_action || '', win_5_progress: weeklyReview.win_5_progress || '',
+    next_focus: weeklyReview.next_focus || '',
+    next_income_target: weeklyReview.next_income_target || '',
+    next_differently: weeklyReview.next_differently || '',
+  })
 
   const saveReview = async (overrides = {}) => {
     if (!clientData) return
@@ -761,9 +778,8 @@ export default function ClientPage() {
   const completeReview = async () => {
     if (!clientData) return
     setReviewSaving(true)
-    const { data } = await supabase.from('weekly_review').upsert({
-      ...buildReviewPayload(), completed: true, completed_at: new Date().toISOString(),
-    }, { onConflict: 'client_id,week_of' }).select().single()
+    const payload = { ...buildReviewPayload(), completed: true, completed_at: new Date().toISOString() }
+    const { data } = await supabase.from('weekly_review').upsert(payload, { onConflict: 'client_id,week_of' }).select().single()
     if (data) setWeeklyReview(data)
     setReviewSaving(false)
   }
