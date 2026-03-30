@@ -864,7 +864,7 @@ export default function AdminPage() {
             <div className="flex items-center justify-center py-20">
               <div className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading client data...</div>
             </div>
-          ) : (
+          ) : (() => { try { return (
             <div>
               {/* Client Header */}
               <div className="mb-5">
@@ -2626,7 +2626,15 @@ export default function AdminPage() {
               })()}
 
             </div>
-          )}
+          ) } catch(renderErr) { console.error('Render error:', renderErr); return (
+            <div className="text-center py-20">
+              <p className="text-red-400 text-sm font-semibold mb-2">Something went wrong loading this client.</p>
+              <p className="text-zinc-600 text-xs mb-4">{String(renderErr)}</p>
+              <button onClick={() => setSelectedClient(null)} className="px-5 py-2.5 bg-gold text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                ← Back to All Clients
+              </button>
+            </div>
+          ) } })()}
         </main>
       </div>
     </div>
