@@ -1,8 +1,32 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Component } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+
+// Error Boundary to catch React render crashes
+class ErrorBoundary extends Component {
+  constructor(props) { super(props); this.state = { hasError: false, error: null } }
+  static getDerivedStateFromError(error) { return { hasError: true, error } }
+  componentDidCatch(error, info) { console.error('Admin render crash:', error, info) }
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
+          <div className="bg-zinc-900 border border-red-900/40 rounded-lg p-8 text-center max-w-md">
+            <p className="text-red-400 text-sm font-bold mb-2">Something went wrong</p>
+            <p className="text-zinc-500 text-xs mb-1">{String(this.state.error)}</p>
+            <button onClick={() => { this.setState({ hasError: false, error: null }); window.location.reload() }}
+              className="mt-4 px-5 py-2.5 bg-gold text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+              Reload
+            </button>
+          </div>
+        </div>
+      )
+    }
+    return this.props.children
+  }
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -132,7 +156,7 @@ function RatingBar({ value, max = 10 }) {
 
 // ── Main Component ────────────────────────────────────────────────────────────
 
-export default function AdminPage() {
+function AdminPageInner() {
   const router = useRouter()
 
   const [clients, setClients] = useState([])
@@ -217,12 +241,13 @@ export default function AdminPage() {
     const elapsed = todayIdx >= 0 ? todayIdx + 1 : 7
 
     // Fetch this week's morning ops and debriefs for ALL clients
+    const safe = async (fn) => { try { return await fn } catch(e) { console.error('Health query failed:', e); return { data: [] } } }
     const [morningRes, eveningRes, warWeeklyRes, reviewRes, identityRes] = await Promise.all([
-      supabase.from('daily_pulse').select('client_id, date, completed, identity_read').gte('date', monday).lte('date', sunday),
-      supabase.from('evening_pulse').select('client_id, date, completed').gte('date', monday).lte('date', sunday),
-      supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday),
-      supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday),
-      supabase.from('identity_change').select('client_id, affirmations'),
+      safe(supabase.from('daily_pulse').select('client_id, date, completed, identity_read').gte('date', monday).lte('date', sunday)),
+      safe(supabase.from('evening_pulse').select('client_id, date, completed').gte('date', monday).lte('date', sunday)),
+      safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
+      safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
+      safe(supabase.from('identity_change').select('client_id, affirmations')),
     ])
 
     const health = {}
@@ -308,30 +333,32 @@ export default function AdminPage() {
     const mStart = `${year}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = new Date(year, new Date().getMonth() + 1, 0).toISOString().split('T')[0]
 
+    const safe = async (fn) => { try { return await fn } catch(e) { console.error('Query failed:', e); return { data: null } } }
+
     const [
       dkpiRes, morningRes, eveningRes, warWeeklyRes, reviewRes,
       monthlyRes, allMonthlyRes, identityRes, designRes, adventuresRes, warTasksRes,
       projectsRes, leadsRes, weekKpisRes, playbookRes, premiumPosRes,
       allLockInsRes, allWarMapsRes,
     ] = await Promise.all([
-      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd).order('date'),
-      supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday),
-      supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday),
-      supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
-      supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
-      supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false }),
-      supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false }),
-      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', year).maybeSingle(),
-      supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month'),
-      supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle(),
-      supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle(),
-      supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),
-      supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
-      supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
-      supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true }),
-      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday),
-      supabase.from('offer_playbooks').select('*').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle(),
-      supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle(),
+      safe(supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd).order('date')),
+      safe(supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),
+      safe(supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),
+      safe(supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),
+      safe(supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),
+      safe(supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false })),
+      safe(supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false })),
+      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', year).maybeSingle()),
+      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month')),
+      safe(supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle()),
+      safe(supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle()),
+      safe(supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index')),
+      safe(supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),
+      safe(supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false })),
+      safe(supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true })),
+      safe(supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),
+      safe(supabase.from('offer_playbooks').select('*').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle()),
+      safe(supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle()),
     ])
 
     setDailyKpis(dkpiRes.data || [])
@@ -2639,4 +2666,8 @@ export default function AdminPage() {
       </div>
     </div>
   )
+}
+
+export default function AdminPage() {
+  return <ErrorBoundary><AdminPageInner /></ErrorBoundary>
 }
