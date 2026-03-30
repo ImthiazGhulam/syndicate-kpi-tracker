@@ -139,6 +139,7 @@ export default function AdminPage() {
   const [selectedClient, setSelectedClient] = useState(null)
   const [activeTab, setActiveTab] = useState('overview')
   const [loading, setLoading] = useState(true)
+  const [clientLoading, setClientLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   // All-clients health data
@@ -275,6 +276,8 @@ export default function AdminPage() {
     setShowProjectForm(false)
     setEditingProject(null)
 
+    setClientLoading(true)
+
     // Reset all data from previous client
     setDailyKpis([])
     setWeekMorningOps([])
@@ -381,6 +384,7 @@ export default function AdminPage() {
     } catch (err) {
       console.error('Error loading client data:', err)
     }
+    setClientLoading(false)
   }
 
   const handleSignOut = async () => { await supabase.auth.signOut(); router.push('/login') }
@@ -856,7 +860,11 @@ export default function AdminPage() {
               </button>
             </div>
             )
-          })() : (
+          })() : clientLoading ? (
+            <div className="flex items-center justify-center py-20">
+              <div className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading client data...</div>
+            </div>
+          ) : (
             <div>
               {/* Client Header */}
               <div className="mb-5">
