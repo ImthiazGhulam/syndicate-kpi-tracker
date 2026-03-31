@@ -302,8 +302,17 @@ export default function ClientPage() {
   // Monthly Review
   const [monthlyReview, setMonthlyReview] = useState({})
   const [lastMonthReview, setLastMonthReview] = useState(null)
-  const [reviewMonth, setReviewMonth] = useState(new Date().getMonth())
-  const [reviewYear, setReviewYear] = useState(new Date().getFullYear())
+  // Default to previous month in first week (review the month that just ended)
+  const [reviewMonth, setReviewMonth] = useState(() => {
+    const d = new Date()
+    if (d.getDate() <= 7) return d.getMonth() === 0 ? 11 : d.getMonth() - 1
+    return d.getMonth()
+  })
+  const [reviewYear, setReviewYear] = useState(() => {
+    const d = new Date()
+    if (d.getDate() <= 7 && d.getMonth() === 0) return d.getFullYear() - 1
+    return d.getFullYear()
+  })
   const [monthlySaving, setMonthlySaving] = useState(false)
 
   // Dashboard — programme progress
@@ -1407,6 +1416,13 @@ export default function ClientPage() {
               if (!todayDebrief) actions.push({ icon: '🌙', label: 'Complete The Debrief™', sub: 'Reflect on your day before bed', tab: 'debrief' })
               if (isSatOrSun && !weeklyReview.completed) actions.push({ icon: '🔒', label: 'Complete The Lock In™', sub: 'Review your week — due Sunday', tab: 'lock-in' })
               if (isSatOrSun && !weeklyPriorities.completed) actions.push({ icon: '⚔️', label: 'Complete your Weekly War Map™', sub: 'Plan next week — due Sunday', tab: 'war-map' })
+
+              // Monthly review reminder — show in first week of the month if last month's review isn't done
+              const dayOfMonth = new Date().getDate()
+              if (dayOfMonth <= 7 && !lastMonthReview?.completed) {
+                const prevMonthName = MONTH_NAMES[new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1]
+                actions.push({ icon: '📅', label: `Complete your ${prevMonthName} Monthly Review`, sub: 'Reflect on last month and set next month\'s targets', tab: 'monthly' })
+              }
 
               if (actions.length === 0) return null
               return (

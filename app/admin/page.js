@@ -253,12 +253,17 @@ function AdminPageInner() {
 
     // Fetch this week's morning ops and debriefs for ALL clients
     const safe = async (fn) => { try { return await fn } catch(e) { console.error('Health query failed:', e); return { data: [] } } }
-    const [morningRes, eveningRes, warWeeklyRes, reviewRes, identityRes] = await Promise.all([
+    // Also check last month's monthly review completion
+    const prevMonth = new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1
+    const prevYear = new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()
+
+    const [morningRes, eveningRes, warWeeklyRes, reviewRes, identityRes, monthlyRes] = await Promise.all([
       safe(supabase.from('daily_pulse').select('client_id, date, completed, identity_read').gte('date', monday).lte('date', sunday)),
       safe(supabase.from('evening_pulse').select('client_id, date, completed').gte('date', monday).lte('date', sunday)),
       safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
       safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
       safe(supabase.from('identity_change').select('client_id, affirmations')),
+      safe(supabase.from('monthly_review').select('client_id, completed').eq('month', prevMonth).eq('year', prevYear)),
     ])
 
     const health = {}
@@ -271,6 +276,7 @@ function AdminPageInner() {
       const warMap = (Array.isArray(warWeeklyRes.data) ? warWeeklyRes.data : []).find(r => r.client_id === c.id)?.completed ? 1 : 0
       const lockIn = (Array.isArray(reviewRes.data) ? reviewRes.data : []).find(r => r.client_id === c.id)?.completed ? 1 : 0
       const hasIdentity = (Array.isArray(identityRes.data) ? identityRes.data : []).find(r => r.client_id === c.id)?.affirmations?.trim().length > 0 ? 1 : 0
+      const monthlyDone = (Array.isArray(monthlyRes.data) ? monthlyRes.data : []).find(r => r.client_id === c.id)?.completed ? true : false
 
       // Score out of 85 (no tracker data in overview), scaled to 100
       const rawScore =
@@ -296,9 +302,12 @@ function AdminPageInner() {
         if (dLeft <= 90 && dLeft > 0) alerts.push(`Renews in ${dLeft}d`)
       }
 
+      // Monthly review reminder in first week of month
+      if (new Date().getDate() <= 7 && !monthlyDone) alerts.push('Monthly review overdue')
+
       const status = score >= 70 ? 'healthy' : score >= 40 ? 'at-risk' : mornings === 0 && debriefs === 0 && elapsed >= 3 ? 'critical' : 'at-risk'
 
-      health[c.id] = { score, mornings, debriefs, identityReads, warMap, lockIn, hasIdentity, alerts, status, elapsed }
+      health[c.id] = { score, mornings, debriefs, identityReads, warMap, lockIn, hasIdentity, monthlyDone, alerts, status, elapsed }
     })
     setClientHealth(health)
   }
@@ -960,6 +969,34 @@ function AdminPageInner() {
                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">At Risk</p>
                 </div>
               </div>
+
+              {/* Monthly Review Overdue */}
+              {(() => {
+                const dayOfMonth = new Date().getDate()
+                if (dayOfMonth > 7) return null
+                const overdue = healthEntries.filter(c => c.health.monthlyDone === false)
+                if (overdue.length === 0) return null
+                const prevMonthName = MONTH_NAMES[new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1]
+                return (
+                  <div className="mb-8">
+                    <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
+                      <span className="text-base">📅</span> {prevMonthName} Monthly Review — {overdue.length} client{overdue.length > 1 ? 's' : ''} outstanding
+                    </h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      {overdue.map(c => (
+                        <button key={c.id} onClick={() => selectClient(c)}
+                          className="bg-zinc-900 border border-amber-900/30 rounded-lg px-4 py-3 flex items-center justify-between text-left hover:border-amber-900/50 transition">
+                          <div>
+                            <p className="text-white text-sm font-medium">{c.name}</p>
+                            <p className="text-zinc-600 text-xs">{c.business}</p>
+                          </div>
+                          <span className="text-amber-400 text-xs font-bold uppercase tracking-widest">Overdue</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )
+              })()}
 
               {/* Critical Clients — needs immediate attention */}
               {critical.length > 0 && (
