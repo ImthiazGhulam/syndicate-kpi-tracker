@@ -567,6 +567,15 @@ export default function ClientPage() {
       payload[c.key] = Number(row[c.key]) || 0
     })
     await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
+    // Update weekKpis if this date is in the current week
+    const weekDays = getWeekDays(getMonday())
+    if (weekDays.includes(dateStr)) {
+      setWeekKpis(prev => {
+        const exists = prev.some(k => k.date === dateStr)
+        if (exists) return prev.map(k => k.date === dateStr ? { ...k, ...payload } : k)
+        return [...prev, payload]
+      })
+    }
     flash()
   }
 
