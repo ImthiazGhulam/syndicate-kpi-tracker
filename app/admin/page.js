@@ -41,17 +41,24 @@ const LEAD_STAGES = [
   { id: 'ghosted', label: 'Client Ghosted', color: 'text-red-400', bg: 'bg-red-500/10', border: 'border-red-500/30' },
 ]
 
+function localDateStr(d = new Date()) {
+  const year = d.getFullYear()
+  const month = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${year}-${month}-${day}`
+}
+
 function getMonday(d = new Date()) {
   const date = new Date(d)
   const day = date.getDay()
   date.setDate(date.getDate() - day + (day === 0 ? -6 : 1))
-  return date.toISOString().split('T')[0]
+  return localDateStr(date)
 }
 
 function shiftWeek(weekStr, n) {
-  const d = new Date(weekStr)
+  const d = new Date(weekStr + 'T12:00:00')
   d.setDate(d.getDate() + n * 7)
-  return d.toISOString().split('T')[0]
+  return localDateStr(d)
 }
 
 function formatWeekRange(weekStr) {
@@ -63,9 +70,9 @@ function formatWeekRange(weekStr) {
 
 function getWeekDays(mondayStr) {
   return Array.from({ length: 7 }, (_, i) => {
-    const d = new Date(mondayStr)
+    const d = new Date(mondayStr + 'T12:00:00')
     d.setDate(d.getDate() + i)
-    return d.toISOString().split('T')[0]
+    return localDateStr(d)
   })
 }
 
@@ -240,7 +247,7 @@ function AdminPageInner() {
   const fetchAllClientHealth = async (clientList) => {
     const monday = getMonday()
     const sunday = getWeekDays(monday)[6]
-    const today = new Date().toISOString().split('T')[0]
+    const today = localDateStr()
     const todayIdx = getWeekDays(monday).indexOf(today)
     const elapsed = Math.max(1, todayIdx >= 0 ? todayIdx + 1 : 1)
 
@@ -333,9 +340,9 @@ function AdminPageInner() {
     const year = new Date().getFullYear()
     const monday = getMonday()
     const sunday = getWeekDays(monday)[6]
-    const today = new Date().toISOString().split('T')[0]
+    const today = localDateStr()
     const mStart = `${year}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
-    const mEnd = new Date(year, new Date().getMonth() + 1, 0).toISOString().split('T')[0]
+    const mEnd = localDateStr(new Date(year, new Date().getMonth() + 1, 0))
 
     const safe = async (fn) => { try { return await fn } catch(e) { console.error('Query failed:', e); return { data: null } } }
 
@@ -448,7 +455,7 @@ function AdminPageInner() {
 
   // ── Programme Score ────────────────────────────────────────────────────────
 
-  const todayStr = new Date().toISOString().split('T')[0]
+  const todayStr = localDateStr()
   const dashWeekDays = getWeekDays(getMonday())
   const todayDayIndex = dashWeekDays.indexOf(todayStr)
   const daysElapsed = Math.max(1, todayDayIndex >= 0 ? todayDayIndex + 1 : 1)
