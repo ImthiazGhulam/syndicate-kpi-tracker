@@ -210,7 +210,29 @@ export default function ClientPage() {
       }, 2000)
     }
   }
-  const switchTab = (id) => { setActiveTab(id); localStorage.setItem('syndicate_active_tab', id); setSidebarOpen(false); window.scrollTo({ top: 0, behavior: 'smooth' }) }
+  // Refresh dashboard data (weekly morning ops, debriefs, KPIs)
+  const refreshDashboard = async () => {
+    if (!clientData) return
+    const monday = getMonday()
+    const sunday = getWeekDays(monday)[6]
+    const [morningRes, eveningRes, kpiRes] = await Promise.all([
+      supabase.from('daily_pulse').select('*').eq('client_id', clientData.id).gte('date', monday).lte('date', sunday),
+      supabase.from('evening_pulse').select('*').eq('client_id', clientData.id).gte('date', monday).lte('date', sunday),
+      supabase.from('daily_kpis').select('*').eq('client_id', clientData.id).gte('date', monday).lte('date', sunday),
+    ])
+    if (morningRes.data) setWeekMorningOps(morningRes.data)
+    if (eveningRes.data) setWeekDebriefs(eveningRes.data)
+    if (kpiRes.data) setWeekKpis(kpiRes.data)
+  }
+
+  const switchTab = (id) => {
+    setActiveTab(id)
+    localStorage.setItem('syndicate_active_tab', id)
+    setSidebarOpen(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+    // Refresh dashboard data when returning to Command Centre
+    if (id === 'progress') refreshDashboard()
+  }
 
   // Data
   const [checkins, setCheckins] = useState([])
@@ -518,6 +540,7 @@ export default function ClientPage() {
     }, { onConflict: 'client_id,date' }).select().single()
     if (error) { console.error('Morning Ops save error:', error); alert('Failed to save: ' + error.message); setPulseSaving(false); return }
     if (data) setDailyPulse(data)
+    refreshDashboard()
     setPulseSaving(false)
   }
 
@@ -690,6 +713,7 @@ export default function ClientPage() {
     }, { onConflict: 'client_id,date' }).select().single()
     if (error) { console.error('Debrief save error:', error); alert('Failed to save: ' + error.message); setEveningSaving(false); return }
     if (data) setEveningPulse(data)
+    refreshDashboard()
     setEveningSaving(false)
   }
 
@@ -1756,7 +1780,7 @@ export default function ClientPage() {
                   const updated = { ...dailyPulse, identity_read: !dailyPulse.identity_read }
                   setDailyPulse(updated)
                   // auto-save
-                  supabase.from('daily_pulse').upsert({ ...buildPulsePayload(), identity_read: !dailyPulse.identity_read }, { onConflict: 'client_id,date' })
+                  supabase.from('daily_pulse').upsert({ ...buildPulsePayload(), identity_read: !dailyPulse.identity_read }, { onConflict: 'client_id,date' }).then(() => refreshDashboard())
                 }}
                 className="flex items-center gap-3 w-full text-left">
                 <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition flex-shrink-0 ${dailyPulse.identity_read ? 'bg-gold border-gold' : 'border-zinc-600 hover:border-gold'}`}>
