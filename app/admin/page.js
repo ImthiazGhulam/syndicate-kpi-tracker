@@ -190,6 +190,9 @@ function AdminPageInner() {
   const [allClientWarMaps, setAllClientWarMaps] = useState([])
   const [adminReviewWeek, setAdminReviewWeek] = useState(() => getMonday())
   const [adminWarMapWeek, setAdminWarMapWeek] = useState(() => getMonday())
+  // Default monthly view to previous month
+  const [adminMonthlyMonth, setAdminMonthlyMonth] = useState(() => new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1)
+  const [adminMonthlyYear, setAdminMonthlyYear] = useState(() => new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear())
   const [monthlyReview, setMonthlyReview] = useState(null)
   const [allMonthlyReviews, setAllMonthlyReviews] = useState([])
   const [clientPlaybook, setClientPlaybook] = useState(null)
@@ -381,7 +384,7 @@ function AdminPageInner() {
       safe(supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),                  // 3
       safe(supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),                     // 4
       safe(supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),                      // 5
-      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', year).maybeSingle()), // 6
+      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? year - 1 : year).maybeSingle()), // 6 — previous month by default
       safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month')),                            // 7
       safe(supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle()),                                          // 8
       safe(supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle()),                             // 9
@@ -412,6 +415,8 @@ function AdminPageInner() {
     setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
     setAdminReviewWeek(monday)
     setAdminWarMapWeek(monday)
+    setAdminMonthlyMonth(new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1)
+    setAdminMonthlyYear(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear())
 
     if (adventuresRes.data?.length > 0) {
       const merged = defaultAdventures().map(def =>
@@ -2420,13 +2425,33 @@ function AdminPageInner() {
                   <div className="flex items-center justify-between mb-6">
                     <div>
                       <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Monthly Review</h3>
-                      <p className="text-zinc-600 text-xs mt-1">{MONTH_NAMES[new Date().getMonth()]} {new Date().getFullYear()}</p>
+                    </div>
+                    <div className="flex items-center gap-1">
+                      <button onClick={async () => {
+                        const m = adminMonthlyMonth === 0 ? 11 : adminMonthlyMonth - 1
+                        const y = adminMonthlyMonth === 0 ? adminMonthlyYear - 1 : adminMonthlyYear
+                        setAdminMonthlyMonth(m); setAdminMonthlyYear(y)
+                        const { data } = await supabase.from('monthly_review').select('*').eq('client_id', selectedClient.id).eq('month', m).eq('year', y).maybeSingle()
+                        setMonthlyReview(data || null)
+                      }} className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                      </button>
+                      <span className="text-xs font-semibold text-white min-w-[120px] text-center">{MONTH_NAMES[adminMonthlyMonth]} {adminMonthlyYear}</span>
+                      <button onClick={async () => {
+                        const m = adminMonthlyMonth === 11 ? 0 : adminMonthlyMonth + 1
+                        const y = adminMonthlyMonth === 11 ? adminMonthlyYear + 1 : adminMonthlyYear
+                        setAdminMonthlyMonth(m); setAdminMonthlyYear(y)
+                        const { data } = await supabase.from('monthly_review').select('*').eq('client_id', selectedClient.id).eq('month', m).eq('year', y).maybeSingle()
+                        setMonthlyReview(data || null)
+                      }} className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
                     </div>
                     {monthlyReview ? (monthlyReview.completed ? <CompletedBadge /> : <PendingBadge />) : <NotStartedBadge />}
                   </div>
 
                   {!monthlyReview ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">Client hasn't started their monthly review yet.</p>
+                    <p className="text-center py-12 text-zinc-600 text-sm">No review for {MONTH_NAMES[adminMonthlyMonth]} {adminMonthlyYear}.</p>
                   ) : (
                     <div className="space-y-4">
                       {/* Revenue + Target */}
