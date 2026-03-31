@@ -2726,6 +2726,22 @@ export default function ClientPage() {
                                 onChange={e => updateKpi(dateStr, col.key, e.target.value)}
                                 onBlur={() => saveKpiDay(dateStr)}
                                 placeholder="0"
+                                data-row={i}
+                                data-col={KPI_COLS.indexOf(col)}
+                                onKeyDown={e => {
+                                  const r = Number(e.target.dataset.row)
+                                  const c = Number(e.target.dataset.col)
+                                  let tr = r, tc = c
+                                  if (e.key === 'ArrowDown') tr = r + 1
+                                  else if (e.key === 'ArrowUp') tr = r - 1
+                                  else if (e.key === 'ArrowRight' || e.key === 'Tab') { tc = c + 1; if (!e.shiftKey && e.key === 'Tab') e.preventDefault() }
+                                  else if (e.key === 'ArrowLeft') tc = c - 1
+                                  else if (e.key === 'Enter') { tr = r + 1; e.preventDefault() }
+                                  else return
+                                  if (e.key !== 'Tab') e.preventDefault()
+                                  const next = document.querySelector(`input[data-row="${tr}"][data-col="${tc}"]`)
+                                  if (next) next.focus()
+                                }}
                                 className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
                               />
                             )}
