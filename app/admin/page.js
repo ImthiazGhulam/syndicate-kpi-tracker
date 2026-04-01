@@ -3067,8 +3067,8 @@ function AdminPageInner() {
                 const totalScore = scores.total || 0
                 const band = totalScore >= 35 ? 'Wealth Ready' : totalScore >= 26 ? 'Strong' : totalScore >= 16 ? 'Getting There' : 'Needs Work'
                 const MODULES = [
-                  'The Trinity Trap', 'The Ascension Ladder', 'The Brokie Venn', 'The Rewire Triangle',
-                  'The Matrix', 'The Transition Bridge', 'The Financial Sabotage Loop', 'The Wealth Cycle'
+                  'The Trinity Trap™', 'The Ascension Ladder™', 'The Brokie Venn™', 'The Rewire Triangle™',
+                  'The Matrix™', 'The Transition Bridge™', 'The Financial Sabotage Loop™', 'The Wealth Cycle™'
                 ]
 
                 return (
