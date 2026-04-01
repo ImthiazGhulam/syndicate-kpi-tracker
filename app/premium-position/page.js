@@ -1207,12 +1207,59 @@ export default function PremiumPositionPage() {
                 </button>
               </div>
             )
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-zinc-600 text-sm mb-2">Score {scores.overall.total}/50 — you need 40+ to unlock your action plan.</p>
-              <p className="text-zinc-700 text-xs">Go deeper on your answers to increase your score.</p>
+          ) : (() => {
+            const improvements = []
+            const wc = (s) => (s || '').trim().split(/\s+/).filter(Boolean).length
+            // Bucket
+            const likerts = bucketData.likerts || {}
+            const answered = Object.values(likerts).filter(v => v > 0).length
+            if (answered < 12) improvements.push({ stage: 1, label: 'Brand Bucket™', msg: `Answer all 12 diagnostic questions (${answered}/12 done)` })
+            if (!bucketData.gap_description || wc(bucketData.gap_description) < 10) improvements.push({ stage: 1, label: 'Brand Bucket™', msg: 'Add more detail to your gap description' })
+            // Star
+            if (!starData.name) improvements.push({ stage: 2, label: 'Brand Star™', msg: 'Add your brand name' })
+            if (!starData.specific_description || wc(starData.specific_description) < 4) improvements.push({ stage: 2, label: 'Brand Star™', msg: 'Describe your ideal client in more detail' })
+            if (!starData.contrarian_belief || wc(starData.contrarian_belief) < 12) improvements.push({ stage: 2, label: 'Brand Star™', msg: 'Deepen your contrarian belief — needs 12+ words' })
+            if (!starData.what_you_do || wc(starData.what_you_do) < 6) improvements.push({ stage: 2, label: 'Brand Star™', msg: 'Expand what you do — needs 6+ words' })
+            if (!starData.refuse) improvements.push({ stage: 2, label: 'Brand Star™', msg: 'Define what you refuse to do' })
+            // Hero
+            if (!heroData.origin || wc(heroData.origin) < 10) improvements.push({ stage: 3, label: 'Hero Framework', msg: 'Tell your origin story in more depth' })
+            if (!heroData.turning_point || wc(heroData.turning_point) < 8) improvements.push({ stage: 3, label: 'Hero Framework', msg: 'Expand your turning point' })
+            if (!heroData.gift || wc(heroData.gift) < 8) improvements.push({ stage: 3, label: 'Hero Framework', msg: 'Describe the gift your story gives clients' })
+            if (!heroData.identity_label) improvements.push({ stage: 3, label: 'Hero Framework', msg: 'Set your identity label' })
+            // Remarkable
+            if (!remarkableData.category || wc(remarkableData.category) < 4) improvements.push({ stage: 4, label: 'Remarkable Factor', msg: 'Define the category you own' })
+            if (!remarkableData.mechanism || wc(remarkableData.mechanism) < 8) improvements.push({ stage: 4, label: 'Remarkable Factor', msg: 'Name and describe your unique mechanism' })
+            if (!remarkableData.provocation || wc(remarkableData.provocation) < 8) improvements.push({ stage: 4, label: 'Remarkable Factor', msg: 'Write your provocation — the thing nobody else will say' })
+            return (
+            <div>
+              <div className="text-center mb-6">
+                <p className="text-zinc-400 text-sm font-medium mb-1">Score {scores.overall.total}/50 — you need 40 to unlock your action plan</p>
+                <div className="w-full max-w-xs mx-auto h-3 bg-zinc-800 rounded-full overflow-hidden mt-3">
+                  <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${(scores.overall.total / 40) * 100}%` }} />
+                </div>
+                <p className="text-zinc-600 text-xs mt-2">{40 - scores.overall.total} points to go</p>
+              </div>
+              {improvements.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Improve these to unlock your plan</h3>
+                  <div className="space-y-2">
+                    {improvements.slice(0, 8).map((imp, i) => (
+                      <button key={i} onClick={() => goToStage(imp.stage)}
+                        className="w-full flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
+                        <span className="text-amber-400 text-lg flex-shrink-0">⚠️</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{imp.label}</p>
+                          <p className="text-xs text-zinc-500">{imp.msg}</p>
+                        </div>
+                        <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+            )
+          })()}
         </div>
         {/* Back navigation */}
         <div className="flex justify-start mt-8">

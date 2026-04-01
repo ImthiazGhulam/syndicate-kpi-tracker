@@ -684,11 +684,47 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
                 </button>
               </div>
             )
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-zinc-600 text-sm mb-2">Score {scores.total}/40 — you need 32+ to unlock your action plan.</p>
-              <p className="text-zinc-700 text-xs">Go deeper on your answers to increase your score.</p>
+          ) : (() => {
+            // Build specific improvement actions
+            const improvements = []
+            const wc = (s) => (s || '').trim().split(/\s+/).filter(Boolean).length
+            MODULES.forEach(m => {
+              const mod = moduleData[`module_${m.num}`] || {}
+              if (!mod.reflection) improvements.push({ module: m.num, title: m.title, field: 'Reflection', msg: 'Answer the reflection question' })
+              if (!mod.audit) improvements.push({ module: m.num, title: m.title, field: 'Audit', msg: 'Complete the audit' })
+              if (!mod.go_deeper) improvements.push({ module: m.num, title: m.title, field: 'Go Deeper', msg: 'Answer the Go Deeper question' })
+              else if (wc(mod.go_deeper) < 15) improvements.push({ module: m.num, title: m.title, field: 'Go Deeper', msg: 'Add more depth — needs 15+ words for full marks' })
+            })
+            return (
+            <div>
+              <div className="text-center mb-6">
+                <p className="text-zinc-400 text-sm font-medium mb-1">Score {scores.total}/40 — you need 32 to unlock your action plan</p>
+                <div className="w-full max-w-xs mx-auto h-3 bg-zinc-800 rounded-full overflow-hidden mt-3">
+                  <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${(scores.total / 32) * 100}%` }} />
+                </div>
+                <p className="text-zinc-600 text-xs mt-2">{32 - scores.total} points to go</p>
+              </div>
+              {improvements.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Improve these to unlock your plan</h3>
+                  <div className="space-y-2">
+                    {improvements.slice(0, 8).map((imp, i) => (
+                      <button key={i} onClick={() => goToModule(imp.module)}
+                        className="w-full flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
+                        <span className="text-amber-400 text-lg flex-shrink-0">⚠️</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{imp.title}</p>
+                          <p className="text-xs text-zinc-500">{imp.field} — {imp.msg}</p>
+                        </div>
+                        <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
+            )
+          })()
           )}
         </div>
 

@@ -1887,12 +1887,60 @@ export default function PlaybookPage() {
                 </button>
               </div>
             )
-          ) : (
-            <div className="text-center py-6">
-              <p className="text-zinc-600 text-sm mb-2">Score {scores.overall.total}/50 — you need 40+ to unlock your launch plan.</p>
-              <p className="text-zinc-700 text-xs">Complete more sections to increase your score.</p>
+          ) : (() => {
+            const improvements = []
+            const wc = (s) => (s || '').trim().split(/\s+/).filter(Boolean).length
+            // ICP
+            if (!icpData.specific_description || wc(icpData.specific_description) < 10) improvements.push({ stage: 1, label: 'ICP Builder', msg: 'Describe your ideal client in more detail (10+ words)' })
+            if (!icpData.dream_outcome || wc(icpData.dream_outcome) < 8) improvements.push({ stage: 1, label: 'ICP Builder', msg: 'Make your dream outcome more specific (8+ words)' })
+            if ((icpData.pains || []).filter(Boolean).length < 3) improvements.push({ stage: 1, label: 'ICP Builder', msg: 'Add at least 3 pain points' })
+            if (!(icpData.channels || []).length) improvements.push({ stage: 1, label: 'ICP Builder', msg: 'Select where your ICP hangs out' })
+            if (!icpData.trigger_moment || wc(icpData.trigger_moment) < 8) improvements.push({ stage: 1, label: 'ICP Builder', msg: 'Describe the trigger moment (8+ words)' })
+            // Dip
+            if (!dipData.format) improvements.push({ stage: 2, label: 'The Dip', msg: 'Choose a format for your entry offer' })
+            if (!dipData.problem || wc(dipData.problem) < 5) improvements.push({ stage: 2, label: 'The Dip', msg: 'Define the specific problem your Dip solves' })
+            if (!dipData.outcome || wc(dipData.outcome) < 5) improvements.push({ stage: 2, label: 'The Dip', msg: 'Define the outcome your Dip delivers' })
+            if (!dipData.bridge || wc(dipData.bridge) < 10) improvements.push({ stage: 2, label: 'The Dip', msg: 'Explain the bridge to your main offer (10+ words)' })
+            // Bang Bang
+            if (!bangBangData.name) improvements.push({ stage: 3, label: 'Bang Bang Offer', msg: 'Name your main offer' })
+            if (!bangBangData.promise || wc(bangBangData.promise) < 15) improvements.push({ stage: 3, label: 'Bang Bang Offer', msg: 'Write your core promise (15+ words)' })
+            if (!bangBangData.unique_mechanism) improvements.push({ stage: 3, label: 'Bang Bang Offer', msg: 'Define your unique mechanism' })
+            if ((bangBangData.phases || []).filter(p => p.name).length < 2) improvements.push({ stage: 3, label: 'Bang Bang Offer', msg: 'Add at least 2 programme phases' })
+            if (!bangBangData.price) improvements.push({ stage: 3, label: 'Bang Bang Offer', msg: 'Set your price' })
+            // Framework
+            if (!frameworkData.framework_name) improvements.push({ stage: 4, label: 'Signature Framework™', msg: 'Name your signature framework' })
+            const namedPillars = (frameworkData.pillars || []).filter(p => p.name).length
+            if (namedPillars < 3) improvements.push({ stage: 4, label: 'Signature Framework™', msg: `Name all 3 pillars (${namedPillars}/3 done)` })
+            return (
+            <div>
+              <div className="text-center mb-6">
+                <p className="text-zinc-400 text-sm font-medium mb-1">Score {scores.overall.total}/50 — you need 40 to unlock your launch plan</p>
+                <div className="w-full max-w-xs mx-auto h-3 bg-zinc-800 rounded-full overflow-hidden mt-3">
+                  <div className="h-full bg-gold rounded-full transition-all duration-500" style={{ width: `${(scores.overall.total / 40) * 100}%` }} />
+                </div>
+                <p className="text-zinc-600 text-xs mt-2">{40 - scores.overall.total} points to go</p>
+              </div>
+              {improvements.length > 0 && (
+                <div>
+                  <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Improve these to unlock your plan</h3>
+                  <div className="space-y-2">
+                    {improvements.slice(0, 8).map((imp, i) => (
+                      <button key={i} onClick={() => goToStage(imp.stage)}
+                        className="w-full flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
+                        <span className="text-amber-400 text-lg flex-shrink-0">⚠️</span>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white">{imp.label}</p>
+                          <p className="text-xs text-zinc-500">{imp.msg}</p>
+                        </div>
+                        <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
-          )}
+            )
+          })()}
         </div>
       </div>
     )
