@@ -1178,6 +1178,89 @@ export default function PremiumPositionPage() {
         </div>
 
 
+        {/* Brand Action Plan */}
+        <div className="mt-8 pt-6 border-t border-zinc-800">
+          {scores.overall.total >= 40 ? (
+            record.generated_plan ? (
+              <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
+                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your Premium Position™ Action Plan</h3>
+                <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{record.generated_plan}</div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-zinc-500 text-xs mb-4 uppercase tracking-widest">Score 40+. Your positioning is ready to become an action plan.</p>
+                <button onClick={async () => {
+                  const plan = `YOUR PREMIUM POSITION™ ACTION PLAN
+
+═══════════════════════════════════════
+YOUR BRAND BUCKET™ DIAGNOSIS
+═══════════════════════════════════════
+${(() => {
+  const l = bucketData.likerts || {}
+  const vis = (l.v1||0)+(l.v2||0)+(l.v3||0)+(l.v4||0)
+  const eng = (l.e1||0)+(l.e2||0)+(l.e3||0)+(l.e4||0)
+  const tru = (l.t1||0)+(l.t2||0)+(l.t3||0)+(l.t4||0)
+  const lowest = Math.min(vis, eng, tru)
+  const leak = lowest === vis ? 'Visibility' : lowest === eng ? 'Engagement' : 'Trust'
+  return `Primary leak: ${leak} (${lowest}/20)
+Visibility: ${vis}/20 | Engagement: ${eng}/20 | Trust: ${tru}/20
+
+Action: Your biggest hole is ${leak}. Focus 80% of your effort here for the next 30 days.`
+})()}
+${bucketData.gap_description ? `\nIn your words: "${bucketData.gap_description}"` : ''}
+
+═══════════════════════════════════════
+YOUR COLT BRAND STAR™
+═══════════════════════════════════════
+Brand: ${starData.name || 'Define your brand'}
+You serve: ${starData.specific_description || 'Define your audience'}
+Your belief: "${starData.contrarian_belief || 'Define your contrarian belief'}"
+What you refuse: ${starData.refuse || 'Define your non-negotiables'}
+
+Action: Post your contrarian belief publicly this week. Write 3 pieces of content around "${starData.contrarian_belief || 'your belief'}" — this is your stake in the ground.
+
+═══════════════════════════════════════
+YOUR HERO FRAMEWORK
+═══════════════════════════════════════
+Origin: ${heroData.origin ? heroData.origin.slice(0, 150) + '...' : 'Tell your origin story'}
+Turning point: ${heroData.turning_point ? heroData.turning_point.slice(0, 150) + '...' : 'Define your turning point'}
+The gift: ${heroData.gift ? heroData.gift.slice(0, 150) + '...' : 'What your story gives clients'}
+Identity: ${heroData.identity_label || 'Define your identity label'}
+
+Action: Write your origin story as a 3-paragraph narrative this week. Use it in your bio, about page, and content.
+
+═══════════════════════════════════════
+YOUR REMARKABLE FACTOR
+═══════════════════════════════════════
+Category: ${remarkableData.category || 'Own your category'}
+Mechanism: ${remarkableData.mechanism || 'Name your method'}
+Provocation: "${remarkableData.provocation || 'Say the thing nobody else will'}"
+
+Action: Name your mechanism this week if you haven't. Post your provocation — "${remarkableData.provocation || 'your honest take'}" — and watch who it attracts.
+
+═══════════════════════════════════════
+30-DAY POSITIONING SPRINT
+═══════════════════════════════════════
+Week 1: Fix your primary leak — ${(() => { const l = bucketData.likerts || {}; const vis = (l.v1||0)+(l.v2||0)+(l.v3||0)+(l.v4||0); const eng = (l.e1||0)+(l.e2||0)+(l.e3||0)+(l.e4||0); const tru = (l.t1||0)+(l.t2||0)+(l.t3||0)+(l.t4||0); const lowest = Math.min(vis,eng,tru); return lowest === vis ? 'show up daily on your chosen platform with a clear message' : lowest === eng ? 'post your contrarian belief and provocation — create tension' : 'share your origin story and social proof — build credibility'; })()}
+Week 2: Publish your brand story — origin, turning point, gift. Use it everywhere.
+Week 3: Launch your named mechanism — "${remarkableData.mechanism || 'your method'}" — in content and conversations.
+Week 4: Audit your premium signals. Close the gaps: ${(remarkableData.signal_gaps || []).slice(0, 3).join(', ') || 'review your signal gaps'}.`
+
+                  await supabase.from('premium_position').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+                  setRecord(prev => ({ ...prev, generated_plan: plan }))
+                }} className="px-8 py-4 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                  Generate My Positioning Action Plan
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-zinc-600 text-sm mb-2">Score {scores.overall.total}/50 — you need 40+ to unlock your action plan.</p>
+              <p className="text-zinc-700 text-xs">Go deeper on your answers to increase your score.</p>
+            </div>
+          )}
+        </div>
+
         {/* Back navigation */}
         <div className="flex justify-start mt-8">
           <button onClick={() => goToStage(4)} className="px-6 py-2.5 bg-zinc-800 text-zinc-300 font-semibold text-sm rounded-lg hover:bg-zinc-700 transition">

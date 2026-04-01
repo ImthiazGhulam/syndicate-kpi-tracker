@@ -346,6 +346,91 @@ export default function WealthWiredPage() {
 
   const scores = computeScores()
 
+  // ── Action Plan Generator ──────────────────────────────────────────────────
+
+  const generateActionPlan = async () => {
+    const m = (n) => moduleData[`module_${n}`] || {}
+    const extract = (text, maxLen = 80) => {
+      if (!text) return ''
+      const trimmed = text.trim()
+      return trimmed.length > maxLen ? trimmed.slice(0, maxLen) + '...' : trimmed
+    }
+
+    const plan = `YOUR 30-DAY WEALTH WIRED™ ACTION PLAN
+Generated from your personal workbook answers.
+
+═══════════════════════════════════════
+WEEK 1 — AWARENESS & IDENTITY
+Based on The Trinity Trap™ & The Ascension Ladder™
+═══════════════════════════════════════
+
+Your biggest grip: ${extract(m(1).reflection, 200)}
+
+Action 1: Write down the top 3 ways scarcity programming shows up in your daily decisions. You identified: "${extract(m(1).audit, 150)}" — now catch yourself doing it this week and document every instance.
+
+Action 2: Based on your position on the broken pyramid, your task is to take one concrete step toward the Syndicate pyramid this week. You said your weakest area is: "${extract(m(2).audit, 150)}" — commit 30 minutes daily to strengthening it.
+
+Action 3: The belief you inherited about money — "${extract(m(1).go_deeper, 150)}" — write the opposite belief and read it every morning this week.
+
+═══════════════════════════════════════
+WEEK 2 — PATTERN BREAKING
+Based on The Brokie Venn™ & The Rewire Triangle™
+═══════════════════════════════════════
+
+Your dominant pattern: ${extract(m(3).reflection, 200)}
+
+Action 4: You identified that your decisions have been driven by "${extract(m(3).audit, 150)}" — this week, before every financial decision, pause and ask: "Is this strategy or pattern?"
+
+Action 5: The rewire you committed to — "${extract(m(4).reflection, 150)}" — define 3 specific daily actions that embody this rewire and do them every day this week.
+
+Action 6: The skill you identified as highest-leverage — "${extract(m(4).audit, 150)}" — block 1 hour daily this week for deliberate practice. No excuses.
+
+═══════════════════════════════════════
+WEEK 3 — POSITIONING & BRIDGE-BUILDING
+Based on The Matrix™ & The Transition Bridge™
+═══════════════════════════════════════
+
+Your current quadrant: ${extract(m(5).reflection, 200)}
+
+Action 7: Your vision of becoming an Icon — "${extract(m(5).go_deeper, 150)}" — write your Icon statement and share it with one person you trust this week.
+
+Action 8: You're at the "${extract(m(6).reflection, 100)}" phase of The Transition Bridge™. Your biggest vulnerability is "${extract(m(6).audit, 150)}" — create a specific plan to address it this week.
+
+Action 9: Your mission statement — "${extract(m(6).go_deeper, 150)}" — if it's not clear yet, that IS your week 3 task. Write it, refine it, live it.
+
+═══════════════════════════════════════
+WEEK 4 — SYSTEMS & MOMENTUM
+Based on The Financial Sabotage Loop™ & The Wealth Cycle™
+═══════════════════════════════════════
+
+Your sabotage pattern: ${extract(m(7).reflection, 200)}
+
+Action 10: The cost of keeping up appearances — "${extract(m(7).go_deeper, 150)}" — cut one appearance-driven expense this week and redirect it to your growth account.
+
+Action 11: Set up your three-account system this week if you haven't already. You identified the structural change needed: "${extract(m(8).go_deeper, 150)}" — do it before the week ends.
+
+Action 12: Your Wealth Cycle commitment for 90 days — "${extract(m(8).audit, 150)}" — write it on paper, put it where you see it daily, and start the first cycle this week.
+
+═══════════════════════════════════════
+YOUR 3 NON-NEGOTIABLE COMMITMENTS
+═══════════════════════════════════════
+
+1. ${extract(m(4).go_deeper, 200) || 'Complete your Rewire Triangle™ Go Deeper response to unlock this commitment.'}
+
+2. ${extract(m(6).go_deeper, 200) || 'Complete your Transition Bridge™ Go Deeper response to unlock this commitment.'}
+
+3. ${extract(m(8).go_deeper, 200) || 'Complete your Wealth Cycle™ Go Deeper response to unlock this commitment.'}
+
+═══════════════════════════════════════
+This plan was built from YOUR answers. Not generic advice.
+Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
+═══════════════════════════════════════`
+
+    setGeneratedPlan(plan)
+    // Save to Supabase
+    await supabase.from('wealth_wired').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+  }
+
   // ── Module Navigation ──────────────────────────────────────────────────────
 
   const goToModule = (num) => {
@@ -565,10 +650,34 @@ export default function WealthWiredPage() {
           })}
         </div>
 
+        {/* Action Plan */}
+        <div className="mt-8 pt-6 border-t border-zinc-800">
+          {scores.total >= 32 ? (
+            generatedPlan ? (
+              <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
+                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your 30-Day Wealth Wired™ Action Plan</h3>
+                <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedPlan}</div>
+              </div>
+            ) : (
+              <div className="text-center">
+                <p className="text-zinc-500 text-xs mb-4 uppercase tracking-widest">You've hit the threshold. Your answers are ready to become your plan.</p>
+                <button onClick={generateActionPlan} className="px-8 py-4 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                  Generate My 30-Day Action Plan
+                </button>
+              </div>
+            )
+          ) : (
+            <div className="text-center py-6">
+              <p className="text-zinc-600 text-sm mb-2">Score {scores.total}/40 — you need 32+ to unlock your action plan.</p>
+              <p className="text-zinc-700 text-xs">Go deeper on your answers to increase your score.</p>
+            </div>
+          )}
+        </div>
+
         {/* Back navigation */}
         <div className="flex justify-start mt-8">
           <button onClick={() => goToModule(8)} className="px-6 py-2.5 bg-zinc-800 text-zinc-300 font-semibold text-sm rounded-lg hover:bg-zinc-700 transition">
-            &larr; The Wealth Cycle
+            &larr; The Wealth Cycle™
           </button>
         </div>
       </div>
