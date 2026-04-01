@@ -408,26 +408,47 @@ export default function ClientPage() {
     const today = localDateStr()
     const mStart = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = localDateStr(new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0))
-    const [dkpiRes, checkinsRes, projectsRes, designRes, adventuresRes, warRes, weeklyRes, pulseRes, leadsRes, identityRes, eveningRes, reviewRes, weekPulsesRes, weekDebriefsRes, weekKpisRes, monthlyRes, lastMonthlyRes, allLockInsRes, allWarMapsRes] = await Promise.all([
-      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),
-      supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),
-      supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),
-      supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle(),
-      supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),
-      supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
-      supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
-      supabase.from('daily_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),
-      supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true }),
-      supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle(),
-      supabase.from('evening_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),
-      supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),
-      supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false }),
-      supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false }),
-      supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', getWeekDays(monday)[6]),
-      supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', getWeekDays(monday)[6]),
-      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', getWeekDays(monday)[6]),
-      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', new Date().getFullYear()).maybeSingle(),
-      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle(),
+    // IMPORTANT: destructuring order MUST match query order exactly
+    const [
+      dkpiRes,          // 1. daily_kpis (month)
+      checkinsRes,      // 2. checkins
+      projectsRes,      // 3. projects
+      designRes,        // 4. life_design
+      adventuresRes,    // 5. mini_adventures
+      warRes,           // 6. war_map_tasks
+      weeklyRes,        // 7. war_map_weekly (this week, single)
+      pulseRes,         // 8. daily_pulse (today, single)
+      leadsRes,         // 9. leads
+      identityRes,      // 10. identity_change
+      eveningRes,       // 11. evening_pulse (today, single)
+      reviewRes,        // 12. weekly_review (this week, single)
+      weekPulsesRes,    // 13. daily_pulse (week range)
+      weekDebriefsRes,  // 14. evening_pulse (week range)
+      weekKpisRes,      // 15. daily_kpis (week range)
+      monthlyRes,       // 16. monthly_review (current month)
+      lastMonthlyRes,   // 17. monthly_review (previous month)
+      allLockInsRes,    // 18. weekly_review (all history)
+      allWarMapsRes,    // 19. war_map_weekly (all history)
+    ] = await Promise.all([
+      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),              // 1
+      supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),            // 2
+      supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false }),             // 3
+      supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle(),                     // 4
+      supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),          // 5
+      supabase.from('war_map_tasks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),        // 6
+      supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),             // 7
+      supabase.from('daily_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),                    // 8
+      supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true }),                 // 9
+      supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle(),                                  // 10
+      supabase.from('evening_pulse').select('*').eq('client_id', client.id).eq('date', today).maybeSingle(),                  // 11
+      supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle(),              // 12
+      supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', getWeekDays(monday)[6]),     // 13
+      supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', getWeekDays(monday)[6]),   // 14
+      supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', getWeekDays(monday)[6]),      // 15
+      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth()).eq('year', new Date().getFullYear()).maybeSingle(),  // 16
+      supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle(),  // 17
+      supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false }),  // 18
+      supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false }), // 19
     ])
 
     if (dkpiRes.data) {
