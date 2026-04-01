@@ -398,16 +398,20 @@ export default function PremiumPositionPage() {
     const flags = []
 
     // ── Stage 1: Brand Bucket (out of 10) ──
+    // Scoring based on COMPLETION, not what they scored — honest low scores are valuable diagnostics
     let bucketScore = 0
     const likerts = bucketData.likerts || {}
     const answered = Object.values(likerts).filter(v => v > 0).length
-    bucketScore += (answered / 12) * 6
+    // +8 for completing all 12 questions (proportional)
+    bucketScore += (answered / 12) * 8
+    // +2 for writing a gap description with substance
     if (bucketData.gap_description && bucketData.gap_description.trim().split(/\s+/).length > 10) bucketScore += 2
+    else if (bucketData.gap_description && bucketData.gap_description.trim().length > 0) bucketScore += 1
+    bucketScore = Math.min(Math.round(bucketScore * 10) / 10, 10)
+    // These are for display only, not scoring
     const visScore = (likerts.v1 || 0) + (likerts.v2 || 0) + (likerts.v3 || 0) + (likerts.v4 || 0)
     const engScore = (likerts.e1 || 0) + (likerts.e2 || 0) + (likerts.e3 || 0) + (likerts.e4 || 0)
     const trustScore = (likerts.t1 || 0) + (likerts.t2 || 0) + (likerts.t3 || 0) + (likerts.t4 || 0)
-    if (visScore > 0 && engScore > 0 && trustScore > 0) bucketScore += 2
-    bucketScore = Math.min(Math.round(bucketScore * 10) / 10, 10)
 
     // ── Stage 2: Brand Star (out of 10) ──
     let starScore = 0
