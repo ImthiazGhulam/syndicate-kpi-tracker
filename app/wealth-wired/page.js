@@ -348,7 +348,25 @@ export default function WealthWiredPage() {
 
   // ── Action Plan Generator ──────────────────────────────────────────────────
 
+  const [planLoading, setPlanLoading] = useState(false)
+
   const generateActionPlan = async () => {
+    setPlanLoading(true)
+    try {
+      const res = await fetch('/api/generate-plan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'wealth-wired', data: moduleData }),
+      })
+      const result = await res.json()
+      if (result.error) { alert('Failed to generate: ' + result.error); setPlanLoading(false); return }
+      setGeneratedPlan(result.plan)
+      await supabase.from('wealth_wired').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+    } catch (e) { alert('Failed: ' + e.message) }
+    setPlanLoading(false)
+  }
+
+  const OLD_generateActionPlan = async () => {
     const m = (n) => moduleData[`module_${n}`] || {}
     const extract = (text, maxLen = 80) => {
       if (!text) return ''
@@ -661,8 +679,8 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
             ) : (
               <div className="text-center">
                 <p className="text-zinc-500 text-xs mb-4 uppercase tracking-widest">You've hit the threshold. Your answers are ready to become your plan.</p>
-                <button onClick={generateActionPlan} className="px-8 py-4 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
-                  Generate My 30-Day Action Plan
+                <button onClick={generateActionPlan} disabled={planLoading} className="px-8 py-4 bg-gold hover:bg-gold-light disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                  {planLoading ? 'Generating your plan...' : 'Generate My 30-Day Action Plan'}
                 </button>
               </div>
             )

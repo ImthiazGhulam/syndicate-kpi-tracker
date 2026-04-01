@@ -1870,62 +1870,20 @@ export default function PlaybookPage() {
               <div className="text-center">
                 <p className="text-zinc-500 text-xs mb-4 uppercase tracking-widest">Score 40+. Your offer blueprint is ready to become a launch plan.</p>
                 <button onClick={async () => {
-                  const plan = `YOUR SOLD OUT™ OFFER LAUNCH PLAN
-
-═══════════════════════════════════════
-YOUR ICP
-═══════════════════════════════════════
-You serve: ${icpData.specific_description || 'Define your ideal client'}
-They want: ${icpData.dream_outcome || 'Define their dream outcome'}
-Their trigger: ${icpData.trigger_moment || 'Define their trigger moment'}
-They hang out on: ${(icpData.channels || []).join(', ') || 'Define their channels'}
-
-Action: Write 3 pieces of content this week that speak directly to "${icpData.trigger_moment || 'their trigger moment'}" and post them on ${(icpData.channels || []).slice(0, 2).join(' and ') || 'your chosen channels'}.
-
-═══════════════════════════════════════
-YOUR DIP (ENTRY OFFER)
-═══════════════════════════════════════
-Format: ${dipData.format || 'Choose your format'}
-Problem it solves: ${dipData.problem || 'Define the problem'}
-Outcome: ${dipData.outcome || 'Define the outcome'}
-Price: £${dipData.price || '0'}
-Bridge to main offer: ${dipData.bridge || 'Define your bridge'}
-
-Action: Build and launch your Dip within 14 days. Price it at £${dipData.price || '97'}. The belief it needs to create: "${dipData.belief_to_create || 'Define the belief'}".
-
-═══════════════════════════════════════
-YOUR BANG BANG OFFER
-═══════════════════════════════════════
-Name: ${bangBangData.name || 'Name your offer'}
-Promise: ${bangBangData.promise || 'Write your promise'}
-Price: £${bangBangData.price || '0'} (Stack value: £${bangBangData.stack_value || '0'})
-Duration: ${bangBangData.duration || 'Set duration'}
-Guarantee: ${(bangBangData.guarantees || []).join(', ') || 'Choose your guarantee'}
-
-Action: Finalise your offer page, value stack, and guarantee this week. Your unique mechanism — "${bangBangData.unique_mechanism || 'Define it'}" — must be front and centre.
-
-═══════════════════════════════════════
-YOUR SIGNATURE FRAMEWORK
-═══════════════════════════════════════
-${frameworkData.framework_name || 'Name your framework'}
-${frameworkData.pillars?.filter(p => p.name).map((p, i) => `Pillar ${i + 1}: ${p.name}${p.modules?.filter(m => m.name).length ? ' → ' + p.modules.filter(m => m.name).map(m => m.name).join(', ') : ''}`).join('\n') || 'Define your pillars'}
-
-Action: Create a visual of your framework and use it in your content, sales conversations, and offer page.
-
-═══════════════════════════════════════
-30-DAY LAUNCH SEQUENCE
-═══════════════════════════════════════
-Week 1: Content blitz — 5 posts targeting your ICP's pains and trigger moments
-Week 2: Launch your Dip — drive traffic, create buyers, build trust
-Week 3: Bridge sequence — nurture Dip buyers toward your Bang Bang Offer
-Week 4: Open cart — present your offer to warmed buyers with full stack and guarantee
-
-Your continuity play: ${bangBangData.continuity_offer || 'Define your continuity offer'} at £${bangBangData.continuity_price || '0'}/month`
-
-                  setPlaybook(prev => ({ ...prev, generated_plan: plan }))
-                  await supabase.from('offer_playbooks').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('id', playbook.id)
-                }} className="px-8 py-4 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
-                  Generate My Offer Launch Plan
+                  setPlaybook(prev => ({ ...prev, _planLoading: true }))
+                  try {
+                    const res = await fetch('/api/generate-plan', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify({ type: 'sold-out', data: { icp: icpData, dip: dipData, bang_bang: bangBangData, framework: frameworkData } }),
+                    })
+                    const result = await res.json()
+                    if (result.error) { alert('Failed: ' + result.error); setPlaybook(prev => ({ ...prev, _planLoading: false })); return }
+                    await supabase.from('offer_playbooks').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', playbook.id)
+                    setPlaybook(prev => ({ ...prev, generated_plan: result.plan, _planLoading: false }))
+                  } catch (e) { alert('Failed: ' + e.message); setPlaybook(prev => ({ ...prev, _planLoading: false })) }
+                }} disabled={playbook._planLoading} className="px-8 py-4 bg-gold hover:bg-gold-light disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                  {playbook._planLoading ? 'Generating your plan...' : 'Generate My Offer Launch Plan'}
                 </button>
               </div>
             )
@@ -1938,6 +1896,8 @@ Your continuity play: ${bangBangData.continuity_offer || 'Define your continuity
         </div>
       </div>
     )
+  }
+
   }
 
   // ── Main Render ───────────────────────────────────────────────────────────
