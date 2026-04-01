@@ -724,8 +724,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
               )}
             </div>
             )
-          })()
-          )}
+          })()}
         </div>
 
         {/* Back navigation */}
