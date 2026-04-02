@@ -1,12 +1,15 @@
 import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-)
+function getSupabase() {
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  )
+}
 
 async function saveProfiles(profiles) {
+  const supabase = getSupabase()
   let saved = 0
   for (const profile of profiles) {
     const handle = (profile.username || '').replace('@', '').toLowerCase()
@@ -28,6 +31,7 @@ async function saveProfiles(profiles) {
 }
 
 async function savePosts(posts) {
+  const supabase = getSupabase()
   let saved = 0
   for (const post of posts) {
     const handle = (post.ownerUsername || '').toLowerCase()
