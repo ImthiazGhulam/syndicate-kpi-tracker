@@ -490,6 +490,16 @@ export default function PremiumPositionPage() {
 
   const scores = computeScores()
 
+  // Expose data for regenerate button (injected via server script)
+  useEffect(() => {
+    window.__regenData = { bucket: bucketData, brand_star: starData, hero: heroData, remarkable: remarkableData }
+    window.__regenSave = async (plan) => {
+      if (!clientData) return
+      await supabase.from('premium_position').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+      setRecord(prev => ({ ...prev, generated_plan: plan }))
+    }
+  }, [bucketData, starData, heroData, remarkableData, clientData, record])
+
   // ── Stage Navigation ──────────────────────────────────────────────────────
 
   const goToStage = (stage) => {
@@ -521,7 +531,6 @@ export default function PremiumPositionPage() {
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
       <div className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</div>
-      <div className="fixed top-0 left-0 right-0 bg-red-600 text-white text-center py-2 text-xs font-bold z-[9999]">BUILD 2026-04-02 10:55</div>
     </div>
   )
 
