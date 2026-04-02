@@ -1,2 +1,7 @@
+import { headers } from 'next/headers'
 import PremiumPositionPage from './PremiumPositionClient'
-export default function Page() { return <PremiumPositionPage /> }
+
+export default async function Page() {
+  await headers()
+  return <PremiumPositionPage />
+}
