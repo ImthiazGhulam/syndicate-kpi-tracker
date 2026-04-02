@@ -1862,9 +1862,30 @@ export default function PlaybookPage() {
         <div className="mt-8 pt-6 border-t border-zinc-800">
           {scores.overall.total >= 40 ? (
             playbook.generated_plan ? (
-              <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
-                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your Offer Launch Plan</h3>
-                <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{playbook.generated_plan}</div>
+              <div>
+                <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
+                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your Offer Launch Plan</h3>
+                  <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{playbook.generated_plan}</div>
+                </div>
+                <div className="text-center mt-4">
+                  <p className="text-zinc-600 text-xs mb-3">Updated your answers? Regenerate your plan to reflect your changes.</p>
+                  <button onClick={async () => {
+                    setPlaybook(prev => ({ ...prev, _planLoading: true }))
+                    try {
+                      const res = await fetch('/api/generate-plan', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ type: 'sold-out', data: { icp: icpData, dip: dipData, bang_bang: bangBangData, framework: frameworkData } }),
+                      })
+                      const result = await res.json()
+                      if (result.error) { alert('Failed: ' + result.error); setPlaybook(prev => ({ ...prev, _planLoading: false })); return }
+                      await supabase.from('offer_playbooks').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', playbook.id)
+                      setPlaybook(prev => ({ ...prev, generated_plan: result.plan, _planLoading: false }))
+                    } catch (e) { alert('Failed: ' + e.message); setPlaybook(prev => ({ ...prev, _planLoading: false })) }
+                  }} disabled={playbook._planLoading} className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-gold border border-gold/30 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                    {playbook._planLoading ? 'Regenerating...' : 'Regenerate My Offer Launch Plan'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="text-center">

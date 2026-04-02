@@ -672,9 +672,17 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
         <div className="mt-8 pt-6 border-t border-zinc-800">
           {scores.total >= 32 ? (
             generatedPlan ? (
-              <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
-                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your 30-Day Wealth Wired™ Action Plan</h3>
-                <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedPlan}</div>
+              <div>
+                <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
+                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your 30-Day Wealth Wired™ Action Plan</h3>
+                  <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedPlan}</div>
+                </div>
+                <div className="text-center mt-4">
+                  <p className="text-zinc-600 text-xs mb-3">Updated your answers? Regenerate your plan to reflect your changes.</p>
+                  <button onClick={generateActionPlan} disabled={planLoading} className="px-6 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-50 text-gold border border-gold/30 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                    {planLoading ? 'Regenerating...' : 'Regenerate My 30-Day Action Plan'}
+                  </button>
+                </div>
               </div>
             ) : (
               <div className="text-center">
