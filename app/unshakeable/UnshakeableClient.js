@@ -162,9 +162,11 @@ export default function UnshakeablePage() {
     framework_5: defaultFramework(),
   })
   const [generatedPlan, setGeneratedPlan] = useState('')
+  const [customQuestions, setCustomQuestions] = useState({})
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [newProblem, setNewProblem] = useState('')
   const [newTitle, setNewTitle] = useState('')
+  const [creatingEntry, setCreatingEntry] = useState(false)
 
   const saveTimerRef = useRef(null)
   const toastRef = useRef(null)
@@ -218,6 +220,7 @@ export default function UnshakeablePage() {
       framework_4: { ...defaultFramework(), ...(entry.framework_4 || {}) },
       framework_5: { ...defaultFramework(), ...(entry.framework_5 || {}) },
     })
+    setCustomQuestions(entry.custom_questions || {})
     // Try to parse structured tasks from generated_plan
     const plan = entry.generated_plan || ''
     try {
@@ -238,7 +241,21 @@ export default function UnshakeablePage() {
 
   const createNewEntry = async () => {
     if (!newProblem.trim()) return
+    setCreatingEntry(true)
     const title = newTitle.trim() || newProblem.trim().slice(0, 60)
+
+    // Generate tailored questions for this problem
+    let questions = {}
+    try {
+      const qRes = await fetch('/api/generate-questions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ problem_statement: newProblem.trim() }),
+      })
+      const qResult = await qRes.json()
+      if (qResult.questions) questions = qResult.questions
+    } catch (e) { console.error('Failed to generate questions:', e) }
+
     const initFrameworks = {
       framework_1: defaultFramework(),
       framework_2: defaultFramework(),
@@ -253,6 +270,7 @@ export default function UnshakeablePage() {
         current_framework: 1,
         problem_statement: newProblem.trim(),
         title: title,
+        custom_questions: questions,
         ...initFrameworks,
         scores: {},
         generated_plan: '',
@@ -265,6 +283,7 @@ export default function UnshakeablePage() {
       setNewProblem('')
       setNewTitle('')
     }
+    setCreatingEntry(false)
   }
 
   const backToProblems = () => {
@@ -478,6 +497,12 @@ export default function UnshakeablePage() {
     const prevFramework = frameworkNum > 1 ? FRAMEWORKS[frameworkNum - 2] : null
     const nextFramework = frameworkNum < 5 ? FRAMEWORKS[frameworkNum] : null
 
+    // Use custom questions if available, fall back to static
+    const cq = customQuestions[key] || {}
+    const reflectionQ = cq.reflection || frameworkDef.reflection
+    const auditQ = cq.audit || frameworkDef.audit
+    const goQ = cq.go_deeper || frameworkDef.go_deeper
+
     return (
       <div>
         <div className="mb-6">
@@ -497,7 +522,7 @@ export default function UnshakeablePage() {
         {/* Reflection */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
           <FieldGroup label="Reflection" gold>
-            <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{frameworkDef.reflection}</p>
+            <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{reflectionQ}</p>
             <TextArea
               value={fw.reflection}
               onChange={v => updateFramework(key, 'reflection', v)}
@@ -511,7 +536,7 @@ export default function UnshakeablePage() {
         {/* Audit */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
           <FieldGroup label="Audit" gold>
-            <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{frameworkDef.audit}</p>
+            <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{auditQ}</p>
             <TextArea
               value={fw.audit}
               onChange={v => updateFramework(key, 'audit', v)}
@@ -525,7 +550,7 @@ export default function UnshakeablePage() {
         {/* Go Deeper */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
           <FieldGroup label="Go Deeper" gold>
-            <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{frameworkDef.go_deeper}</p>
+            <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{goQ}</p>
             <TextArea
               value={fw.go_deeper}
               onChange={v => updateFramework(key, 'go_deeper', v)}
@@ -816,10 +841,10 @@ export default function UnshakeablePage() {
             </div>
             <button
               onClick={createNewEntry}
-              disabled={!newProblem.trim()}
+              disabled={!newProblem.trim() || creatingEntry}
               className="w-full py-3.5 bg-gold hover:bg-gold-light disabled:opacity-30 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition"
             >
-              Start Performance Flywheel™ Playbook
+              {creatingEntry ? 'Generating your personalised frameworks...' : 'Start Performance Flywheel™'}
             </button>
           </div>
 
