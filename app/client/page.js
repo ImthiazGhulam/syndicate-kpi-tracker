@@ -1336,14 +1336,21 @@ export default function ClientPage() {
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-5 pb-4 border-b border-zinc-800">
+      <div className="p-5 pb-4 border-b border-zinc-800/50">
         <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
       </div>
 
-      {/* User */}
-      <div className="px-5 py-4 border-b border-zinc-800">
-        <p className="text-white text-sm font-semibold truncate">{clientData.name}</p>
-        <p className="text-zinc-600 text-xs truncate mt-0.5">{clientData.business}</p>
+      {/* User card */}
+      <div className="px-4 py-4 border-b border-zinc-800/50">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
+            <span className="text-xs font-black text-gold">{(clientData.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-white text-sm font-semibold truncate">{clientData.name}</p>
+            <p className="text-zinc-600 text-[11px] truncate">{clientData.business}</p>
+          </div>
+        </div>
       </div>
 
       {/* Nav items */}
@@ -1351,14 +1358,14 @@ export default function ClientPage() {
         {navSections.map((section, si) => (
           <div key={si}>
             {section.heading && (
-              <p className="px-5 pt-5 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">{section.heading}</p>
+              <p className="px-5 pt-5 pb-2 text-[10px] font-bold text-zinc-700 uppercase tracking-[0.25em]">{section.heading}</p>
             )}
             {section.items.map(tab => (
               <button key={tab.id} onClick={() => tab.external ? window.open(tab.href, '_blank') : tab.href ? router.push(tab.href) : switchTab(tab.id)}
                 className={`w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-medium transition ${
                   activeTab === tab.id
-                    ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                    ? 'text-gold bg-gold/[0.06] border-r-2 border-gold'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
                 }`}>
                 <span className="text-sm w-5 text-center">{tab.icon}</span>
                 <span className="tracking-wide">{tab.label}</span>
@@ -1369,9 +1376,9 @@ export default function ClientPage() {
       </div>
 
       {/* Sign out */}
-      <div className="p-4 border-t border-zinc-800">
+      <div className="p-4 border-t border-zinc-800/50">
         <button onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-zinc-500 hover:text-white text-sm font-medium rounded hover:bg-zinc-900 transition">
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-zinc-600 hover:text-white text-sm font-medium rounded-lg hover:bg-zinc-800/50 transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
@@ -1406,22 +1413,24 @@ export default function ClientPage() {
       {/* Main content */}
       <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
         {/* Mobile header */}
-        <header className="md:hidden bg-zinc-950 border-b border-zinc-800 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+        <header className="md:hidden bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
           <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-zinc-400 hover:text-white active:text-white transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-7 w-auto" />
-          <div className="w-9" /> {/* Spacer for centering */}
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+          <div className="w-9" />
         </header>
 
-        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7">
+        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-8">
 
           {/* Page title */}
-          <div className="mb-7">
-            <h1 className="text-lg sm:text-2xl font-bold text-white tracking-tight">
+          <div className="mb-8">
+            <p className="text-gold/60 text-[10px] font-bold uppercase tracking-[0.3em] mb-1.5">
+              {clientData.name.split(' ')[0]} · {clientData.business}
+            </p>
+            <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
               {allTabs.find(t => t.id === activeTab)?.icon} {allTabs.find(t => t.id === activeTab)?.label}
             </h1>
-            <p className="text-zinc-600 text-xs mt-1">Welcome back, {clientData.name.split(' ')[0]} · {clientData.business}</p>
           </div>
 
         {/* ── IDENTITY CHANGE™ ────────────────────────────────────────── */}
@@ -1478,9 +1487,9 @@ export default function ClientPage() {
             </div>
 
             {/* Score Breakdown — 6 Cards */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-8">
               {Object.values(scores).map(s => (
-                <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition">
+                <div key={s.label} className="bg-gradient-to-br from-zinc-900 to-zinc-800/80 border border-zinc-700/40 rounded-2xl p-4 hover:border-zinc-600/60 transition">
                   <div className="flex items-center justify-between mb-3">
                     <span className="text-xl">{s.icon}</span>
                     <span className={`text-xl font-black ${s.pct >= 80 ? s.color : s.pct > 0 ? 'text-zinc-400' : 'text-zinc-700'}`}>{s.pct}%</span>
@@ -1520,10 +1529,11 @@ export default function ClientPage() {
 
               if (actions.length === 0) return null
               return (
-                <div className="mb-6">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="text-base">⚡</span> Actions to hit 100%
-                  </h3>
+                <div className="mb-8">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-5 bg-gold rounded-full" />
+                    <h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Actions to hit 100%</h3>
+                  </div>
                   <div className="space-y-2">
                     {actions.map((a, i) => (
                       <button key={i} onClick={() => switchTab(a.tab)}
@@ -1542,8 +1552,8 @@ export default function ClientPage() {
             })()}
 
             {/* This Week — Day by Day Grid */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 sm:p-6 mb-6">
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-5">This Week at a Glance</h3>
+            <div className="bg-gradient-to-br from-zinc-900 to-zinc-800/80 border border-zinc-700/40 rounded-2xl p-5 sm:p-6 mb-8">
+              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">This Week at a Glance</h3></div>
               <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
                 {dashWeekDays.map((dateStr) => {
                   const { day } = formatDayHeader(dateStr)
@@ -1593,7 +1603,7 @@ export default function ClientPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {/* Programme Foundations */}
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-                <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Programme Foundations</h3>
+                <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Programme Foundations</h3></div>
                 <div className="space-y-3">
                   {/* Identity Chamber */}
                   <div className="flex items-center gap-3">
@@ -1687,7 +1697,7 @@ export default function ClientPage() {
 
               {/* Business Snapshot — This Week */}
               <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-                <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">This Week's Numbers</h3>
+                <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">This Week's Numbers</h3></div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
                     <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Revenue</p>
@@ -1711,7 +1721,7 @@ export default function ClientPage() {
 
             {/* Pipeline Summary */}
             <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-              <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-5">Pipeline</h3>
+              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Pipeline</h3></div>
               <div className="flex items-end justify-between gap-1">
                 {[
                   { id: 'new_lead', label: 'New', color: 'bg-sky-400' },
