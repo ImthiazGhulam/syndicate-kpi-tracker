@@ -862,30 +862,44 @@ function AdminPageInner() {
           flex flex-col overflow-y-auto mt-[57px] md:mt-0
         `}>
           <div className="px-5 py-4 border-b border-zinc-800">
-            <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest">
-              Clients <span className="text-zinc-600">({clients.length})</span>
+            <p className="text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">
+              Clients <span className="text-zinc-700">({clients.length})</span>
             </p>
           </div>
-          <div className="flex-1 overflow-y-auto py-1">
-            {clients.map(client => (
+          <div className="flex-1 overflow-y-auto py-2">
+            {clients.map(client => {
+              const h = clientHealth[client.id] || {}
+              const initials = (client.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+              const statusColor = h.status === 'critical' ? 'border-red-500' : h.status === 'at-risk' ? 'border-amber-500' : h.status === 'healthy' ? 'border-emerald-500' : 'border-zinc-700'
+              const statusBg = h.status === 'critical' ? 'bg-red-500/10' : h.status === 'at-risk' ? 'bg-amber-500/10' : h.status === 'healthy' ? 'bg-emerald-500/10' : 'bg-zinc-800'
+              return (
               <button key={client.id} onClick={() => selectClient(client)}
-                className={`w-full text-left px-5 py-3.5 transition border-l-2 ${
+                className={`w-full text-left px-4 py-3 transition ${
                   selectedClient?.id === client.id
-                    ? 'border-gold bg-gold/5 text-white'
-                    : 'border-transparent text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    ? 'bg-gold/5 border-l-2 border-gold'
+                    : 'border-l-2 border-transparent hover:bg-zinc-800/50'
                 }`}>
-                <div className="flex items-center justify-between">
-                  <div className="font-medium text-sm">{client.name}</div>
-                  {clientHealth[client.id] && (
-                    <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${
-                      clientHealth[client.id].status === 'critical' ? 'bg-red-400 animate-pulse' :
-                      clientHealth[client.id].status === 'at-risk' ? 'bg-amber-400' : 'bg-emerald-400'
-                    }`} />
-                  )}
+                <div className="flex items-center gap-3">
+                  <div className={`w-9 h-9 rounded-full border-2 ${statusColor} ${statusBg} flex items-center justify-center flex-shrink-0`}>
+                    <span className={`text-[10px] font-black ${
+                      selectedClient?.id === client.id ? 'text-gold' : 'text-zinc-400'
+                    }`}>{initials}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className={`text-sm font-medium truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300'}`}>{client.name}</p>
+                      {h.score != null && (
+                        <span className={`text-[10px] font-bold flex-shrink-0 ${
+                          h.score >= 70 ? 'text-emerald-400' : h.score >= 40 ? 'text-amber-400' : 'text-red-400'
+                        }`}>{h.score}%</span>
+                      )}
+                    </div>
+                    <p className="text-[11px] text-zinc-600 truncate">{client.business || client.email}</p>
+                  </div>
                 </div>
-                <div className="text-xs text-zinc-600 mt-0.5 truncate">{client.business || client.email}</div>
               </button>
-            ))}
+              )
+            })}
           </div>
         </aside>
 
@@ -1339,28 +1353,28 @@ function AdminPageInner() {
             return (
             <div className="fade-in">
               {/* Coach Command Centre Header */}
-              <div className="mb-8">
-                <h1 className="text-2xl font-bold text-white tracking-tight">Coach Command Centre</h1>
-                <p className="text-zinc-500 text-sm mt-1">Week of {new Date(getMonday()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              <div className="mb-10">
+                <p className="text-gold text-[10px] font-bold uppercase tracking-[0.3em] mb-2">Week of {new Date(getMonday()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}</p>
+                <h1 className="text-3xl font-black text-white tracking-tight">Coach Command Centre</h1>
               </div>
 
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-center">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+                <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-5 text-center">
                   <p className="text-3xl font-black text-white">{clients.length}</p>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Total Clients</p>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">Clients</p>
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-center">
+                <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-5 text-center">
                   <p className={`text-3xl font-black ${avgScore >= 70 ? 'text-emerald-400' : avgScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>{avgScore}%</p>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Avg Score</p>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">Avg Score</p>
                 </div>
-                <div className="bg-zinc-900 border border-red-900/30 rounded-xl p-5 text-center">
+                <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-red-900/20 rounded-2xl p-5 text-center">
                   <p className="text-3xl font-black text-red-400">{critical.length}</p>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">Critical</p>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">Critical</p>
                 </div>
-                <div className="bg-zinc-900 border border-amber-900/30 rounded-xl p-5 text-center">
+                <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-amber-900/20 rounded-2xl p-5 text-center">
                   <p className="text-3xl font-black text-amber-400">{atRisk.length}</p>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mt-1">At Risk</p>
+                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">At Risk</p>
                 </div>
               </div>
 
@@ -1420,9 +1434,10 @@ function AdminPageInner() {
 
               {/* Critical Clients — needs immediate attention */}
               {critical.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-red-400 animate-pulse" /> Needs Immediate Attention
+                <div className="mb-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-5 bg-red-500 rounded-full animate-pulse" />
+                    <h2 className="text-xs font-bold text-red-400 uppercase tracking-[0.2em]">Needs Immediate Attention
                   </h2>
                   <div className="space-y-2">
                     {critical.map(c => (
@@ -1451,10 +1466,11 @@ function AdminPageInner() {
 
               {/* At Risk */}
               {atRisk.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-amber-400" /> At Risk — Monitor Closely
-                  </h2>
+                <div className="mb-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-5 bg-amber-500 rounded-full" />
+                    <h2 className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">At Risk — Monitor Closely</h2>
+                  </div>
                   <div className="space-y-2">
                     {atRisk.sort((a, b) => (a.health.score || 0) - (b.health.score || 0)).map(c => (
                       <button key={c.id} onClick={() => selectClient(c)}
@@ -1486,9 +1502,10 @@ function AdminPageInner() {
 
               {/* Healthy */}
               {healthy.length > 0 && (
-                <div className="mb-8">
-                  <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-3 flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-emerald-400" /> On Track
+                <div className="mb-10">
+                  <div className="flex items-center gap-2 mb-4">
+                    <div className="w-1 h-5 bg-emerald-500 rounded-full" />
+                    <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-[0.2em]">On Track</h2>
                   </h2>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {healthy.sort((a, b) => (b.health.score || 0) - (a.health.score || 0)).map(c => (
@@ -1570,7 +1587,10 @@ function AdminPageInner() {
 
               {/* Full Roster Table */}
               <div>
-                <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Full Roster</h2>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-1 h-5 bg-zinc-600 rounded-full" />
+                  <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-[0.2em]">Full Roster</h2>
+                </div>
                 <div className="overflow-x-auto border border-zinc-800 rounded-xl">
                   <table className="w-full text-sm">
                     <thead>
@@ -1630,67 +1650,88 @@ function AdminPageInner() {
           ) : (() => { try { return (
             <div>
               {/* Client Header */}
-              <div className="mb-5">
-                <button onClick={() => { setSelectedClient(null); fetchClients() }} className="flex items-center gap-1.5 text-zinc-500 hover:text-gold text-xs font-semibold uppercase tracking-widest mb-3 transition">
+              <div className="mb-8">
+                <button onClick={() => { setSelectedClient(null); fetchClients() }} className="flex items-center gap-1.5 text-zinc-500 hover:text-gold text-xs font-semibold uppercase tracking-widest mb-5 transition">
                   <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                   All Clients
                 </button>
-                <div className="flex items-start justify-between gap-4">
-                  <div>
-                    <h1 className="text-2xl font-bold text-white tracking-tight">{selectedClient.name}</h1>
-                    <p className="text-zinc-400 text-sm mt-1">{selectedClient.business} · {selectedClient.industry}</p>
-                    <p className="text-zinc-600 text-xs mt-0.5">{selectedClient.email}</p>
-                  </div>
-                  {/* Programme Status Badge */}
-                  {selectedClient.programme_start && (() => {
-                    const start = new Date(selectedClient.programme_start)
-                    const renewal = selectedClient.programme_renewal ? new Date(selectedClient.programme_renewal) : new Date(start.getTime() + 365 * 86400000)
-                    const now = new Date()
-                    const totalDays = (renewal - start) / 86400000
-                    const elapsed = (now - start) / 86400000
-                    const daysLeft = Math.max(0, Math.ceil((renewal - now) / 86400000))
-                    const pct = Math.min(100, Math.round((elapsed / totalDays) * 100))
-                    return (
-                      <div className="text-right flex-shrink-0">
-                        <p className={`text-xs font-bold uppercase tracking-widest ${daysLeft <= 30 ? 'text-red-400' : daysLeft <= 90 ? 'text-amber-400' : 'text-emerald-400'}`}>
-                          {daysLeft} days left
-                        </p>
-                        <p className="text-[10px] text-zinc-600 mt-0.5">Renews {renewal.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</p>
-                        <div className="h-1.5 w-24 bg-zinc-800 rounded-full overflow-hidden mt-1.5">
-                          <div className={`h-full rounded-full ${daysLeft <= 30 ? 'bg-red-400' : daysLeft <= 90 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
-                        </div>
-                      </div>
-                    )
-                  })()}
-                </div>
 
-                {/* Contact details row */}
-                <div className="flex flex-wrap gap-x-5 gap-y-1 mt-3 text-xs text-zinc-600">
-                  {selectedClient.phone && <span>📞 {selectedClient.phone}</span>}
-                  {selectedClient.address && <span>📍 {selectedClient.address}</span>}
-                  {selectedClient.programme_start && <span>Started: {new Date(selectedClient.programme_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                {/* Client card */}
+                <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-7">
+                  <div className="flex items-start gap-5">
+                    {/* Avatar */}
+                    {(() => {
+                      const initials = (selectedClient.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
+                      const h = clientHealth[selectedClient.id] || {}
+                      return (
+                        <div className={`w-14 h-14 rounded-xl flex items-center justify-center flex-shrink-0 border-2 ${
+                          h.status === 'critical' ? 'border-red-500/50 bg-red-500/10' :
+                          h.status === 'at-risk' ? 'border-amber-500/50 bg-amber-500/10' :
+                          'border-emerald-500/50 bg-emerald-500/10'
+                        }`}>
+                          <span className="text-lg font-black text-white">{initials}</span>
+                        </div>
+                      )
+                    })()}
+
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <h1 className="text-xl font-black text-white tracking-tight">{selectedClient.name}</h1>
+                      <p className="text-zinc-400 text-sm mt-0.5">{[selectedClient.business, selectedClient.industry].filter(Boolean).join(' · ')}</p>
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 mt-3 text-[11px] text-zinc-500">
+                        {selectedClient.email && <span>{selectedClient.email}</span>}
+                        {selectedClient.phone && <span>{selectedClient.phone}</span>}
+                        {selectedClient.programme_start && <span>Started {new Date(selectedClient.programme_start).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>}
+                      </div>
+                    </div>
+
+                    {/* Programme badge */}
+                    {selectedClient.programme_start && (() => {
+                      const start = new Date(selectedClient.programme_start)
+                      const renewal = selectedClient.programme_renewal ? new Date(selectedClient.programme_renewal) : new Date(start.getTime() + 365 * 86400000)
+                      const now = new Date()
+                      const totalDays = (renewal - start) / 86400000
+                      const elapsed = (now - start) / 86400000
+                      const daysLeft = Math.max(0, Math.ceil((renewal - now) / 86400000))
+                      const pct = Math.min(100, Math.round((elapsed / totalDays) * 100))
+                      return (
+                        <div className={`hidden sm:flex flex-col items-end flex-shrink-0 px-4 py-3 rounded-xl border ${
+                          daysLeft <= 30 ? 'bg-red-500/5 border-red-500/20' : daysLeft <= 90 ? 'bg-amber-500/5 border-amber-500/20' : 'bg-emerald-500/5 border-emerald-500/20'
+                        }`}>
+                          <p className={`text-lg font-black ${daysLeft <= 30 ? 'text-red-400' : daysLeft <= 90 ? 'text-amber-400' : 'text-emerald-400'}`}>
+                            {daysLeft}
+                          </p>
+                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest font-bold">days left</p>
+                          <div className="h-1 w-16 bg-zinc-800 rounded-full overflow-hidden mt-2">
+                            <div className={`h-full rounded-full ${daysLeft <= 30 ? 'bg-red-400' : daysLeft <= 90 ? 'bg-amber-400' : 'bg-emerald-400'}`} style={{ width: `${pct}%` }} />
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
+                  {selectedClient.notes && <p className="text-zinc-500 text-xs mt-4 italic border-t border-zinc-800 pt-3">{selectedClient.notes}</p>}
                 </div>
-                {selectedClient.notes && <p className="text-zinc-600 text-xs mt-2 italic">{selectedClient.notes}</p>}
               </div>
 
-              {/* Tab Navigation */}
-              <div className="flex flex-wrap gap-x-1 gap-y-1 mb-7">
+              {/* Tab Navigation — grouped with labels */}
+              <div className="mb-8 -mx-1">
                 {navSections.map((section, si) => (
-                  <div key={si} className="flex items-center gap-1">
+                  <div key={si} className="inline-flex items-center flex-wrap">
                     {section.heading && (
-                      <span className="text-[10px] font-bold text-zinc-700 uppercase tracking-[0.2em] px-2 hidden sm:inline">{section.heading}</span>
+                      <span className="text-[9px] font-bold text-zinc-700 uppercase tracking-[0.25em] px-2 hidden sm:inline">{section.heading}</span>
                     )}
                     {section.items.map(tab => (
                       <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                        className={`px-3 py-1.5 rounded text-xs font-semibold uppercase tracking-wider transition whitespace-nowrap ${
+                        className={`relative px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition whitespace-nowrap ${
                           activeTab === tab.id
-                            ? 'bg-gold/10 text-gold border border-gold/30'
-                            : 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-800/50 border border-transparent'
+                            ? 'text-gold'
+                            : 'text-zinc-600 hover:text-zinc-300'
                         }`}>
                         {tab.label}
+                        {activeTab === tab.id && <div className="absolute bottom-0 left-1 right-1 h-[2px] bg-gold rounded-full" />}
                       </button>
                     ))}
-                    {si < navSections.length - 1 && <div className="w-px h-4 bg-zinc-800 mx-1 hidden sm:block" />}
+                    {si < navSections.length - 1 && <div className="w-px h-3.5 bg-zinc-800 mx-1 hidden sm:inline-block" />}
                   </div>
                 ))}
               </div>
