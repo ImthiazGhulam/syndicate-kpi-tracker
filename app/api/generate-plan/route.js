@@ -67,9 +67,12 @@ Reference their specific words and situations. Do not give generic advice. Every
 
     } else if (type === 'unshakeable') {
       systemPrompt = 'You are a direct, psychologically sharp performance coach. You write raw, actionable plans with zero fluff. Every sentence must be a specific action or a hard truth tied to the client\'s actual answers. Tone: like a mentor who genuinely cares but refuses to let anyone hide behind excuses. Write directly to the client in second person.'
-      userPrompt = `Based on this client's Un-Shakeable™ Playbook answers, write a personalised 30-day action plan.
+      userPrompt = `Based on this client's Un-Shakeable™ Playbook answers, write a personalised 30-day action plan to solve their specific problem.
 
-Their answers across 5 performance rewiring frameworks:
+THE PROBLEM THEY ARE SOLVING:
+${data.problem_statement || 'Not specified'}
+
+Their answers across 5 performance rewiring frameworks applied to this problem:
 
 THE ACTION BRIDGE™
 Reflection: ${data.framework_1?.reflection || 'Not answered'}

@@ -147,6 +147,10 @@ export default function UnshakeablePage() {
   const [clientData, setClientData] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Problem selection
+  const [allEntries, setAllEntries] = useState([])
+  const [selectedEntry, setSelectedEntry] = useState(null) // null = problem picker view
+
   // Un-Shakeable
   const [record, setRecord] = useState(null)
   const [currentFramework, setCurrentFramework] = useState(1)
@@ -159,6 +163,8 @@ export default function UnshakeablePage() {
   })
   const [generatedPlan, setGeneratedPlan] = useState('')
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [newProblem, setNewProblem] = useState('')
+  const [newTitle, setNewTitle] = useState('')
 
   const saveTimerRef = useRef(null)
   const toastRef = useRef(null)
@@ -191,44 +197,69 @@ export default function UnshakeablePage() {
       if (!client) { router.push('/client'); return }
       setClientData(client)
 
-      // fetch or create unshakeable_playbook record
-      const { data: existing } = await supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).maybeSingle()
-      if (existing) {
-        setRecord(existing)
-        setCurrentFramework(existing.current_framework || 1)
-        setFrameworkData({
-          framework_1: { ...defaultFramework(), ...(existing.framework_1 || {}) },
-          framework_2: { ...defaultFramework(), ...(existing.framework_2 || {}) },
-          framework_3: { ...defaultFramework(), ...(existing.framework_3 || {}) },
-          framework_4: { ...defaultFramework(), ...(existing.framework_4 || {}) },
-          framework_5: { ...defaultFramework(), ...(existing.framework_5 || {}) },
-        })
-        setGeneratedPlan(existing.generated_plan || '')
-      } else {
-        const initFrameworks = {
-          framework_1: defaultFramework(),
-          framework_2: defaultFramework(),
-          framework_3: defaultFramework(),
-          framework_4: defaultFramework(),
-          framework_5: defaultFramework(),
-        }
-        const { data: newRec } = await supabase
-          .from('unshakeable_playbook')
-          .insert({
-            client_id: client.id,
-            current_framework: 1,
-            ...initFrameworks,
-            scores: {},
-            generated_plan: '',
-          })
-          .select()
-          .single()
-        if (newRec) setRecord(newRec)
-      }
+      // Fetch all existing entries for this client
+      const { data: entries } = await supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
+      setAllEntries(entries || [])
       setLoading(false)
     }
     init()
   }, [])
+
+  // ── Select / Create Entry ─────────────────────────────────────────────────
+
+  const selectEntry = (entry) => {
+    setRecord(entry)
+    setSelectedEntry(entry.id)
+    setCurrentFramework(entry.current_framework || 1)
+    setFrameworkData({
+      framework_1: { ...defaultFramework(), ...(entry.framework_1 || {}) },
+      framework_2: { ...defaultFramework(), ...(entry.framework_2 || {}) },
+      framework_3: { ...defaultFramework(), ...(entry.framework_3 || {}) },
+      framework_4: { ...defaultFramework(), ...(entry.framework_4 || {}) },
+      framework_5: { ...defaultFramework(), ...(entry.framework_5 || {}) },
+    })
+    setGeneratedPlan(entry.generated_plan || '')
+  }
+
+  const createNewEntry = async () => {
+    if (!newProblem.trim()) return
+    const title = newTitle.trim() || newProblem.trim().slice(0, 60)
+    const initFrameworks = {
+      framework_1: defaultFramework(),
+      framework_2: defaultFramework(),
+      framework_3: defaultFramework(),
+      framework_4: defaultFramework(),
+      framework_5: defaultFramework(),
+    }
+    const { data: newRec } = await supabase
+      .from('unshakeable_playbook')
+      .insert({
+        client_id: clientData.id,
+        current_framework: 1,
+        problem_statement: newProblem.trim(),
+        title: title,
+        ...initFrameworks,
+        scores: {},
+        generated_plan: '',
+      })
+      .select()
+      .single()
+    if (newRec) {
+      setAllEntries(prev => [newRec, ...prev])
+      selectEntry(newRec)
+      setNewProblem('')
+      setNewTitle('')
+    }
+  }
+
+  const backToProblems = () => {
+    saveAll()
+    setSelectedEntry(null)
+    setRecord(null)
+    // Refresh entries list
+    supabase.from('unshakeable_playbook').select('*').eq('client_id', clientData.id).order('created_at', { ascending: false })
+      .then(({ data }) => { if (data) setAllEntries(data) })
+  }
 
   // ── Save Functions ──────────────────────────────────────────────────────────
 
@@ -296,7 +327,6 @@ export default function UnshakeablePage() {
       total += fwScore
     }
 
-    // Score bands: 0-8 Needs Work, 9-14 Getting There, 15-17 Strong, 18-20 Un-Shakeable
     let band = 'Needs Work'
     let bandDescription = 'You have significant gaps in your playbook. Go back and complete more frameworks with depth.'
     if (total >= 18) { band = 'Un-Shakeable'; bandDescription = 'Outstanding. You have done the deep work. Your performance rewiring is well underway.' }
@@ -318,12 +348,15 @@ export default function UnshakeablePage() {
       const res = await fetch('/api/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'unshakeable', data: frameworkData }),
+        body: JSON.stringify({
+          type: 'unshakeable',
+          data: { ...frameworkData, problem_statement: record?.problem_statement || '' },
+        }),
       })
       const result = await res.json()
       if (result.error) { alert('Failed to generate: ' + result.error); setPlanLoading(false); return }
       setGeneratedPlan(result.plan)
-      await supabase.from('unshakeable_playbook').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+      await supabase.from('unshakeable_playbook').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', record.id)
     } catch (e) { alert('Failed: ' + e.message) }
     setPlanLoading(false)
   }
@@ -362,6 +395,10 @@ export default function UnshakeablePage() {
       <div>
         <div className="mb-6">
           <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">{frameworkDef.title}</h1>
+          <div className="bg-zinc-900 border border-gold/20 rounded-lg px-4 py-2.5 mt-3">
+            <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-1">Your Problem</p>
+            <p className="text-sm text-zinc-300">{record?.problem_statement}</p>
+          </div>
         </div>
 
         {/* Recap */}
@@ -442,6 +479,10 @@ export default function UnshakeablePage() {
         <div className="mb-6">
           <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Generate Plan &amp; Summary</h1>
           <p className="text-zinc-500 text-sm">Review all your answers, see your score, and generate a personalised 30-day action plan.</p>
+          <div className="bg-zinc-900 border border-gold/20 rounded-lg px-4 py-2.5 mt-3">
+            <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-1">Your Problem</p>
+            <p className="text-sm text-zinc-300">{record?.problem_statement}</p>
+          </div>
         </div>
 
         {/* Overall Score Ring */}
@@ -581,6 +622,111 @@ export default function UnshakeablePage() {
     )
   }
 
+  // ── Problem Picker View ──────────────────────────────────────────────────
+
+  const renderProblemPicker = () => {
+    return (
+      <div className="min-h-screen bg-zinc-950">
+        {/* Header */}
+        <header className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800 bg-zinc-950">
+          <div className="flex items-center gap-4">
+            <img src="/logo.png" alt="The Syndicate" className="h-10 w-auto" />
+            <div>
+              <h1 className="text-sm font-bold text-white uppercase tracking-widest">Un-Shakeable™</h1>
+              <p className="text-zinc-600 text-xs">Pick a problem. Apply the frameworks. Get a plan.</p>
+            </div>
+          </div>
+          <button onClick={() => router.push('/client')} className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            <span className="hidden sm:inline tracking-wide">Back to App</span>
+          </button>
+        </header>
+
+        <div className="max-w-2xl mx-auto p-4 md:px-8 md:py-8">
+          {/* New Problem */}
+          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-8">
+            <h2 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">New Problem</h2>
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Give it a short title</label>
+              <input
+                value={newTitle}
+                onChange={e => setNewTitle(e.target.value)}
+                placeholder="e.g. Content consistency, Underpricing, Morning routine"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
+              />
+            </div>
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">Describe the problem you want to solve</label>
+              <textarea
+                rows={4}
+                value={newProblem}
+                onChange={e => setNewProblem(e.target.value)}
+                placeholder="Be specific. What's the problem? How is it showing up? What has it cost you?"
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm"
+              />
+            </div>
+            <button
+              onClick={createNewEntry}
+              disabled={!newProblem.trim()}
+              className="w-full py-3.5 bg-gold hover:bg-gold-light disabled:opacity-30 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition"
+            >
+              Start Un-Shakeable™ Playbook
+            </button>
+          </div>
+
+          {/* Existing Entries */}
+          {allEntries.length > 0 && (
+            <div>
+              <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Your Problems</h2>
+              <div className="space-y-3">
+                {allEntries.map(entry => {
+                  const s = entry.scores || {}
+                  const total = s.total_score || 0
+                  const hasPlan = !!entry.generated_plan
+                  const completedFrameworks = [1,2,3,4,5].filter(i => {
+                    const fw = entry[`framework_${i}`] || {}
+                    return fw.reflection?.trim() && fw.audit?.trim() && fw.go_deeper?.trim()
+                  }).length
+
+                  return (
+                    <button
+                      key={entry.id}
+                      onClick={() => selectEntry(entry)}
+                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-left hover:border-zinc-700 active:border-gold/30 transition"
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-bold text-white truncate">{entry.title || 'Untitled'}</p>
+                          <p className="text-xs text-zinc-500 mt-1 line-clamp-2">{entry.problem_statement}</p>
+                          <div className="flex items-center gap-3 mt-3">
+                            <span className="text-xs text-zinc-600">{completedFrameworks}/5 frameworks</span>
+                            <span className="text-xs text-zinc-700">·</span>
+                            <span className="text-xs text-zinc-600">{total}/20 score</span>
+                            {hasPlan && (
+                              <>
+                                <span className="text-xs text-zinc-700">·</span>
+                                <span className="text-xs text-emerald-400 font-semibold">Plan generated</span>
+                              </>
+                            )}
+                          </div>
+                        </div>
+                        <svg className="w-5 h-5 text-zinc-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                      </div>
+                      {/* Progress bar */}
+                      <div className="w-full h-1.5 bg-zinc-800 rounded-full overflow-hidden mt-3">
+                        <div className={`h-full rounded-full transition-all ${hasPlan ? 'bg-emerald-500' : 'bg-gold'}`} style={{ width: `${(completedFrameworks / 5) * 100}%` }} />
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    )
+  }
+
   // ── Guards ────────────────────────────────────────────────────────────────
 
   if (loading) return (
@@ -598,6 +744,10 @@ export default function UnshakeablePage() {
     </div>
   )
 
+  // ── If no entry selected, show problem picker ────────────────────────────
+
+  if (!selectedEntry) return renderProblemPicker()
+
   // ── Sidebar Content ───────────────────────────────────────────────────────
 
   const sidebarNav = (
@@ -607,15 +757,15 @@ export default function UnshakeablePage() {
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
-        <button onClick={() => router.push('/client')} className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
+        <button onClick={backToProblems} className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-          <span className="tracking-wide">Back to App</span>
+          <span className="tracking-wide">All Problems</span>
         </button>
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
-        <p className="text-white text-sm font-semibold truncate">{clientData.name}</p>
-        <p className="text-zinc-600 text-xs truncate mt-0.5">{clientData.business}</p>
+        <p className="text-white text-sm font-semibold truncate">{record?.title || 'Untitled'}</p>
+        <p className="text-zinc-600 text-xs mt-0.5 line-clamp-2">{record?.problem_statement}</p>
       </div>
 
       <div className="flex-1 py-4 overflow-y-auto">

@@ -410,7 +410,7 @@ function AdminPageInner() {
       safe(supabase.from('offer_playbooks').select('*').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle()), // 15
       safe(supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle()),                                         // 16
       safe(supabase.from('wealth_wired').select('*').eq('client_id', client.id).maybeSingle()),                                              // 16b
-      safe(supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).maybeSingle()),                                    // 16c
+      safe(supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),         // 16c
       safe(supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false })), // 17
       safe(supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false })), // 18
     ])
@@ -428,7 +428,7 @@ function AdminPageInner() {
     setClientPlaybook(playbookRes.data && !Array.isArray(playbookRes.data) ? playbookRes.data : null)
     setClientPremiumPos(premiumPosRes.data && !Array.isArray(premiumPosRes.data) ? premiumPosRes.data : null)
     setClientWealthWired(wealthWiredRes.data && !Array.isArray(wealthWiredRes.data) ? wealthWiredRes.data : null)
-    setClientUnshakeable(unshakeableRes.data && !Array.isArray(unshakeableRes.data) ? unshakeableRes.data : null)
+    setClientUnshakeable(Array.isArray(unshakeableRes.data) && unshakeableRes.data.length > 0 ? unshakeableRes.data : null)
     setAllClientLockIns(Array.isArray(allLockInsRes.data) ? allLockInsRes.data : [])
     setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
     setAdminReviewWeek(monday)
@@ -3430,94 +3430,104 @@ function AdminPageInner() {
               })()}
 
               {activeTab === 'unshakeable' && (() => {
-                if (!clientUnshakeable) return (
+                if (!clientUnshakeable || (Array.isArray(clientUnshakeable) && clientUnshakeable.length === 0)) return (
                   <div className="fade-in text-center py-16">
                     <span className="text-4xl mb-4 block">🔥</span>
                     <p className="text-zinc-500 text-sm font-medium">Client hasn't started their Un-Shakeable™ Playbook yet.</p>
                   </div>
                 )
 
-                const us = clientUnshakeable
-                const scores = us.scores || {}
-                const totalScore = scores.total_score || 0
-                const band = totalScore >= 18 ? 'Un-Shakeable' : totalScore >= 15 ? 'Strong' : totalScore >= 9 ? 'Getting There' : 'Needs Work'
+                const entries = Array.isArray(clientUnshakeable) ? clientUnshakeable : [clientUnshakeable]
                 const FW_NAMES = [
                   'The Action Bridge™', 'The Negotiator™', 'The Three Dials™ — Negative Behaviours',
                   'The Three Dials™ — Positive Behaviours', 'The Identity Shift™'
                 ]
 
                 return (
-                <div className="fade-in">
-                  {/* Score Hero */}
-                  <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-8 mb-6">
-                    <div className="flex flex-col sm:flex-row items-center gap-6">
-                      <div className="relative flex-shrink-0">
-                        <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
-                          <circle cx="60" cy="60" r="52" fill="none" stroke="#27272a" strokeWidth="6" />
-                          <circle cx="60" cy="60" r="52" fill="none" stroke="#C9A84C" strokeWidth="6"
-                            strokeDasharray={`${(totalScore / 20) * 326.7} 326.7`} strokeLinecap="round" />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-3xl font-black text-white">{totalScore}</span>
-                          <span className="text-[10px] font-bold text-zinc-500">/ 20</span>
+                <div className="fade-in space-y-8">
+                  {entries.map((us, ei) => {
+                    const scores = us.scores || {}
+                    const totalScore = scores.total_score || 0
+                    const band = totalScore >= 18 ? 'Un-Shakeable' : totalScore >= 15 ? 'Strong' : totalScore >= 9 ? 'Getting There' : 'Needs Work'
+
+                    return (
+                    <div key={us.id} className="border border-zinc-800 rounded-2xl overflow-hidden">
+                      {/* Problem Header + Score */}
+                      <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border-b border-zinc-700/50 p-6 sm:p-8">
+                        <div className="flex flex-col sm:flex-row items-center gap-6">
+                          <div className="relative flex-shrink-0">
+                            <svg className="w-28 h-28 -rotate-90" viewBox="0 0 120 120">
+                              <circle cx="60" cy="60" r="52" fill="none" stroke="#27272a" strokeWidth="6" />
+                              <circle cx="60" cy="60" r="52" fill="none" stroke="#C9A84C" strokeWidth="6"
+                                strokeDasharray={`${(totalScore / 20) * 326.7} 326.7`} strokeLinecap="round" />
+                            </svg>
+                            <div className="absolute inset-0 flex flex-col items-center justify-center">
+                              <span className="text-3xl font-black text-white">{totalScore}</span>
+                              <span className="text-[10px] font-bold text-zinc-500">/ 20</span>
+                            </div>
+                          </div>
+                          <div className="text-center sm:text-left flex-1">
+                            <h2 className="text-lg font-black text-white uppercase tracking-wider">{us.title || 'Un-Shakeable™'}</h2>
+                            {us.problem_statement && <p className="text-zinc-400 text-sm mt-1 leading-relaxed">{us.problem_statement}</p>}
+                            <div className="flex items-center gap-3 mt-3 flex-wrap justify-center sm:justify-start">
+                              <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border ${
+                                totalScore >= 18 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
+                                totalScore >= 15 ? 'bg-gold/20 text-gold border-gold/30' :
+                                totalScore >= 9 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
+                                'bg-red-500/20 text-red-400 border-red-500/30'
+                              }`}>{band}</span>
+                              <span className="text-zinc-600 text-xs">Framework {us.current_framework || 1} of 5 · Updated {us.updated_at ? new Date(us.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</span>
+                            </div>
+                          </div>
                         </div>
                       </div>
-                      <div className="text-center sm:text-left">
-                        <h2 className="text-lg font-black text-white uppercase tracking-wider">Un-Shakeable™</h2>
-                        <div className={`inline-block mt-2 px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border ${
-                          totalScore >= 18 ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' :
-                          totalScore >= 15 ? 'bg-gold/20 text-gold border-gold/30' :
-                          totalScore >= 9 ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' :
-                          'bg-red-500/20 text-red-400 border-red-500/30'
-                        }`}>{band}</div>
-                        <p className="text-zinc-600 text-xs mt-2">Framework {us.current_framework || 1} of 5 · Updated {us.updated_at ? new Date(us.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</p>
-                      </div>
-                    </div>
-                  </div>
 
-                  {/* Framework Answers */}
-                  <div className="space-y-4">
-                    {FW_NAMES.map((name, i) => {
-                      const fw = us[`framework_${i + 1}`] || {}
-                      const hasFw = fw.reflection || fw.audit || fw.go_deeper
-                      return (
-                        <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
-                          <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">{name}</h3>
-                          {!hasFw ? (
-                            <p className="text-zinc-600 text-sm">Not started</p>
-                          ) : (
-                            <div className="space-y-3">
-                              {fw.reflection && (
-                                <div>
-                                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Reflection</p>
-                                  <p className="text-zinc-300 text-sm leading-relaxed">{fw.reflection}</p>
-                                </div>
-                              )}
-                              {fw.audit && (
-                                <div>
-                                  <p className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-1">Audit</p>
-                                  <p className="text-zinc-300 text-sm leading-relaxed">{fw.audit}</p>
-                                </div>
-                              )}
-                              {fw.go_deeper && (
-                                <div>
-                                  <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Go Deeper</p>
-                                  <p className="text-zinc-300 text-sm leading-relaxed">{fw.go_deeper}</p>
+                      {/* Framework Answers */}
+                      <div className="p-6 space-y-4">
+                        {FW_NAMES.map((name, i) => {
+                          const fw = us[`framework_${i + 1}`] || {}
+                          const hasFw = fw.reflection || fw.audit || fw.go_deeper
+                          return (
+                            <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                              <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">{name}</h3>
+                              {!hasFw ? (
+                                <p className="text-zinc-600 text-sm">Not started</p>
+                              ) : (
+                                <div className="space-y-3">
+                                  {fw.reflection && (
+                                    <div>
+                                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Reflection</p>
+                                      <p className="text-zinc-300 text-sm leading-relaxed">{fw.reflection}</p>
+                                    </div>
+                                  )}
+                                  {fw.audit && (
+                                    <div>
+                                      <p className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-1">Audit</p>
+                                      <p className="text-zinc-300 text-sm leading-relaxed">{fw.audit}</p>
+                                    </div>
+                                  )}
+                                  {fw.go_deeper && (
+                                    <div>
+                                      <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Go Deeper</p>
+                                      <p className="text-zinc-300 text-sm leading-relaxed">{fw.go_deeper}</p>
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
-                          )}
-                        </div>
-                      )
-                    })}
-                  {/* Generated Plan */}
-                  {us.generated_plan && (
-                    <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6 mt-6">
-                      <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Generated 30-Day Action Plan</h3>
-                      <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{us.generated_plan}</div>
+                          )
+                        })}
+                        {/* Generated Plan */}
+                        {us.generated_plan && (
+                          <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6 mt-4">
+                            <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Generated 30-Day Action Plan</h3>
+                            <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{us.generated_plan}</div>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  </div>
+                    )
+                  })}
                 </div>
                 )
               })()}
