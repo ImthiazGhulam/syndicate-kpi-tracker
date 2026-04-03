@@ -172,10 +172,15 @@ function AdminPageInner() {
   const [loading, setLoading] = useState(true)
   const [clientLoading, setClientLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const [adminView, setAdminView] = useState('clients') // 'clients' | 'content'
+  const [adminView, setAdminView] = useState('clients') // 'clients' | 'content' | 'daily-ops'
   const [competitors, setCompetitors] = useState([])
   const [competitorPosts, setCompetitorPosts] = useState([])
   const [selectedCompetitor, setSelectedCompetitor] = useState(null) // null = overview, id = specific
+
+  // Daily Ops checklist
+  const [dailyOpsChecklist, setDailyOpsChecklist] = useState([])
+  const [dailyOpsLoading, setDailyOpsLoading] = useState(false)
+  const [dailyOpsData, setDailyOpsData] = useState(null) // aggregated client data for today
 
   // All-clients health data
   const [clientHealth, setClientHealth] = useState({})
@@ -475,6 +480,105 @@ function AdminPageInner() {
     } catch (err) { console.error('Content fetch error:', err) }
   }
 
+  // ── Daily Ops ──────────────────────────────────────────────────────────────
+
+  const fetchDailyOps = async () => {
+    setDailyOpsLoading(true)
+    const today = localDateStr()
+    const monday = getMonday()
+    const sunday = getWeekDays(monday)[6]
+    const dayOfWeek = new Date().getDay() // 0=Sun, 1=Mon...
+    const dayOfMonth = new Date().getDate()
+    const prevMonth = new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1
+    const prevYear = new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()
+
+    const safe = async (fn) => { try { return await fn } catch(e) { return { data: [] } } }
+
+    const [checklistRes, morningRes, debriefRes, kpiRes, warMapRes, lockInRes, monthlyRes, playbookRes, premiumRes, wealthRes] = await Promise.all([
+      safe(supabase.from('admin_daily_checklist').select('*').eq('checklist_date', today)),
+      safe(supabase.from('daily_pulse').select('client_id, completed').eq('date', today)),
+      safe(supabase.from('evening_pulse').select('client_id, completed').eq('date', new Date(Date.now() - 86400000).toISOString().split('T')[0])),
+      safe(supabase.from('daily_kpis').select('client_id').eq('date', today)),
+      safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
+      safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
+      safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent').eq('month', prevMonth).eq('year', prevYear)),
+      safe(supabase.from('offer_playbooks').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
+      safe(supabase.from('premium_position').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
+      safe(supabase.from('wealth_wired').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
+    ])
+
+    const mornings = Array.isArray(morningRes.data) ? morningRes.data : []
+    const debriefs = Array.isArray(debriefRes.data) ? debriefRes.data : []
+    const kpis = Array.isArray(kpiRes.data) ? kpiRes.data : []
+    const warMaps = Array.isArray(warMapRes.data) ? warMapRes.data : []
+    const lockIns = Array.isArray(lockInRes.data) ? lockInRes.data : []
+    const monthlys = Array.isArray(monthlyRes.data) ? monthlyRes.data : []
+
+    const totalClients = clients.length
+    const morningsDone = mornings.filter(m => m.completed).length
+    const debriefsDone = debriefs.filter(d => d.completed).length
+    const kpisDone = kpis.length
+    const warMapsDone = warMaps.filter(w => w.completed).length
+    const lockInsDone = lockIns.filter(l => l.completed).length
+    const monthlysDone = monthlys.filter(m => m.completed).length
+    const awaitingFeedback = monthlys.filter(m => m.completed && !m.feedback_sent)
+    const renewingSoon = clients.filter(c => {
+      if (!c.programme_renewal) return false
+      const dLeft = Math.ceil((new Date(c.programme_renewal) - new Date()) / 86400000)
+      return dLeft > 0 && dLeft <= 30
+    })
+    const expired = clients.filter(c => {
+      if (!c.programme_renewal) return false
+      return Math.ceil((new Date(c.programme_renewal) - new Date()) / 86400000) <= 0
+    })
+
+    // Clients who haven't done Morning Ops today
+    const morningClientIds = new Set(mornings.filter(m => m.completed).map(m => m.client_id))
+    const noMorningOps = clients.filter(c => !morningClientIds.has(c.id))
+
+    // Clients at risk (score < 40)
+    const atRiskClients = clients.filter(c => clientHealth[c.id]?.status === 'critical' || clientHealth[c.id]?.status === 'at-risk' && clientHealth[c.id]?.score < 40)
+
+    setDailyOpsData({
+      totalClients, morningsDone, debriefsDone, kpisDone,
+      warMapsDone, lockInsDone, monthlysDone,
+      awaitingFeedback, renewingSoon, expired,
+      noMorningOps, atRiskClients, dayOfWeek, dayOfMonth,
+    })
+
+    // Build checklist items
+    const saved = Array.isArray(checklistRes.data) ? checklistRes.data : []
+    const savedMap = {}
+    saved.forEach(s => { savedMap[s.item_key] = s })
+
+    setDailyOpsChecklist(saved)
+    setDailyOpsLoading(false)
+  }
+
+  const toggleDailyOpsItem = async (itemKey) => {
+    const today = localDateStr()
+    const existing = dailyOpsChecklist.find(c => c.item_key === itemKey)
+
+    if (existing) {
+      const newVal = !existing.completed
+      await supabase.from('admin_daily_checklist').update({
+        completed: newVal,
+        completed_at: newVal ? new Date().toISOString() : null,
+      }).eq('checklist_date', today).eq('item_key', itemKey)
+      setDailyOpsChecklist(prev => prev.map(c => c.item_key === itemKey ? { ...c, completed: newVal, completed_at: newVal ? new Date().toISOString() : null } : c))
+    } else {
+      const { data } = await supabase.from('admin_daily_checklist').insert([{
+        checklist_date: today,
+        item_key: itemKey,
+        completed: true,
+        completed_at: new Date().toISOString(),
+      }]).select().single()
+      if (data) setDailyOpsChecklist(prev => [...prev, data])
+    }
+  }
+
+  const isDailyOpsChecked = (key) => dailyOpsChecklist.find(c => c.item_key === key)?.completed || false
+
   // ── Programme Score ────────────────────────────────────────────────────────
 
   const todayStr = localDateStr()
@@ -673,6 +777,10 @@ function AdminPageInner() {
           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${adminView === 'clients' ? 'bg-gold/10 text-gold border border-gold/30' : 'text-zinc-500 hover:text-white border border-transparent'}`}>
           👥 Clients
         </button>
+        <button onClick={() => { setAdminView('daily-ops'); fetchDailyOps() }}
+          className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${adminView === 'daily-ops' ? 'bg-gold/10 text-gold border border-gold/30' : 'text-zinc-500 hover:text-white border border-transparent'}`}>
+          ✅ Daily Ops
+        </button>
         <button onClick={() => { setAdminView('content'); fetchContentData() }}
           className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${adminView === 'content' ? 'bg-gold/10 text-gold border border-gold/30' : 'text-zinc-500 hover:text-white border border-transparent'}`}>
           📱 Content Intel
@@ -731,8 +839,168 @@ function AdminPageInner() {
         {/* Main */}
         <main className="flex-1 overflow-y-auto p-4 md:p-7">
 
-          {/* ════════ CONTENT INTEL VIEW ════════ */}
-          {adminView === 'content' ? (
+          {/* ════════ DAILY OPS VIEW ════════ */}
+          {adminView === 'daily-ops' ? (
+            <div className="fade-in max-w-4xl mx-auto">
+              <div className="mb-8">
+                <h1 className="text-2xl font-bold text-white tracking-tight">✅ Daily Ops</h1>
+                <p className="text-zinc-500 text-sm mt-1">Your daily coaching checklist — refreshes every day, Mon–Fri.</p>
+                <p className="text-zinc-600 text-xs mt-1">{new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</p>
+              </div>
+
+              {dailyOpsLoading ? (
+                <div className="text-center py-16"><div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin mx-auto" /></div>
+              ) : dailyOpsData && (() => {
+                const d = dailyOpsData
+                const isWeekday = d.dayOfWeek >= 1 && d.dayOfWeek <= 5
+                const isMonday = d.dayOfWeek === 1
+                const isFriday = d.dayOfWeek === 5
+                const isFirstWeek = d.dayOfMonth <= 7
+
+                const sections = []
+
+                // ── MORNING BLOCK (do first thing) ──
+                const morningItems = [
+                  { key: 'check_typeform', label: 'Check Typeform for mastery checkpoint completions', sub: 'Review submissions → grant access to next phase in Skool', link: 'https://admin.typeform.com/accounts/01GF2ZJC64DV92SE0MDZ0RN7H8/workspaces/hWF3Jh' },
+                  { key: 'review_dropoffs', label: `Review at-risk clients (${d.atRiskClients.length})`, sub: d.atRiskClients.length > 0 ? d.atRiskClients.slice(0, 5).map(c => c.name).join(', ') + (d.atRiskClients.length > 5 ? ` +${d.atRiskClients.length - 5} more` : '') : 'All clients healthy', highlight: d.atRiskClients.length > 0 },
+                  { key: 'check_morning_ops', label: `Check who's done Morning Ops today (${d.morningsDone}/${d.totalClients})`, sub: d.noMorningOps.length > 0 && d.noMorningOps.length <= 10 ? 'Not done: ' + d.noMorningOps.map(c => c.name.split(' ')[0]).join(', ') : d.noMorningOps.length > 10 ? `${d.noMorningOps.length} clients haven't logged yet` : 'Everyone\'s checked in' },
+                ]
+                sections.push({ title: '☀️ Morning', subtitle: 'Start of day', items: morningItems })
+
+                // ── ACCOUNTABILITY BLOCK ──
+                const accountItems = [
+                  { key: 'send_accountability', label: 'Send accountability messages to inactive clients', sub: 'DM or voice note anyone who\'s gone quiet — check programme scores' },
+                  { key: 'review_hot_lists', label: 'Review client Hot Lists for coaching opportunities', sub: 'Check if anyone has stale leads or needs help with follow-ups' },
+                  { key: 'check_playbook_progress', label: 'Check playbook progress', sub: 'Review who\'s actively working through Sold Out, Premium Position, or Wealth Wired' },
+                ]
+                sections.push({ title: '🎯 Client Accountability', subtitle: 'Core coaching', items: accountItems })
+
+                // ── RENEWALS & ADMIN ──
+                const adminItems = []
+                if (d.renewingSoon.length > 0) {
+                  adminItems.push({ key: 'check_renewals', label: `Chase renewals — ${d.renewingSoon.length} client${d.renewingSoon.length > 1 ? 's' : ''} within 30 days`, sub: d.renewingSoon.map(c => c.name).join(', '), highlight: true })
+                }
+                if (d.expired.length > 0) {
+                  adminItems.push({ key: 'check_expired', label: `Handle expired programmes — ${d.expired.length} client${d.expired.length > 1 ? 's' : ''}`, sub: d.expired.map(c => c.name).join(', '), highlight: true })
+                }
+                if (d.awaitingFeedback.length > 0) {
+                  adminItems.push({ key: 'send_monthly_feedback', label: `Send monthly review feedback (${d.awaitingFeedback.length} waiting)`, sub: 'Clients have completed their monthly review and are waiting on your feedback', highlight: true })
+                }
+                adminItems.push({ key: 'check_new_signups', label: 'Check for new client sign-ups', sub: 'Review onboarding submissions and send welcome messages' })
+                sections.push({ title: '📋 Admin & Renewals', subtitle: 'Business ops', items: adminItems })
+
+                // ── MONDAY SPECIALS ──
+                if (isMonday) {
+                  sections.push({ title: '🔒 Monday Review', subtitle: 'Weekend catch-up', items: [
+                    { key: 'review_lock_ins', label: `Review Lock In completions (${d.lockInsDone}/${d.totalClients})`, sub: 'Check who completed their weekly review over the weekend' },
+                    { key: 'review_war_maps', label: `Review War Map completions (${d.warMapsDone}/${d.totalClients})`, sub: 'Check who planned their week' },
+                    { key: 'set_weekly_focus', label: 'Set your coaching focus for the week', sub: 'Which clients need extra attention this week?' },
+                  ]})
+                }
+
+                // ── FRIDAY SPECIALS ──
+                if (isFriday) {
+                  sections.push({ title: '🏁 Friday Wrap-Up', subtitle: 'End of week', items: [
+                    { key: 'weekly_score_check', label: 'Review all programme scores for the week', sub: 'Identify who crushed it and who needs a push' },
+                    { key: 'send_friday_motivation', label: 'Send weekend accountability reminder', sub: 'Remind clients to complete Lock In + War Map over the weekend' },
+                    { key: 'plan_next_week', label: 'Plan your coaching priorities for next week', sub: 'Who needs calls? Who needs content reviewed?' },
+                  ]})
+                }
+
+                // ── FIRST WEEK OF MONTH ──
+                if (isFirstWeek) {
+                  sections.push({ title: '📅 Monthly', subtitle: 'First week tasks', items: [
+                    { key: 'chase_monthly_reviews', label: `Chase monthly review completions (${d.monthlysDone}/${d.totalClients})`, sub: 'Remind clients to reflect on last month' },
+                    { key: 'review_revenue_targets', label: 'Review client revenue targets vs actuals', sub: 'Check monthly reviews for revenue data' },
+                  ]})
+                }
+
+                // ── EVENING BLOCK ──
+                sections.push({ title: '🌙 Evening', subtitle: 'End of day', items: [
+                  { key: 'check_debriefs', label: `Check yesterday's Debrief completions (${d.debriefsDone}/${d.totalClients})`, sub: 'Follow up with anyone consistently missing debriefs' },
+                  { key: 'check_tracker', label: `Check Business Tracker entries today (${d.kpisDone}/${d.totalClients})`, sub: 'Who\'s logging their numbers?' },
+                  { key: 'daily_reflection', label: 'Your own daily reflection', sub: 'What went well today? What does tomorrow need?' },
+                ]})
+
+                // Count totals
+                const allItems = sections.flatMap(s => s.items)
+                const completedCount = allItems.filter(item => isDailyOpsChecked(item.key)).length
+
+                return (
+                  <div>
+                    {/* Progress bar */}
+                    <div className="mb-8 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                      <div className="flex items-center justify-between mb-3">
+                        <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Today's Progress</span>
+                        <span className={`text-sm font-bold ${completedCount === allItems.length ? 'text-emerald-400' : 'text-gold'}`}>
+                          {completedCount}/{allItems.length}
+                        </span>
+                      </div>
+                      <div className="w-full h-3 bg-zinc-800 rounded-full overflow-hidden">
+                        <div className={`h-full rounded-full transition-all duration-500 ${completedCount === allItems.length ? 'bg-emerald-500' : 'bg-gold'}`}
+                          style={{ width: `${allItems.length > 0 ? (completedCount / allItems.length) * 100 : 0}%` }} />
+                      </div>
+                      {completedCount === allItems.length && allItems.length > 0 && (
+                        <p className="text-emerald-400 text-xs font-semibold mt-3 text-center">All done for today. You're a machine. 💪</p>
+                      )}
+                    </div>
+
+                    {/* Sections */}
+                    {sections.map((section, si) => (
+                      <div key={si} className="mb-8">
+                        <div className="flex items-center gap-3 mb-4">
+                          <h2 className="text-sm font-bold text-white uppercase tracking-widest">{section.title}</h2>
+                          <span className="text-xs text-zinc-600">{section.subtitle}</span>
+                        </div>
+                        <div className="space-y-2">
+                          {section.items.map((item) => {
+                            const checked = isDailyOpsChecked(item.key)
+                            return (
+                              <div key={item.key}
+                                className={`flex items-start gap-4 p-4 rounded-lg border transition cursor-pointer ${
+                                  checked
+                                    ? 'bg-zinc-900/50 border-zinc-800/50'
+                                    : item.highlight
+                                      ? 'bg-amber-950/20 border-amber-900/40 hover:border-amber-800/60'
+                                      : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                                }`}
+                                onClick={() => toggleDailyOpsItem(item.key)}>
+                                <div className={`flex-shrink-0 w-6 h-6 rounded border-2 flex items-center justify-center mt-0.5 transition ${
+                                  checked ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 hover:border-gold'
+                                }`}>
+                                  {checked && (
+                                    <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                    </svg>
+                                  )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <p className={`text-sm font-semibold transition ${checked ? 'text-zinc-600 line-through' : 'text-white'}`}>
+                                    {item.label}
+                                  </p>
+                                  <p className={`text-xs mt-1 leading-relaxed ${checked ? 'text-zinc-700' : item.highlight ? 'text-amber-400/70' : 'text-zinc-500'}`}>
+                                    {item.sub}
+                                  </p>
+                                </div>
+                                {item.link && !checked && (
+                                  <a href={item.link} target="_blank" rel="noopener noreferrer"
+                                    onClick={(e) => e.stopPropagation()}
+                                    className="flex-shrink-0 px-3 py-1.5 text-xs font-bold text-gold border border-gold/30 rounded hover:bg-gold/10 transition uppercase tracking-wider">
+                                    Open
+                                  </a>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )
+              })()}
+            </div>
+
+          ) : adminView === 'content' ? (
             <div className="fade-in max-w-5xl mx-auto">
               <div className="mb-8">
                 <h1 className="text-2xl font-bold text-white tracking-tight">📱 Content Intel</h1>
