@@ -65,6 +65,46 @@ Write a 30-day action plan structured as:
 
 Reference their specific words and situations. Do not give generic advice. Every action must be tied to something they personally revealed. Be direct. Be specific. Be useful.`
 
+    } else if (type === 'unshakeable') {
+      systemPrompt = 'You are a direct, psychologically sharp performance coach. You write raw, actionable plans with zero fluff. Every sentence must be a specific action or a hard truth tied to the client\'s actual answers. Tone: like a mentor who genuinely cares but refuses to let anyone hide behind excuses. Write directly to the client in second person.'
+      userPrompt = `Based on this client's Un-Shakeable™ Playbook answers, write a personalised 30-day action plan.
+
+Their answers across 5 performance rewiring frameworks:
+
+THE ACTION BRIDGE™
+Reflection: ${data.framework_1?.reflection || 'Not answered'}
+Audit: ${data.framework_1?.audit || 'Not answered'}
+Go Deeper: ${data.framework_1?.go_deeper || 'Not answered'}
+
+THE NEGOTIATOR™
+Reflection: ${data.framework_2?.reflection || 'Not answered'}
+Audit: ${data.framework_2?.audit || 'Not answered'}
+Go Deeper: ${data.framework_2?.go_deeper || 'Not answered'}
+
+THE THREE DIALS™ — NEGATIVE BEHAVIOURS
+Reflection: ${data.framework_3?.reflection || 'Not answered'}
+Audit: ${data.framework_3?.audit || 'Not answered'}
+Go Deeper: ${data.framework_3?.go_deeper || 'Not answered'}
+
+THE THREE DIALS™ — POSITIVE BEHAVIOURS
+Reflection: ${data.framework_4?.reflection || 'Not answered'}
+Audit: ${data.framework_4?.audit || 'Not answered'}
+Go Deeper: ${data.framework_4?.go_deeper || 'Not answered'}
+
+THE IDENTITY SHIFT™
+Reflection: ${data.framework_5?.reflection || 'Not answered'}
+Audit: ${data.framework_5?.audit || 'Not answered'}
+Go Deeper: ${data.framework_5?.go_deeper || 'Not answered'}
+
+Write a 30-day action plan structured as:
+- Week 1: 3-4 specific actions focused on execution and crossing The Action Bridge — tied to what they revealed about their procrastination and their smallest viable action
+- Week 2: 3-4 specific actions focused on defeating The Negotiator and breaking negative behaviour patterns — tied to their TFL weapon and their Three Dials audit
+- Week 3: 3-4 specific actions focused on installing positive behaviours and building accountability systems — tied to their positive behaviour dials and accountability mechanisms
+- Week 4: 3-4 specific actions focused on identity shift and locking in The Performance Flywheel — tied to who they said they need to become and the identity shift they committed to
+- Close with 3 Non-Negotiable Un-Shakeable™ Commitments pulled from what they actually wrote
+
+Reference their specific words and situations throughout. Do not give generic advice. Every action must be tied to something they personally revealed. Be direct. Be specific. Be psychologically sharp.`
+
     } else if (type === 'premium-position') {
       systemPrompt = 'You are a premium brand positioning strategist. You write sharp, specific, actionable brand plans. No generic marketing advice. Every recommendation must reference the client\'s specific positioning data. Tone: expert, direct, commercially minded.'
       userPrompt = `Based on this client's Premium Position™ Blueprint, write a personalised 30-day positioning action plan.
@@ -164,7 +204,7 @@ Reference their specific offer details, ICP data, and pricing throughout. Make i
 
     const message = await client.messages.create({
       model: 'claude-sonnet-4-20250514',
-      max_tokens: 2000,
+      max_tokens: 2500,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }],
     })

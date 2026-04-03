@@ -1285,6 +1285,7 @@ export default function ClientPage() {
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™',       icon: '🧠', href: '/wealth-wired' },
+      { id: 'unshakeable',  label: 'Un-Shakeable™',       icon: '🔥', href: '/unshakeable' },
     ]},
     { heading: 'Learn', items: [
       { id: 'classroom',   label: 'Classroom',            icon: '🎓', href: 'https://www.skool.com/imthiazghulam/classroom', external: true },
