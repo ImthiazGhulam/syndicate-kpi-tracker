@@ -681,6 +681,10 @@ function AdminPageInner() {
           className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition text-zinc-500 hover:text-white border border-transparent">
           📋 Typeform
         </a>
+        <a href="https://www.skool.com/imthiazghulam/classroom" target="_blank" rel="noopener noreferrer"
+          className="px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition text-zinc-500 hover:text-white border border-transparent">
+          🎓 Skool
+        </a>
       </div>
 
       <div className="flex flex-1 overflow-hidden">
