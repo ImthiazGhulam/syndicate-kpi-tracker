@@ -218,7 +218,22 @@ export default function UnshakeablePage() {
       framework_4: { ...defaultFramework(), ...(entry.framework_4 || {}) },
       framework_5: { ...defaultFramework(), ...(entry.framework_5 || {}) },
     })
-    setGeneratedPlan(entry.generated_plan || '')
+    // Try to parse structured tasks from generated_plan
+    const plan = entry.generated_plan || ''
+    try {
+      const parsed = JSON.parse(plan)
+      if (parsed.tasks) {
+        setGeneratedTasks(parsed.tasks)
+        setPlanSummary(parsed.summary || '')
+        setGeneratedPlan(parsed.summary || '')
+      } else {
+        setGeneratedPlan(plan)
+        setGeneratedTasks([])
+      }
+    } catch {
+      setGeneratedPlan(plan)
+      setGeneratedTasks([])
+    }
   }
 
   const createNewEntry = async () => {
@@ -329,7 +344,7 @@ export default function UnshakeablePage() {
 
     let band = 'Needs Work'
     let bandDescription = 'You have significant gaps in your playbook. Go back and complete more frameworks with depth.'
-    if (total >= 18) { band = 'Un-Shakeable'; bandDescription = 'Outstanding. You have done the deep work. Your performance rewiring is well underway.' }
+    if (total >= 18) { band = 'Flywheel'; bandDescription = 'Outstanding. You have done the deep work. Your performance rewiring is well underway.' }
     else if (total >= 15) { band = 'Strong'; bandDescription = 'Solid progress. You are building real self-awareness. Go deeper on the frameworks that challenge you most.' }
     else if (total >= 9) { band = 'Getting There'; bandDescription = 'Good start. You are engaging with the material but some answers need more depth and honesty.' }
 
@@ -341,23 +356,95 @@ export default function UnshakeablePage() {
   // ── Action Plan Generator ──────────────────────────────────────────────────
 
   const [planLoading, setPlanLoading] = useState(false)
+  const [planDuration, setPlanDuration] = useState(7)
+  const [generatedTasks, setGeneratedTasks] = useState([])
+  const [planSummary, setPlanSummary] = useState('')
+  const [deployedToCalendar, setDeployedToCalendar] = useState(false)
 
   const generateActionPlan = async () => {
     setPlanLoading(true)
+    setDeployedToCalendar(false)
     try {
+      const startDate = new Date()
+      startDate.setDate(startDate.getDate() + 1) // Start tomorrow
+      const startStr = startDate.toISOString().split('T')[0]
+
       const res = await fetch('/api/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'unshakeable',
-          data: { ...frameworkData, problem_statement: record?.problem_statement || '' },
+          data: {
+            ...frameworkData,
+            problem_statement: record?.problem_statement || '',
+            start_date: startStr,
+            duration: planDuration,
+          },
         }),
       })
       const result = await res.json()
       if (result.error) { alert('Failed to generate: ' + result.error); setPlanLoading(false); return }
-      setGeneratedPlan(result.plan)
-      await supabase.from('unshakeable_playbook').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', record.id)
+
+      if (result.tasks && result.tasks.length > 0) {
+        // Structured tasks — compute actual dates from day_offset
+        const tasksWithDates = result.tasks.map(t => {
+          const d = new Date(startStr + 'T12:00:00')
+          d.setDate(d.getDate() + (t.day_offset || 0))
+          return { ...t, scheduled_date: d.toISOString().split('T')[0] }
+        })
+        setGeneratedTasks(tasksWithDates)
+        setPlanSummary(result.summary || '')
+        setGeneratedPlan(result.summary || '')
+        await supabase.from('unshakeable_playbook').update({
+          generated_plan: JSON.stringify({ tasks: tasksWithDates, summary: result.summary }),
+          updated_at: new Date().toISOString(),
+        }).eq('id', record.id)
+      } else {
+        // Fallback to text plan
+        setGeneratedPlan(result.plan || '')
+        setGeneratedTasks([])
+        await supabase.from('unshakeable_playbook').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', record.id)
+      }
     } catch (e) { alert('Failed: ' + e.message) }
+    setPlanLoading(false)
+  }
+
+  const deployToCalendar = async () => {
+    if (!generatedTasks.length || !clientData) return
+    setPlanLoading(true)
+
+    // Create a project
+    const projectTitle = record?.title || 'Performance Flywheel™'
+    const firstDate = generatedTasks[0]?.scheduled_date
+    const lastDate = generatedTasks[generatedTasks.length - 1]?.scheduled_date
+
+    const { data: project } = await supabase.from('projects').insert([{
+      client_id: clientData.id,
+      name: `🔥 ${projectTitle}`,
+      description: record?.problem_statement || '',
+      status: 'in_progress',
+      priority: 'high',
+      start_date: firstDate,
+      end_date: lastDate,
+    }]).select().single()
+
+    if (!project) { alert('Failed to create project'); setPlanLoading(false); return }
+
+    // Create all tasks
+    const taskInserts = generatedTasks.map(t => ({
+      project_id: project.id,
+      client_id: clientData.id,
+      title: t.title,
+      description: t.description || '',
+      scheduled_date: t.scheduled_date,
+      scheduled_time: t.scheduled_time || null,
+      duration_minutes: t.duration_minutes || null,
+      completed: false,
+    }))
+
+    await supabase.from('project_tasks').insert(taskInserts)
+
+    setDeployedToCalendar(true)
     setPlanLoading(false)
   }
 
@@ -488,7 +575,7 @@ export default function UnshakeablePage() {
         {/* Overall Score Ring */}
         <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-5 flex flex-col items-center">
           <ScoreRing score={scores.total} max={scores.max} size={140} strokeWidth={10} />
-          <p className={`text-sm font-bold mt-3 ${scores.band === 'Un-Shakeable' ? 'text-gold' : scores.band === 'Strong' ? 'text-emerald-400' : scores.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>
+          <p className={`text-sm font-bold mt-3 ${scores.band === 'Flywheel' ? 'text-gold' : scores.band === 'Strong' ? 'text-emerald-400' : scores.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>
             {scores.band}
           </p>
           <p className="text-zinc-500 text-xs text-center mt-1 max-w-md">{scores.bandDescription}</p>
@@ -557,15 +644,77 @@ export default function UnshakeablePage() {
         <div className="mt-8 pt-6 border-t border-zinc-800">
           {scores.total >= 16 ? (
             <>
-              <div className="text-center mb-6">
-                <button onClick={generateActionPlan} disabled={planLoading} className={`px-8 py-4 ${generatedPlan ? 'bg-zinc-800 hover:bg-zinc-700 text-gold border border-gold/30' : 'bg-gold hover:bg-gold-light text-zinc-950'} disabled:opacity-50 font-bold text-xs uppercase tracking-widest rounded-lg transition`}>
-                  {planLoading ? 'Generating your plan...' : generatedPlan ? 'Regenerate My 30-Day Action Plan' : 'Generate My 30-Day Action Plan'}
-                </button>
-                {generatedPlan && <p className="text-zinc-600 text-xs mt-2">Updated your answers? Hit regenerate to refresh your plan.</p>}
+              {/* Duration picker */}
+              <div className="flex items-center justify-center gap-3 mb-6">
+                <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Plan Duration:</span>
+                {[7, 14].map(d => (
+                  <button key={d} onClick={() => setPlanDuration(d)}
+                    className={`px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition ${
+                      planDuration === d ? 'bg-gold/10 text-gold border border-gold/30' : 'text-zinc-500 hover:text-white border border-zinc-700'
+                    }`}>
+                    {d} Days
+                  </button>
+                ))}
               </div>
-              {generatedPlan && (
+
+              <div className="text-center mb-6">
+                <button onClick={generateActionPlan} disabled={planLoading} className={`px-8 py-4 ${generatedTasks.length > 0 || generatedPlan ? 'bg-zinc-800 hover:bg-zinc-700 text-gold border border-gold/30' : 'bg-gold hover:bg-gold-light text-zinc-950'} disabled:opacity-50 font-bold text-xs uppercase tracking-widest rounded-lg transition`}>
+                  {planLoading ? 'Generating...' : generatedTasks.length > 0 || generatedPlan ? 'Regenerate Plan' : 'Generate Action Plan'}
+                </button>
+                {(generatedTasks.length > 0 || generatedPlan) && <p className="text-zinc-600 text-xs mt-2">Updated your answers? Hit regenerate to refresh your plan.</p>}
+              </div>
+
+              {/* Structured Tasks View */}
+              {generatedTasks.length > 0 && (
+                <div>
+                  {planSummary && (
+                    <div className="bg-zinc-900 border border-gold/20 rounded-xl p-5 mb-5">
+                      <p className="text-sm text-zinc-300 leading-relaxed">{planSummary}</p>
+                    </div>
+                  )}
+
+                  <div className="space-y-2 mb-6">
+                    {generatedTasks.map((task, i) => {
+                      const d = new Date(task.scheduled_date + 'T12:00:00')
+                      const dayLabel = d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+                      return (
+                        <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-start gap-4">
+                          <div className="flex-shrink-0 text-center w-16">
+                            <p className="text-xs font-bold text-gold uppercase">{dayLabel}</p>
+                            {task.scheduled_time && <p className="text-[10px] text-zinc-500 mt-0.5">{task.scheduled_time}</p>}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white">{task.title}</p>
+                            {task.description && <p className="text-xs text-zinc-400 mt-1 leading-relaxed">{task.description}</p>}
+                          </div>
+                          {task.duration_minutes && <span className="text-xs text-zinc-600 flex-shrink-0">{task.duration_minutes}min</span>}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Deploy button */}
+                  <div className="text-center">
+                    {deployedToCalendar ? (
+                      <div className="inline-flex items-center gap-2 px-6 py-3 bg-emerald-900/20 border border-emerald-500/30 rounded-lg">
+                        <svg className="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+                        <span className="text-emerald-400 font-bold text-xs uppercase tracking-widest">Deployed to your calendar</span>
+                      </div>
+                    ) : (
+                      <button onClick={deployToCalendar} disabled={planLoading}
+                        className="px-8 py-4 bg-gold hover:bg-gold-light disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                        {planLoading ? 'Deploying...' : 'Deploy to Calendar'}
+                      </button>
+                    )}
+                    <p className="text-zinc-600 text-xs mt-2">{deployedToCalendar ? 'Check your Projects tab and Morning Ops to see your tasks.' : 'This will create a project with all these tasks on your calendar.'}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Fallback text plan */}
+              {generatedTasks.length === 0 && generatedPlan && (
                 <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
-                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your 30-Day Un-Shakeable™ Action Plan</h3>
+                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your Performance Flywheel™ Action Plan</h3>
                   <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedPlan}</div>
                 </div>
               )}
@@ -632,7 +781,7 @@ export default function UnshakeablePage() {
           <div className="flex items-center gap-4">
             <img src="/logo.png" alt="The Syndicate" className="h-10 w-auto" />
             <div>
-              <h1 className="text-sm font-bold text-white uppercase tracking-widest">Un-Shakeable™</h1>
+              <h1 className="text-sm font-bold text-white uppercase tracking-widest">Performance Flywheel™</h1>
               <p className="text-zinc-600 text-xs">Pick a problem. Apply the frameworks. Get a plan.</p>
             </div>
           </div>
@@ -670,7 +819,7 @@ export default function UnshakeablePage() {
               disabled={!newProblem.trim()}
               className="w-full py-3.5 bg-gold hover:bg-gold-light disabled:opacity-30 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition"
             >
-              Start Un-Shakeable™ Playbook
+              Start Performance Flywheel™ Playbook
             </button>
           </div>
 
@@ -800,7 +949,7 @@ export default function UnshakeablePage() {
         <div className="text-center">
           <p className="text-xs text-zinc-600 mb-1">Overall Score</p>
           <p className="text-lg font-bold text-white">{scores.total}<span className="text-zinc-600 text-sm"> / {scores.max}</span></p>
-          <p className={`text-xs font-semibold mt-0.5 ${scores.band === 'Un-Shakeable' ? 'text-gold' : scores.band === 'Strong' ? 'text-emerald-400' : scores.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>{scores.band}</p>
+          <p className={`text-xs font-semibold mt-0.5 ${scores.band === 'Flywheel' ? 'text-gold' : scores.band === 'Strong' ? 'text-emerald-400' : scores.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>{scores.band}</p>
         </div>
       </div>
     </nav>

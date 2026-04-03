@@ -66,13 +66,16 @@ Write a 30-day action plan structured as:
 Reference their specific words and situations. Do not give generic advice. Every action must be tied to something they personally revealed. Be direct. Be specific. Be useful.`
 
     } else if (type === 'unshakeable') {
-      systemPrompt = 'You are a direct, psychologically sharp performance coach. You write raw, actionable plans with zero fluff. Every sentence must be a specific action or a hard truth tied to the client\'s actual answers. Tone: like a mentor who genuinely cares but refuses to let anyone hide behind excuses. Write directly to the client in second person.'
-      userPrompt = `Based on this client's Un-Shakeable™ Playbook answers, write a personalised 30-day action plan to solve their specific problem.
+      const startDate = data.start_date || new Date().toISOString().split('T')[0]
+      const duration = data.duration || 7
+
+      systemPrompt = `You are a direct, psychologically sharp performance coach. You create specific, time-bound action plans. No fluff. Every task must be tied to the client's actual answers. Respond ONLY with valid JSON — no markdown, no code fences, no explanation outside the JSON.`
+      userPrompt = `Based on this client's Performance Flywheel™ Playbook answers, create a structured ${duration}-day action plan to solve their specific problem.
 
 THE PROBLEM THEY ARE SOLVING:
 ${data.problem_statement || 'Not specified'}
 
-Their answers across 5 performance rewiring frameworks applied to this problem:
+Their answers across 5 performance rewiring frameworks:
 
 THE ACTION BRIDGE™
 Reflection: ${data.framework_1?.reflection || 'Not answered'}
@@ -99,14 +102,28 @@ Reflection: ${data.framework_5?.reflection || 'Not answered'}
 Audit: ${data.framework_5?.audit || 'Not answered'}
 Go Deeper: ${data.framework_5?.go_deeper || 'Not answered'}
 
-Write a 30-day action plan structured as:
-- Week 1: 3-4 specific actions focused on execution and crossing The Action Bridge — tied to what they revealed about their procrastination and their smallest viable action
-- Week 2: 3-4 specific actions focused on defeating The Negotiator and breaking negative behaviour patterns — tied to their TFL weapon and their Three Dials audit
-- Week 3: 3-4 specific actions focused on installing positive behaviours and building accountability systems — tied to their positive behaviour dials and accountability mechanisms
-- Week 4: 3-4 specific actions focused on identity shift and locking in The Performance Flywheel — tied to who they said they need to become and the identity shift they committed to
-- Close with 3 Non-Negotiable Un-Shakeable™ Commitments pulled from what they actually wrote
+The plan starts on ${startDate}. Generate exactly ${duration} days of tasks starting from that date. Each day gets 1-2 tasks. Tasks should be concrete actions they can complete in a single sitting.
 
-Reference their specific words and situations throughout. Do not give generic advice. Every action must be tied to something they personally revealed. Be direct. Be specific. Be psychologically sharp.`
+Early days: focus on The Action Bridge and defeating The Negotiator — small actions that build momentum.
+Middle days: focus on breaking negative behaviours and installing positive ones using The Three Dials.
+Final days: focus on The Identity Shift and locking the flywheel in place.
+
+Respond with ONLY this JSON structure:
+{
+  "tasks": [
+    {
+      "title": "Short task title (max 60 chars)",
+      "description": "2-3 sentences explaining what to do and why, referencing their specific answers",
+      "day_offset": 0,
+      "scheduled_time": "09:00",
+      "duration_minutes": 20
+    }
+  ],
+  "summary": "One paragraph summary of what this plan will achieve for them specifically"
+}
+
+day_offset is 0 for start date, 1 for next day, etc. scheduled_time in HH:MM 24h format. duration_minutes between 10-45.
+Reference their specific words. Every task must tie to something they revealed. Be direct and psychologically sharp.`
 
     } else if (type === 'premium-position') {
       systemPrompt = 'You are a premium brand positioning strategist. You write sharp, specific, actionable brand plans. No generic marketing advice. Every recommendation must reference the client\'s specific positioning data. Tone: expert, direct, commercially minded.'
@@ -213,6 +230,21 @@ Reference their specific offer details, ICP data, and pricing throughout. Make i
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // For unshakeable/flywheel, parse structured JSON tasks
+    if (type === 'unshakeable') {
+      try {
+        // Strip any markdown fences the model might add
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ tasks: parsed.tasks || [], summary: parsed.summary || '', plan: text })
+      } catch (parseErr) {
+        // If JSON parse fails, return as text plan fallback
+        console.error('JSON parse failed, returning as text:', parseErr)
+        return NextResponse.json({ plan: text })
+      }
+    }
+
     return NextResponse.json({ plan: text })
   } catch (err) {
     console.error('Generate plan error:', err)

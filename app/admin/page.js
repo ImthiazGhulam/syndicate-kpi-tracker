@@ -726,7 +726,7 @@ function AdminPageInner() {
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™' },
-      { id: 'unshakeable', label: 'Un-Shakeable™' },
+      { id: 'unshakeable', label: 'Performance Flywheel™' },
     ]},
   ]
 
@@ -3433,7 +3433,7 @@ function AdminPageInner() {
                 if (!clientUnshakeable || (Array.isArray(clientUnshakeable) && clientUnshakeable.length === 0)) return (
                   <div className="fade-in text-center py-16">
                     <span className="text-4xl mb-4 block">🔥</span>
-                    <p className="text-zinc-500 text-sm font-medium">Client hasn't started their Un-Shakeable™ Playbook yet.</p>
+                    <p className="text-zinc-500 text-sm font-medium">Client hasn't started their Performance Flywheel™ Playbook yet.</p>
                   </div>
                 )
 
@@ -3448,7 +3448,7 @@ function AdminPageInner() {
                   {entries.map((us, ei) => {
                     const scores = us.scores || {}
                     const totalScore = scores.total_score || 0
-                    const band = totalScore >= 18 ? 'Un-Shakeable' : totalScore >= 15 ? 'Strong' : totalScore >= 9 ? 'Getting There' : 'Needs Work'
+                    const band = totalScore >= 18 ? 'Flywheel' : totalScore >= 15 ? 'Strong' : totalScore >= 9 ? 'Getting There' : 'Needs Work'
 
                     return (
                     <div key={us.id} className="border border-zinc-800 rounded-2xl overflow-hidden">
@@ -3467,7 +3467,7 @@ function AdminPageInner() {
                             </div>
                           </div>
                           <div className="text-center sm:text-left flex-1">
-                            <h2 className="text-lg font-black text-white uppercase tracking-wider">{us.title || 'Un-Shakeable™'}</h2>
+                            <h2 className="text-lg font-black text-white uppercase tracking-wider">{us.title || 'Performance Flywheel™'}</h2>
                             {us.problem_statement && <p className="text-zinc-400 text-sm mt-1 leading-relaxed">{us.problem_statement}</p>}
                             <div className="flex items-center gap-3 mt-3 flex-wrap justify-center sm:justify-start">
                               <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold uppercase tracking-widest border ${

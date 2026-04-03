@@ -1043,8 +1043,20 @@ export default function ClientPage() {
     if (data) setWarMapTasks(prev => prev.map(t => t.id === taskId ? data : t))
   }
 
-  const completeTask = async (taskId, displayDate, isRecurring) => {
-    if (isRecurring && displayDate) {
+  const completeTask = async (taskId, displayDate, isRecurring, isProjectTask) => {
+    if (isProjectTask) {
+      // Project task — toggle in project_tasks table
+      const projectId = Object.keys(projectTasks).find(pid => projectTasks[pid]?.some(t => t.id === taskId))
+      if (projectId) {
+        const task = projectTasks[projectId].find(t => t.id === taskId)
+        const newVal = !task?.completed
+        await supabase.from('project_tasks').update({ completed: newVal }).eq('id', taskId)
+        setProjectTasks(prev => ({
+          ...prev,
+          [projectId]: (prev[projectId] || []).map(t => t.id === taskId ? { ...t, completed: newVal } : t),
+        }))
+      }
+    } else if (isRecurring && displayDate) {
       // For recurring tasks, toggle per-day completion instead of the task itself
       const existing = warMapTaskCompletions.find(c => c.task_id === taskId && c.completion_date === displayDate)
       if (existing) {
@@ -1055,7 +1067,7 @@ export default function ClientPage() {
         if (data) setWarMapTaskCompletions(prev => [...prev, data])
       }
     } else {
-      // Non-recurring: toggle on the task itself
+      // Non-recurring war map task: toggle on the task itself
       const task = warMapTasks.find(t => t.id === taskId)
       const newVal = !task?.completed
       const { data } = await supabase.from('war_map_tasks').update({ completed: newVal }).eq('id', taskId).select().single()
@@ -1177,10 +1189,35 @@ export default function ClientPage() {
   const weekDays = getWeekDays(warMapWeek)
   const monthStart = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-01`
   const monthEnd = localDateStr(new Date(calendarYear, calendarMonth + 1, 0))
-  const tasksForWeek = expandTasksForRange(warMapTasks, weekDays[0], weekDays[6], warMapTaskCompletions)
-  const tasksForMonth = expandTasksForRange(warMapTasks, monthStart, monthEnd, warMapTaskCompletions)
-  const tasksForDay = expandTasksForRange(warMapTasks, dayViewDate, dayViewDate, warMapTaskCompletions)
-  const tasksForPulseDay = expandTasksForRange(warMapTasks, dailyPulseDate, dailyPulseDate, warMapTaskCompletions)
+  // Get scheduled project tasks for calendar integration
+  const getScheduledProjectTasks = (startStr, endStr) => {
+    const result = []
+    Object.entries(projectTasks).forEach(([projectId, tasks]) => {
+      const project = projects.find(p => p.id === projectId)
+      tasks.forEach(task => {
+        if (task.scheduled_date && task.scheduled_date >= startStr && task.scheduled_date <= endStr) {
+          result.push({
+            ...task,
+            _displayDate: task.scheduled_date,
+            _isProjectTask: true,
+            _projectName: project?.name || '',
+            status: 'schedule',
+          })
+        }
+      })
+    })
+    return result
+  }
+
+  const warTasksWeek = expandTasksForRange(warMapTasks, weekDays[0], weekDays[6], warMapTaskCompletions)
+  const warTasksMonth = expandTasksForRange(warMapTasks, monthStart, monthEnd, warMapTaskCompletions)
+  const warTasksDay = expandTasksForRange(warMapTasks, dayViewDate, dayViewDate, warMapTaskCompletions)
+  const warTasksPulse = expandTasksForRange(warMapTasks, dailyPulseDate, dailyPulseDate, warMapTaskCompletions)
+
+  const tasksForWeek = [...warTasksWeek, ...getScheduledProjectTasks(weekDays[0], weekDays[6])]
+  const tasksForMonth = [...warTasksMonth, ...getScheduledProjectTasks(monthStart, monthEnd)]
+  const tasksForDay = [...warTasksDay, ...getScheduledProjectTasks(dayViewDate, dayViewDate)]
+  const tasksForPulseDay = [...warTasksPulse, ...getScheduledProjectTasks(dailyPulseDate, dailyPulseDate)]
 
   const firstDayOfMonth = new Date(calendarYear, calendarMonth, 1).getDay()
   const daysInMonth = new Date(calendarYear, calendarMonth + 1, 0).getDate()
@@ -1285,7 +1322,7 @@ export default function ClientPage() {
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™',       icon: '🧠', href: '/wealth-wired' },
-      { id: 'unshakeable',  label: 'Un-Shakeable™',       icon: '🔥', href: '/unshakeable' },
+      { id: 'unshakeable',  label: 'Performance Flywheel™', icon: '🔥', href: '/unshakeable' },
     ]},
     { heading: 'Learn', items: [
       { id: 'classroom',   label: 'Classroom',            icon: '🎓', href: 'https://www.skool.com/imthiazghulam/classroom', external: true },
@@ -1862,13 +1899,16 @@ export default function ClientPage() {
                       .sort((a, b) => (a.scheduled_time || '99:99').localeCompare(b.scheduled_time || '99:99'))
                       .map((task, idx) => (
                       <div key={`${task.id}-${idx}`} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-3 py-2.5 flex items-center gap-3 ${task.completed ? 'opacity-50' : ''}`}>
-                        <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring)} className="flex-shrink-0">
+                        <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask)} className="flex-shrink-0">
                           <div className={`w-5 h-5 rounded border-2 flex items-center justify-center transition ${task.completed ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 hover:border-emerald-500 active:border-emerald-500'}`}>
                             {task.completed && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                           </div>
                         </button>
                         {task.scheduled_time && <span className="text-xs text-sky-400/70 font-medium flex-shrink-0 w-14">{formatTime(task.scheduled_time)}</span>}
-                        <p className={`text-sm flex-1 ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                        <div className="flex-1 min-w-0">
+                          <p className={`text-sm ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                          {task._isProjectTask && task._projectName && <p className="text-[10px] text-gold/60 mt-0.5 truncate">{task._projectName}</p>}
+                        </div>
                         {task.duration_minutes && <span className="text-xs text-zinc-600 flex-shrink-0">{task.duration_minutes}min</span>}
                       </div>
                     ))}
@@ -2560,7 +2600,7 @@ export default function ClientPage() {
                               </div>
                             </div>
                             {!task.completed && (
-                              <button onClick={e => { e.stopPropagation(); completeTask(task.id, task._displayDate, task._isRecurring) }}
+                              <button onClick={e => { e.stopPropagation(); completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask) }}
                                 className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>
                             )}
                           </div>
@@ -2588,7 +2628,7 @@ export default function ClientPage() {
                           <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
                           {task.delegated_to && <p className="text-xs text-violet-400 mt-0.5">→ {task.delegated_to}</p>}
                         </div>
-                        {!task.completed && <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
+                        {!task.completed && <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
                         <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                       </div>
                     ))}
@@ -2605,7 +2645,7 @@ export default function ClientPage() {
                     {doNow.map(task => (
                       <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center gap-3 ${task.completed ? 'opacity-40' : ''}`}>
                         <p className={`text-sm font-medium flex-1 truncate ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
-                        {!task.completed && <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
+                        {!task.completed && <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
                         <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                       </div>
                     ))}
@@ -2718,7 +2758,7 @@ export default function ClientPage() {
                           </button>
                         )}
                         {!taskModal.task.completed && (
-                          <button onClick={() => { completeTask(taskModal.task.id, taskModal.task._displayDate, taskModal.task._isRecurring); setTaskModal(null) }}
+                          <button onClick={() => { completeTask(taskModal.task.id, taskModal.task._displayDate, taskModal.task._isRecurring, taskModal.task._isProjectTask); setTaskModal(null) }}
                             className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded transition">
                             Done
                           </button>
