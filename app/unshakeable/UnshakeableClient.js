@@ -17,19 +17,19 @@ const defaultFramework = () => ({
 const FRAMEWORKS = [
   {
     num: 1,
-    title: 'The Action Bridge™',
-    recap: 'Most people don\'t have an execution problem — they have a gap problem. The gap between knowing and doing feels like the Grand Canyon. The Action Bridge™ gives you two tools to cross it. The Plank — the smallest viable action that gets you moving. The Struts — external pressure and time constraints that hold the bridge in place so you actually cross it.',
-    reflection: 'What is the one thing you have been procrastinating on that you know needs to happen — and how long have you been avoiding it?',
-    audit: 'When you think about crossing the gap on that thing, what is the smallest single action you could take today — not the whole thing, just the first step onto the bridge?',
-    go_deeper: 'Who in your life could you use as a Strut right now — someone who creates external pressure and accountability — and what specific commitment are you going to make to them and by when?',
+    title: 'The Identity Shift™',
+    recap: 'This is the centre of The Performance Flywheel™. You can fix your actions, your decisions, and your environment — but if your identity hasn\'t shifted, the flywheel will always slow down. The Identity Paradox is this: becoming the person requires you to back yourself before you feel ready. The top performers don\'t wait until they feel like it. They become it first. Identity isn\'t the result of the work. It\'s the foundation of it.',
+    reflection: 'Who have you been being — honestly — up to this point? Not who you want to be. Who have you actually been showing up as in your business and your life?',
+    audit: 'Where specifically has a weak or unexamined identity been slowing your flywheel down — in your decisions, your actions, your environment, or all three?',
+    go_deeper: 'In one sentence — who do you need to become for The Performance Flywheel™ to spin at full capacity? And what is the single identity shift you are committing to making from today?',
   },
   {
     num: 2,
-    title: 'The Negotiator™',
-    recap: 'The Negotiator™ is the internal voice that pulls you off course the moment life gets hard. He\'s charismatic, logical, and he sounds like he cares about you. But his only job is to slow the flywheel down. He uses three weapons — The TFL Framework™. Time: maybe later, maybe tomorrow. Feelings: I\'m tired, I deserve this. Logic: I\'ll see how the week goes. Once you know his weapons, you can defeat them.',
-    reflection: 'Which of the three TFL weapons — Time, Feelings, or Logic — does The Negotiator™ use on you most consistently, and what does that conversation actually sound like in your head?',
-    audit: 'Think about the last time you fell off course. Which weapon did The Negotiator™ use — and what was the exact moment you stopped and went down the wrong path?',
-    go_deeper: 'What is your non-negotiable rule for each weapon — your personal response to Time, Feelings, and Logic — that you are committing to from this point forward?',
+    title: 'The Three Dials™ — Positive Behaviours',
+    recap: 'Installing a positive behaviour works the opposite way. You turn the Cue dial up — make the trigger louder and more present. You make it easier to Start — remove all friction between you and the behaviour. And you make it hard to Stop — build in external accountability so quitting becomes more painful than continuing. The issue is never starting. The issue is always keeping it going.',
+    reflection: 'What is the one positive behaviour — in your business or your life — that you keep starting and stopping, and what has that cycle cost you?',
+    audit: 'Using the three dials — where is the behaviour currently breaking down? Is the Cue weak, is Starting too hard, or is there nothing making it difficult to Stop?',
+    go_deeper: 'What specific accountability mechanism are you going to put in place to make this behaviour hard to stop — and who is going to hold you to it?',
   },
   {
     num: 3,
@@ -41,19 +41,19 @@ const FRAMEWORKS = [
   },
   {
     num: 4,
-    title: 'The Three Dials™ — Positive Behaviours',
-    recap: 'Installing a positive behaviour works the opposite way. You turn the Cue dial up — make the trigger louder and more present. You make it easier to Start — remove all friction between you and the behaviour. And you make it hard to Stop — build in external accountability so quitting becomes more painful than continuing. The issue is never starting. The issue is always keeping it going.',
-    reflection: 'What is the one positive behaviour — in your business or your life — that you keep starting and stopping, and what has that cycle cost you?',
-    audit: 'Using the three dials — where is the behaviour currently breaking down? Is the Cue weak, is Starting too hard, or is there nothing making it difficult to Stop?',
-    go_deeper: 'What specific accountability mechanism are you going to put in place to make this behaviour hard to stop — and who is going to hold you to it?',
+    title: 'The Negotiator™',
+    recap: 'The Negotiator™ is the internal voice that pulls you off course the moment life gets hard. He\'s charismatic, logical, and he sounds like he cares about you. But his only job is to slow the flywheel down. He uses three weapons — The TFL Framework™. Time: maybe later, maybe tomorrow. Feelings: I\'m tired, I deserve this. Logic: I\'ll see how the week goes. Once you know his weapons, you can defeat them.',
+    reflection: 'Which of the three TFL weapons — Time, Feelings, or Logic — does The Negotiator™ use on you most consistently, and what does that conversation actually sound like in your head?',
+    audit: 'Think about the last time you fell off course. Which weapon did The Negotiator™ use — and what was the exact moment you stopped and went down the wrong path?',
+    go_deeper: 'What is your non-negotiable rule for each weapon — your personal response to Time, Feelings, and Logic — that you are committing to from this point forward?',
   },
   {
     num: 5,
-    title: 'The Identity Shift™',
-    recap: 'This is the centre of The Performance Flywheel™. You can fix your actions, your decisions, and your environment — but if your identity hasn\'t shifted, the flywheel will always slow down. The Identity Paradox is this: becoming the person requires you to back yourself before you feel ready. The top performers don\'t wait until they feel like it. They become it first. Identity isn\'t the result of the work. It\'s the foundation of it.',
-    reflection: 'Who have you been being — honestly — up to this point? Not who you want to be. Who have you actually been showing up as in your business and your life?',
-    audit: 'Where specifically has a weak or unexamined identity been slowing your flywheel down — in your decisions, your actions, your environment, or all three?',
-    go_deeper: 'In one sentence — who do you need to become for The Performance Flywheel™ to spin at full capacity? And what is the single identity shift you are committing to making from today?',
+    title: 'The Action Bridge™',
+    recap: 'Most people don\'t have an execution problem — they have a gap problem. The gap between knowing and doing feels like the Grand Canyon. The Action Bridge™ gives you two tools to cross it. The Plank — the smallest viable action that gets you moving. The Struts — external pressure and time constraints that hold the bridge in place so you actually cross it.',
+    reflection: 'What is the one thing you have been procrastinating on that you know needs to happen — and how long have you been avoiding it?',
+    audit: 'When you think about crossing the gap on that thing, what is the smallest single action you could take today — not the whole thing, just the first step onto the bridge?',
+    go_deeper: 'Who in your life could you use as a Strut right now — someone who creates external pressure and accountability — and what specific commitment are you going to make to them and by when?',
   },
 ]
 
@@ -789,7 +789,7 @@ export default function UnshakeablePage() {
         {/* Back navigation */}
         <div className="flex justify-start mt-8">
           <button onClick={() => goToFramework(5)} className="px-6 py-2.5 bg-zinc-800 text-zinc-300 font-semibold text-sm rounded-lg hover:bg-zinc-700 transition">
-            &larr; The Identity Shift™
+            &larr; The Action Bridge™
           </button>
         </div>
       </div>

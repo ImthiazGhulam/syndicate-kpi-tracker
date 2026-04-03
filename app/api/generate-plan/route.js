@@ -75,38 +75,38 @@ Reference their specific words and situations. Do not give generic advice. Every
 THE PROBLEM THEY ARE SOLVING:
 ${data.problem_statement || 'Not specified'}
 
-Their answers across 5 performance rewiring frameworks:
+Their answers across 5 performance rewiring frameworks (in flywheel order):
 
-THE ACTION BRIDGE™
+1. THE IDENTITY SHIFT™
 Reflection: ${data.framework_1?.reflection || 'Not answered'}
 Audit: ${data.framework_1?.audit || 'Not answered'}
 Go Deeper: ${data.framework_1?.go_deeper || 'Not answered'}
 
-THE NEGOTIATOR™
+2. THE THREE DIALS™ — POSITIVE BEHAVIOURS (Environment)
 Reflection: ${data.framework_2?.reflection || 'Not answered'}
 Audit: ${data.framework_2?.audit || 'Not answered'}
 Go Deeper: ${data.framework_2?.go_deeper || 'Not answered'}
 
-THE THREE DIALS™ — NEGATIVE BEHAVIOURS
+3. THE THREE DIALS™ — NEGATIVE BEHAVIOURS
 Reflection: ${data.framework_3?.reflection || 'Not answered'}
 Audit: ${data.framework_3?.audit || 'Not answered'}
 Go Deeper: ${data.framework_3?.go_deeper || 'Not answered'}
 
-THE THREE DIALS™ — POSITIVE BEHAVIOURS
+4. THE NEGOTIATOR™
 Reflection: ${data.framework_4?.reflection || 'Not answered'}
 Audit: ${data.framework_4?.audit || 'Not answered'}
 Go Deeper: ${data.framework_4?.go_deeper || 'Not answered'}
 
-THE IDENTITY SHIFT™
+5. THE ACTION BRIDGE™
 Reflection: ${data.framework_5?.reflection || 'Not answered'}
 Audit: ${data.framework_5?.audit || 'Not answered'}
 Go Deeper: ${data.framework_5?.go_deeper || 'Not answered'}
 
 The plan starts on ${startDate}. Generate exactly ${duration} days of tasks starting from that date. Each day gets 1-2 tasks. Tasks should be concrete actions they can complete in a single sitting.
 
-Early days: focus on The Action Bridge and defeating The Negotiator — small actions that build momentum.
-Middle days: focus on breaking negative behaviours and installing positive ones using The Three Dials.
-Final days: focus on The Identity Shift and locking the flywheel in place.
+Early days: focus on The Identity Shift — who they need to become, and installing the right positive behaviours and environment.
+Middle days: focus on removing negative behaviours using The Three Dials and defeating The Negotiator's TFL weapons.
+Final days: focus on The Action Bridge — crossing the gap, executing, and locking the flywheel in place with accountability.
 
 Respond with ONLY this JSON structure:
 {

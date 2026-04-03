@@ -3576,8 +3576,8 @@ function AdminPageInner() {
 
                 const entries = Array.isArray(clientUnshakeable) ? clientUnshakeable : [clientUnshakeable]
                 const FW_NAMES = [
-                  'The Action Bridge™', 'The Negotiator™', 'The Three Dials™ — Negative Behaviours',
-                  'The Three Dials™ — Positive Behaviours', 'The Identity Shift™'
+                  'The Identity Shift™', 'The Three Dials™ — Positive Behaviours', 'The Three Dials™ — Negative Behaviours',
+                  'The Negotiator™', 'The Action Bridge™'
                 ]
 
                 return (
