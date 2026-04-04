@@ -421,7 +421,7 @@ export default function AIAcceleratorPage() {
                     Copy
                   </button>
                 </div>
-                <p className="text-zinc-500 text-xs mb-3">Paste this into ChatGPT (chat.openai.com) or Claude (claude.ai) and press enter:</p>
+                <p className="text-zinc-500 text-xs mb-3">Paste this into Claude (claude.ai) and press enter:</p>
                 <div className="bg-zinc-800 rounded-xl p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-mono">{generatedTool.prompt}</div>
               </div>
             )}

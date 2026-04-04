@@ -147,9 +147,9 @@ AI COMFORT LEVEL: ${level} (${levelDesc})
 
 Generate a complete AI tool. Return this exact JSON structure:
 {
-  "prompt": "A complete, ready-to-use prompt they can paste into ChatGPT or Claude. Include the Role, Context, and Output sections. Make it specific to their exact problem and process. Use plain English. This should work perfectly the first time they use it.",
+  "prompt": "A complete, ready-to-use prompt they can paste into Claude (claude.ai). Include the Role, Context, and Output sections. Make it specific to their exact problem and process. Use plain English. This should work perfectly the first time they use it.",
   "sop": {
-    "tool_recommendation": "Which tool to use (e.g. 'ChatGPT — chat.openai.com' or 'Claude — claude.ai') and why",
+    "tool_recommendation": "Always recommend Claude (claude.ai). Explain briefly why it's the best choice for this specific task.",
     "steps": [
       "Step 1 description in plain English",
       "Step 2 description",
