@@ -197,6 +197,9 @@ function StatCard({ label, value, target, color = 'gold' }) {
 export default function ClientPage() {
   const router = useRouter()
   const weekViewRef = useRef(null)
+  const dragRef = useRef(null) // { task, ghostEl, startY, startX, scrollContainer }
+  const dragOverRef = useRef(null)
+  const [dragOver, setDragOver] = useState(null) // { date, time } for visual indicator
 
   // Core
   const [user, setUser] = useState(null)
@@ -1078,6 +1081,152 @@ export default function ClientPage() {
   const deleteTask = async (taskId) => {
     await supabase.from('war_map_tasks').delete().eq('id', taskId)
     setWarMapTasks(prev => prev.filter(t => t.id !== taskId))
+  }
+
+  // ── Drag-and-drop for calendar ──────────────────────────────────────────────
+
+  const moveTask = async (task, newDate, newTime) => {
+    if (task._isProjectTask) {
+      const projectId = task._projectId || Object.keys(projectTasks).find(pid =>
+        (projectTasks[pid] || []).some(t => t.id === task.id)
+      )
+      await supabase.from('project_tasks').update({
+        scheduled_date: newDate,
+        scheduled_time: newTime || null,
+      }).eq('id', task.id)
+      setProjectTasks(prev => ({
+        ...prev,
+        [projectId]: (prev[projectId] || []).map(t =>
+          t.id === task.id ? { ...t, scheduled_date: newDate, scheduled_time: newTime || null } : t
+        ),
+      }))
+    } else {
+      const { data } = await supabase.from('war_map_tasks').update({
+        scheduled_date: newDate,
+        scheduled_time: newTime || null,
+      }).eq('id', task.id).select().single()
+      if (data) setWarMapTasks(prev => prev.map(t => t.id === task.id ? data : t))
+    }
+  }
+
+  const calcTimeFromY = (y, containerRect, scrollTop) => {
+    const relY = y - containerRect.top + scrollTop
+    const totalMinutes = Math.round((relY / HOUR_H) * 60)
+    const snapped = Math.round(totalMinutes / 15) * 15 // snap to 15-min
+    const hour = Math.max(6, Math.min(21, Math.floor(snapped / 60) + 6))
+    const minute = Math.max(0, snapped % 60)
+    return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
+  }
+
+  const handleDragStart = (e, task) => {
+    if (task._isRecurring || task.completed) return
+    e.preventDefault()
+    e.stopPropagation()
+    const el = e.currentTarget
+    const rect = el.getBoundingClientRect()
+
+    // Create ghost
+    const ghost = el.cloneNode(true)
+    ghost.style.position = 'fixed'
+    ghost.style.width = `${rect.width}px`
+    ghost.style.opacity = '0.85'
+    ghost.style.zIndex = '9999'
+    ghost.style.pointerEvents = 'none'
+    ghost.style.transition = 'none'
+    ghost.style.boxShadow = '0 8px 32px rgba(0,0,0,0.5)'
+    ghost.style.border = '1px solid #C9A84C'
+    ghost.style.left = `${rect.left}px`
+    ghost.style.top = `${rect.top}px`
+    document.body.appendChild(ghost)
+
+    const scrollContainer = weekViewRef.current
+    dragRef.current = {
+      task,
+      ghostEl: ghost,
+      offsetX: e.clientX - rect.left,
+      offsetY: e.clientY - rect.top,
+      startX: e.clientX,
+      startY: e.clientY,
+      moved: false,
+      scrollContainer,
+    }
+
+    el.style.opacity = '0.3'
+    dragRef.current.originalEl = el
+
+    document.addEventListener('pointermove', handleDragMove)
+    document.addEventListener('pointerup', handleDragEnd)
+  }
+
+  const handleDragMove = (e) => {
+    const d = dragRef.current
+    if (!d) return
+    e.preventDefault()
+
+    const dx = e.clientX - d.startX
+    const dy = e.clientY - d.startY
+    if (!d.moved && Math.abs(dx) < 5 && Math.abs(dy) < 5) return
+    d.moved = true
+
+    d.ghostEl.style.left = `${e.clientX - d.offsetX}px`
+    d.ghostEl.style.top = `${e.clientY - d.offsetY}px`
+
+    // Find which day column we're over (week view)
+    const dayCols = d.scrollContainer?.querySelectorAll('[data-date]')
+    if (dayCols) {
+      let hoverDate = null
+      let hoverTime = null
+      for (const col of dayCols) {
+        const rect = col.getBoundingClientRect()
+        if (e.clientX >= rect.left && e.clientX <= rect.right) {
+          hoverDate = col.dataset.date
+          hoverTime = calcTimeFromY(e.clientY, rect, col.scrollTop || d.scrollContainer.scrollTop)
+          break
+        }
+      }
+      // Day view — single column
+      if (!hoverDate && d.scrollContainer) {
+        const grid = d.scrollContainer.querySelector('[data-dayview]')
+        if (grid) {
+          const rect = grid.getBoundingClientRect()
+          if (e.clientX >= rect.left && e.clientX <= rect.right) {
+            hoverDate = grid.dataset.dayview
+            hoverTime = calcTimeFromY(e.clientY, rect, d.scrollContainer.scrollTop)
+          }
+        }
+      }
+      if (hoverDate && hoverTime) {
+        const val = { date: hoverDate, time: hoverTime }
+        dragOverRef.current = val
+        setDragOver(val)
+      }
+    }
+  }
+
+  const handleDragEnd = async (e) => {
+    document.removeEventListener('pointermove', handleDragMove)
+    document.removeEventListener('pointerup', handleDragEnd)
+    const d = dragRef.current
+    if (!d) return
+
+    // Clean up ghost
+    d.ghostEl.remove()
+    if (d.originalEl) d.originalEl.style.opacity = '1'
+    const moved = d.moved
+    const over = dragOverRef.current
+
+    dragRef.current = null
+    dragOverRef.current = null
+    setDragOver(null)
+
+    if (!moved || !over) return
+
+    // Apply the move
+    const newDate = over.date
+    const newTime = over.time
+    if (newDate !== d.task.scheduled_date || newTime !== (d.task.scheduled_time?.slice(0, 5) || null)) {
+      await moveTask(d.task, newDate, newTime)
+    }
   }
 
   const confirmDelegate = async (taskId) => {
@@ -2400,7 +2549,17 @@ export default function ClientPage() {
 
                   {/* Scrollable time grid */}
                   <div ref={weekViewRef} className="overflow-y-auto scrollbar-thin" style={{ maxHeight: '65vh' }}>
-                    <div className="relative" style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+                    <div className="relative" data-dayview={dayViewDate} style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+                      {/* Drag indicator */}
+                      {dragOver && dragOver.date === dayViewDate && (
+                        <div className="absolute inset-x-0 z-30 pointer-events-none" style={{ top: `${getTimeTopPx(dragOver.time)}px`, left: '60px' }}>
+                          <div className="flex items-center gap-2">
+                            <div className="w-2 h-2 rounded-full bg-gold" />
+                            <div className="flex-1 h-0.5 bg-gold/60" />
+                            <span className="text-[10px] text-gold font-semibold pr-2">{formatTime(dragOver.time)}</span>
+                          </div>
+                        </div>
+                      )}
                       {/* Hour slots */}
                       {HOURS.map((h, i) => (
                         <div key={h}
@@ -2417,15 +2576,17 @@ export default function ClientPage() {
                       {timedTasks.map((task, tIdx) => {
                         const top = getTimeTopPx(task.scheduled_time)
                         const height = Math.max(40, ((task.duration_minutes || 60) / 60) * HOUR_H)
+                        const draggable = !task._isRecurring && !task.completed
                         return (
                           <div key={`${task.id}-${task._displayDate}`}
-                            style={{ top: `${top}px`, height: `${height}px`, left: '60px' }}
+                            style={{ top: `${top}px`, height: `${height}px`, left: '60px', touchAction: draggable ? 'none' : undefined }}
                             className={`absolute right-2 rounded-lg px-3 py-2 overflow-hidden cursor-pointer z-10 border ${
                               task.completed
                                 ? 'bg-zinc-800/60 border-zinc-700 text-zinc-500'
                                 : 'bg-gold/20 border-gold/40 text-gold active:bg-gold/30 transition'
-                            }`}
-                            onClick={e => { e.stopPropagation(); openViewModal(task) }}>
+                            } ${draggable ? 'cursor-grab' : ''}`}
+                            onPointerDown={draggable ? (e) => handleDragStart(e, task) : undefined}
+                            onClick={e => { e.stopPropagation(); if (!dragRef.current?.moved) openViewModal(task) }}>
                             <p className="font-semibold text-sm truncate leading-tight">{task.title}</p>
                             {height > 44 && <p className="text-gold/60 mt-0.5 text-xs">{formatTime(task.scheduled_time)}{task.duration_minutes ? ` · ${task.duration_minutes}min` : ''}</p>}
                             {task.recurring && task.recurring !== 'none' && <span className="text-gold/50 text-xs"> ↻ {task.recurring}</span>}
@@ -2482,8 +2643,18 @@ export default function ClientPage() {
                         const allDayTasks = dayTasks.filter(t => !t.scheduled_time)
 
                         return (
-                          <div key={dateStr} className={`flex-1 relative border-l border-zinc-800 ${isToday ? 'bg-gold/[0.03]' : ''}`}
+                          <div key={dateStr} data-date={dateStr} className={`flex-1 relative border-l border-zinc-800 ${isToday ? 'bg-gold/[0.03]' : ''}`}
                             style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+
+                            {/* Drag indicator */}
+                            {dragOver && dragOver.date === dateStr && (
+                              <div className="absolute inset-x-0 z-30 pointer-events-none" style={{ top: `${getTimeTopPx(dragOver.time)}px` }}>
+                                <div className="flex items-center">
+                                  <div className="w-1.5 h-1.5 rounded-full bg-gold" />
+                                  <div className="flex-1 h-0.5 bg-gold/60" />
+                                </div>
+                              </div>
+                            )}
 
                             {/* All-day tasks strip */}
                             {allDayTasks.length > 0 && (
@@ -2511,15 +2682,17 @@ export default function ClientPage() {
                             {timedTasks.map((task, tIdx) => {
                               const top = getTimeTopPx(task.scheduled_time)
                               const height = Math.max(24, ((task.duration_minutes || 60) / 60) * HOUR_H)
+                              const draggable = !task._isRecurring && !task.completed
                               return (
                                 <div key={`${task.id}-${task._displayDate}`}
-                                  style={{ top: `${top}px`, height: `${height}px`, left: `${tIdx * 2}px` }}
+                                  style={{ top: `${top}px`, height: `${height}px`, left: `${tIdx * 2}px`, touchAction: draggable ? 'none' : undefined }}
                                   className={`absolute right-0.5 rounded px-1 py-0.5 text-[10px] sm:text-xs overflow-hidden cursor-pointer z-10 border ${
                                     task.completed
                                       ? 'bg-zinc-800/60 border-zinc-700 text-zinc-500'
                                       : 'bg-gold/20 border-gold/40 text-gold active:bg-gold/30 transition'
-                                  }`}
-                                  onClick={e => { e.stopPropagation(); openViewModal(task) }}>
+                                  } ${draggable ? 'cursor-grab' : ''}`}
+                                  onPointerDown={draggable ? (e) => handleDragStart(e, task) : undefined}
+                                  onClick={e => { e.stopPropagation(); if (!dragRef.current?.moved) openViewModal(task) }}>
                                   <p className="font-semibold truncate leading-tight">{task.title}</p>
                                   {height > 36 && <p className="text-gold/60 mt-0.5 text-[9px] sm:text-[10px]">{formatTime(task.scheduled_time)}</p>}
                                   {task.recurring && task.recurring !== 'none' && <span className="text-gold/50 text-[9px]"> ↻</span>}
