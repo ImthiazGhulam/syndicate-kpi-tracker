@@ -1319,6 +1319,7 @@ export default function ClientPage() {
     { heading: 'Build™', items: [
       { id: 'premium-pos', label: 'Premium Position™',    icon: '👑', href: '/premium-position' },
       { id: 'playbook',    label: 'Sold Out™ Playbook',   icon: '📖', href: '/playbook' },
+      { id: 'ai-accel',    label: 'AI Accelerator™',      icon: '⚡', href: '/ai-accelerator' },
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™',       icon: '🧠', href: '/wealth-wired' },

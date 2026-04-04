@@ -125,6 +125,53 @@ Respond with ONLY this JSON structure:
 day_offset is 0 for start date, 1 for next day, etc. scheduled_time in HH:MM 24h format. duration_minutes between 10-45.
 Reference their specific words. Every task must tie to something they revealed. Be direct and psychologically sharp.`
 
+    } else if (type === 'ai-accelerator') {
+      const level = data.comfort_level || 1
+      const levelDesc = level === 1 ? 'Complete newbie — needs a single copy-paste prompt' : level === 2 ? 'Getting started — can follow multi-step workflows' : level === 3 ? 'Comfortable — can use Zapier/Make automations' : 'Ready to build — can use Claude Code'
+
+      systemPrompt = `You build practical AI tools for coaches, consultants, and service providers who are NOT technical. You create ready-to-use outputs they can implement immediately. The client's AI comfort level is: ${levelDesc}. Respond ONLY with valid JSON — no markdown, no code fences.`
+      userPrompt = `Build an AI tool for this person based on their answers.
+
+THEIR PROBLEM: ${data.problem_statement || 'Not specified'}
+
+WHAT THEY DO MANUALLY RIGHT NOW:
+${data.manual_process || 'Not described'}
+
+WHAT THE PERFECT RESULT LOOKS LIKE:
+${data.ideal_output || 'Not described'}
+
+WHERE IT CURRENTLY BREAKS:
+${data.where_it_breaks || 'Not described'}
+
+AI COMFORT LEVEL: ${level} (${levelDesc})
+
+Generate a complete AI tool. Return this exact JSON structure:
+{
+  "prompt": "A complete, ready-to-use prompt they can paste into ChatGPT or Claude. Include the Role, Context, and Output sections. Make it specific to their exact problem and process. Use plain English. This should work perfectly the first time they use it.",
+  "sop": {
+    "tool_recommendation": "Which tool to use (e.g. 'ChatGPT — chat.openai.com' or 'Claude — claude.ai') and why",
+    "steps": [
+      "Step 1 description in plain English",
+      "Step 2 description",
+      "Step 3 description (max 5 steps)"
+    ]
+  },
+  "test_task": {
+    "title": "One specific thing to try tomorrow (max 60 chars)",
+    "description": "2-3 sentences explaining exactly what to do, with who, and what to expect"
+  }${level >= 4 ? `,
+  "build_guide": {
+    "what_to_build": "One sentence describing the tool they'll build",
+    "steps": [
+      "Step 1: Install Claude Code — open your terminal and type: npm install -g @anthropic-ai/claude-code",
+      "Step 2: description of what to type and what happens",
+      "Step 3: description (max 6 steps, extremely hand-held, tell them exactly what to type)"
+    ]
+  }` : ''}
+}
+
+The prompt must be specific to THEIR problem — not generic. Reference their actual words. The SOP must be followable by someone who has never used AI before. The test task must be ONE thing they can do tomorrow with a real client or real work.${level >= 3 ? ' For Level 3+, include automation suggestions in the SOP steps (e.g. connecting with Zapier).' : ''}`
+
     } else if (type === 'premium-position') {
       systemPrompt = 'You are a premium brand positioning strategist. You write sharp, specific, actionable brand plans. No generic marketing advice. Every recommendation must reference the client\'s specific positioning data. Tone: expert, direct, commercially minded.'
       userPrompt = `Based on this client's Premium Position™ Blueprint, write a personalised 30-day positioning action plan.
@@ -230,6 +277,18 @@ Reference their specific offer details, ICP data, and pricing throughout. Make i
     })
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // For AI accelerator, parse structured JSON tool
+    if (type === 'ai-accelerator') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ tool: parsed })
+      } catch (parseErr) {
+        console.error('AI Accelerator JSON parse failed:', parseErr)
+        return NextResponse.json({ error: 'Failed to parse tool output' }, { status: 500 })
+      }
+    }
 
     // For unshakeable/flywheel, parse structured JSON tasks
     if (type === 'unshakeable') {

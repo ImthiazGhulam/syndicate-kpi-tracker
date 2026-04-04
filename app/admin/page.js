@@ -205,6 +205,7 @@ function AdminPageInner() {
   const [clientPremiumPos, setClientPremiumPos] = useState(null)
   const [clientWealthWired, setClientWealthWired] = useState(null)
   const [clientUnshakeable, setClientUnshakeable] = useState(null)
+  const [clientAIAccelerator, setClientAIAccelerator] = useState(null)
   const [identityChange, setIdentityChange] = useState(null)
   const [lifeDesign, setLifeDesign] = useState(null)
   const [adventures, setAdventures] = useState(defaultAdventures())
@@ -357,6 +358,7 @@ function AdminPageInner() {
     setClientPremiumPos(null)
     setClientWealthWired(null)
     setClientUnshakeable(null)
+    setClientAIAccelerator(null)
     setAllClientLockIns([])
     setAllClientWarMaps([])
 
@@ -391,6 +393,7 @@ function AdminPageInner() {
       premiumPosRes,    // 16. premium_position
       wealthWiredRes,   // 16b. wealth_wired
       unshakeableRes,   // 16c. unshakeable_playbook
+      aiAccelRes,       // 16d. ai_accelerator
       allLockInsRes,    // 17. weekly_review (all)
       allWarMapsRes,    // 18. war_map_weekly (all)
     ] = await Promise.all([
@@ -412,6 +415,7 @@ function AdminPageInner() {
       safe(supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle()),                                         // 16
       safe(supabase.from('wealth_wired').select('*').eq('client_id', client.id).maybeSingle()),                                              // 16b
       safe(supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),         // 16c
+      safe(supabase.from('ai_accelerator').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),              // 16d
       safe(supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false })), // 17
       safe(supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false })), // 18
     ])
@@ -430,6 +434,7 @@ function AdminPageInner() {
     setClientPremiumPos(premiumPosRes.data && !Array.isArray(premiumPosRes.data) ? premiumPosRes.data : null)
     setClientWealthWired(wealthWiredRes.data && !Array.isArray(wealthWiredRes.data) ? wealthWiredRes.data : null)
     setClientUnshakeable(Array.isArray(unshakeableRes.data) && unshakeableRes.data.length > 0 ? unshakeableRes.data : null)
+    setClientAIAccelerator(Array.isArray(aiAccelRes.data) && aiAccelRes.data.length > 0 ? aiAccelRes.data : null)
     setAllClientLockIns(Array.isArray(allLockInsRes.data) ? allLockInsRes.data : [])
     setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
     setAdminReviewWeek(monday)
@@ -762,6 +767,7 @@ function AdminPageInner() {
     { heading: 'Build™', items: [
       { id: 'playbook',     label: 'Sold Out™ Playbook' },
       { id: 'premium-pos',  label: 'Premium Position™' },
+      { id: 'ai-accel',     label: 'AI Accelerator™' },
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™' },
@@ -3703,6 +3709,61 @@ function AdminPageInner() {
                         )}
                       </div>
                     </div>
+                    )
+                  })}
+                </div>
+                )
+              })()}
+
+              {activeTab === 'ai-accel' && (() => {
+                if (!clientAIAccelerator) return (
+                  <div className="fade-in text-center py-16">
+                    <span className="text-4xl mb-4 block">⚡</span>
+                    <p className="text-zinc-500 text-sm font-medium">Client hasn't used the AI Accelerator™ yet.</p>
+                  </div>
+                )
+
+                return (
+                <div className="fade-in space-y-6">
+                  {clientAIAccelerator.map(entry => {
+                    const tool = entry.generated_tool || {}
+                    const hasTool = Object.keys(tool).length > 0
+                    return (
+                      <div key={entry.id} className="border border-zinc-800 rounded-2xl overflow-hidden">
+                        <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border-b border-zinc-700/50 p-6">
+                          <h2 className="text-lg font-black text-white">{entry.title || 'Untitled Tool'}</h2>
+                          <p className="text-zinc-400 text-sm mt-1">{entry.problem_statement}</p>
+                          <p className="text-zinc-600 text-xs mt-2">Created {entry.created_at ? new Date(entry.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}{hasTool ? ' · Tool generated' : ''}</p>
+                        </div>
+                        <div className="p-6 space-y-4">
+                          {/* Answers */}
+                          {entry.manual_process && (
+                            <div>
+                              <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">What they do manually</p>
+                              <p className="text-zinc-300 text-sm leading-relaxed">{entry.manual_process}</p>
+                            </div>
+                          )}
+                          {entry.ideal_output && (
+                            <div>
+                              <p className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-1">Ideal output</p>
+                              <p className="text-zinc-300 text-sm leading-relaxed">{entry.ideal_output}</p>
+                            </div>
+                          )}
+                          {entry.where_it_breaks && (
+                            <div>
+                              <p className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1">Where it breaks</p>
+                              <p className="text-zinc-300 text-sm leading-relaxed">{entry.where_it_breaks}</p>
+                            </div>
+                          )}
+                          {/* Generated prompt */}
+                          {tool.prompt && (
+                            <div className="bg-zinc-800 rounded-xl p-4 mt-4">
+                              <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-2">Generated Prompt</p>
+                              <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap font-mono">{tool.prompt}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     )
                   })}
                 </div>
