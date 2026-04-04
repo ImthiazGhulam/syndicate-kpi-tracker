@@ -129,7 +129,7 @@ Reference their specific words. Every task must tie to something they revealed. 
       const level = data.comfort_level || 1
       const levelDesc = level === 1 ? 'Complete newbie — needs a single copy-paste prompt' : level === 2 ? 'Getting started — can follow multi-step workflows' : level === 3 ? 'Comfortable — can use Zapier/Make automations' : 'Ready to build — can use Claude Code'
 
-      systemPrompt = `You build practical AI tools for coaches, consultants, and service providers who are NOT technical. You create ready-to-use outputs they can implement immediately. The client's AI comfort level is: ${levelDesc}. Respond ONLY with valid JSON — no markdown, no code fences.`
+      systemPrompt = `You build practical AI tools for coaches, consultants, and service providers who have NEVER used AI before. Write instructions so detailed that a child could follow them. No jargon. No assumptions. Every single click, every single action, spelled out. The client's AI comfort level is: ${levelDesc}. Respond ONLY with valid JSON — no markdown, no code fences.`
       userPrompt = `Build an AI tool for this person based on their answers.
 
 THEIR PROBLEM: ${data.problem_statement || 'Not specified'}
@@ -147,30 +147,43 @@ AI COMFORT LEVEL: ${level} (${levelDesc})
 
 Generate a complete AI tool. Return this exact JSON structure:
 {
-  "prompt": "A complete, ready-to-use prompt they can paste into Claude (claude.ai). Include the Role, Context, and Output sections. Make it specific to their exact problem and process. Use plain English. This should work perfectly the first time they use it.",
+  "prompt": "A complete, ready-to-use prompt they can paste into Claude. Include clear Role, Context, and Output sections. Make it hyper-specific to their exact problem using their own words. Include placeholders in [SQUARE BRACKETS] for any information they need to fill in each time they use it (e.g. [CLIENT NAME], [THEIR SPECIFIC PROBLEM]). Add a note at the end of the prompt explaining what each placeholder means.",
   "sop": {
-    "tool_recommendation": "Always recommend Claude (claude.ai). Explain briefly why it's the best choice for this specific task.",
+    "tool_recommendation": "Use Claude at claude.ai — it's the most capable AI for this type of task because [specific reason related to their use case].",
     "steps": [
-      "Step 1 description in plain English",
-      "Step 2 description",
-      "Step 3 description (max 5 steps)"
+      "EVERY step must be incredibly detailed. Write them as if the person has never used a computer before. Here is the level of detail required:",
+      "Step 1: Open your web browser (Safari, Chrome, or whatever you use to go on the internet). In the address bar at the top, type claude.ai and press Enter. If you don't have an account yet, click 'Sign Up' and create one using your email address. If you already have one, click 'Log In'.",
+      "Step 2: Once you're logged in, you'll see a text box at the bottom of the screen that says 'Message Claude'. This is where you'll paste your prompt. Click on that box so your cursor is blinking inside it.",
+      "Step 3: Now go back to The Motherboard and find your prompt above. Click the 'Copy' button next to it. Go back to the Claude tab in your browser. Right-click inside the text box and select 'Paste' (or press Ctrl+V on Windows / Cmd+V on Mac).",
+      "Step 4: Before you press Enter, look for any text in [SQUARE BRACKETS] in the prompt. Replace each one with your actual information. For example, replace [CLIENT NAME] with your client's real name. Delete the square brackets too.",
+      "Step 5: Once all brackets are replaced with real information, press Enter (or click the send arrow). Claude will start writing your [specific output type]. Wait for it to finish — it usually takes 10-30 seconds.",
+      "Step 6: Read through what Claude wrote. If it's good, copy the whole thing (click and drag to select all the text, then right-click and 'Copy'). If something isn't quite right, type underneath: 'Can you change [what you want different]' and press Enter again — Claude will revise it.",
+      "Step 7: Paste the final result into [where they need to use it — be specific, e.g. 'a new email in Gmail', 'a Google Doc', 'your WhatsApp message to the client']. Done."
     ]
   },
   "test_task": {
     "title": "One specific thing to try tomorrow (max 60 chars)",
-    "description": "2-3 sentences explaining exactly what to do, with who, and what to expect"
+    "description": "Be extremely specific. Name the exact action: 'Take your next client enquiry that comes in tomorrow. Instead of writing the reply yourself, open Claude, paste in your prompt, fill in the brackets with their details, and let Claude write the reply. Compare it to what you would have written. You'll be shocked how good it is — and how fast it was.'"
   }${level >= 4 ? `,
   "build_guide": {
     "what_to_build": "One sentence describing the tool they'll build",
     "steps": [
-      "Step 1: Install Claude Code — open your terminal and type: npm install -g @anthropic-ai/claude-code",
-      "Step 2: description of what to type and what happens",
-      "Step 3: description (max 6 steps, extremely hand-held, tell them exactly what to type)"
+      "Step 1: Open the Terminal app on your Mac (press Cmd+Space, type 'Terminal', press Enter). On Windows, open Command Prompt (press the Windows key, type 'cmd', press Enter). You'll see a black or white window with a blinking cursor — this is where you type commands.",
+      "Step 2: Type exactly this and press Enter: npm install -g @anthropic-ai/claude-code — This installs Claude Code on your computer. Wait until it finishes (you'll see your cursor blinking again on a new line). If it asks for a password, type your computer login password and press Enter (you won't see the characters as you type — that's normal).",
+      "Step 3: Now type exactly this and press Enter: claude — This opens Claude Code. It will ask you to log in. Follow the instructions on screen — it will open a browser window where you can sign in with your Anthropic account.",
+      "Step 4: Once you're in, you'll see Claude Code waiting for you to tell it what to build. Type in plain English what you want — describe it exactly like you described your problem above. Be specific about what it should do, what information it needs, and what the output should look like.",
+      "Step 5: Claude Code will start building. It will show you what it's creating and ask you questions if it needs clarification. Just answer in plain English — like you're talking to a person. Say 'yes' to approve changes it suggests.",
+      "Step 6: When it's done, it will tell you how to run what it built. Follow its instructions. Test it with real data from your business. If something isn't right, just tell Claude Code what to fix — again, in plain English."
     ]
   }` : ''}
 }
 
-The prompt must be specific to THEIR problem — not generic. Reference their actual words. The SOP must be followable by someone who has never used AI before. The test task must be ONE thing they can do tomorrow with a real client or real work.${level >= 3 ? ' For Level 3+, include automation suggestions in the SOP steps (e.g. connecting with Zapier).' : ''}`
+CRITICAL RULES:
+- The SOP steps must be so detailed that someone who has NEVER used AI could follow them without asking a single question. Spell out every click, every action, every screen they'll see.
+- The prompt must reference their SPECIFIC problem, their SPECIFIC process, their SPECIFIC words. Not generic.
+- Include [SQUARE BRACKET] placeholders in the prompt for anything that changes each time they use it, and explain what each placeholder means.
+- The test task must name ONE specific real-world scenario they can try tomorrow — not vague, not "try it with a client", but "take your next [specific thing from their process] and run it through Claude instead of doing it manually".
+- For the SOP, tell them exactly where to find Claude (claude.ai), exactly where to click, exactly where to paste, exactly what to do with the output.${level >= 3 ? ' For Level 3+, also include automation suggestions (e.g. connecting with Zapier/Make) as additional steps.' : ''}`
 
     } else if (type === 'premium-position') {
       systemPrompt = 'You are a premium brand positioning strategist. You write sharp, specific, actionable brand plans. No generic marketing advice. Every recommendation must reference the client\'s specific positioning data. Tone: expert, direct, commercially minded.'

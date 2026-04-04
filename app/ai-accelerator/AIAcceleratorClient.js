@@ -436,13 +436,13 @@ export default function AIAcceleratorPage() {
                     <p className="text-sm text-white font-semibold">{generatedTool.sop.tool_recommendation}</p>
                   </div>
                 )}
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {(generatedTool.sop.steps || []).map((step, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
+                    <div key={i} className="flex items-start gap-4 bg-zinc-800/50 rounded-xl p-4">
+                      <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-black text-gold">{i + 1}</span>
                       </div>
-                      <p className="text-sm text-zinc-300 leading-relaxed pt-1">{step}</p>
+                      <p className="text-sm text-zinc-300 leading-relaxed pt-0.5">{step}</p>
                     </div>
                   ))}
                 </div>
@@ -464,13 +464,13 @@ export default function AIAcceleratorPage() {
             {generatedTool.build_guide && (
               <div className="bg-zinc-900 border border-violet-500/20 rounded-2xl p-6">
                 <h3 className="text-xs font-bold text-violet-400 uppercase tracking-[0.2em] mb-4">Build Guide — Claude Code</h3>
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {(generatedTool.build_guide.steps || []).map((step, i) => (
-                    <div key={i} className="flex items-start gap-3">
-                      <div className="w-7 h-7 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                    <div key={i} className="flex items-start gap-4 bg-zinc-800/50 rounded-xl p-4">
+                      <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
                         <span className="text-xs font-black text-violet-400">{i + 1}</span>
                       </div>
-                      <p className="text-sm text-zinc-300 leading-relaxed pt-1">{step}</p>
+                      <p className="text-sm text-zinc-300 leading-relaxed pt-0.5">{step}</p>
                     </div>
                   ))}
                 </div>
