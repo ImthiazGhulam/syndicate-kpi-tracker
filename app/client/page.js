@@ -2811,10 +2811,6 @@ export default function ClientPage() {
                                 {task.recurring && task.recurring !== 'none' && <span>↻ {task.recurring}</span>}
                               </div>
                             </div>
-                            {!task.completed && (
-                              <button onClick={e => { e.stopPropagation(); completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask) }}
-                                className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>
-                            )}
                           </div>
                         ))}
                       </div>
@@ -2840,7 +2836,6 @@ export default function ClientPage() {
                           <p className={`text-sm font-medium truncate ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
                           {task.delegated_to && <p className="text-xs text-violet-400 mt-0.5">→ {task.delegated_to}</p>}
                         </div>
-                        {!task.completed && <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
                         <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                       </div>
                     ))}
@@ -2857,7 +2852,6 @@ export default function ClientPage() {
                     {doNow.map(task => (
                       <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center gap-3 ${task.completed ? 'opacity-40' : ''}`}>
                         <p className={`text-sm font-medium flex-1 truncate ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
-                        {!task.completed && <button onClick={() => completeTask(task.id, task._displayDate, task._isRecurring, task._isProjectTask)} className="text-xs text-zinc-500 hover:text-emerald-400 uppercase tracking-wider transition flex-shrink-0">Done</button>}
                         <button onClick={() => deleteTask(task.id)} className="text-zinc-700 hover:text-red-400 transition"><svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg></button>
                       </div>
                     ))}
@@ -2972,12 +2966,6 @@ export default function ClientPage() {
                           <button onClick={() => openEditModal(taskModal.task)}
                             className="flex-1 py-2.5 border border-zinc-700 hover:border-gold hover:text-gold text-zinc-300 font-bold text-xs uppercase tracking-widest rounded transition">
                             Edit
-                          </button>
-                        )}
-                        {!taskModal.task.completed && (
-                          <button onClick={() => { completeTask(taskModal.task.id, taskModal.task._displayDate, taskModal.task._isRecurring, taskModal.task._isProjectTask); setTaskModal(null) }}
-                            className="flex-1 py-2.5 bg-emerald-700 hover:bg-emerald-600 text-white font-bold text-xs uppercase tracking-widest rounded transition">
-                            Done
                           </button>
                         )}
                         <button onClick={() => { deleteTask(taskModal.task.id, taskModal.task._isProjectTask); setTaskModal(null) }}
