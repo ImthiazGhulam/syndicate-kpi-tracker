@@ -3946,6 +3946,307 @@ export default function ClientPage() {
               </button>
             </div>
 
+            {/* ── PROJECT CALENDAR ────────────────────────────────── */}
+            <div className="mb-8 pb-6 border-b border-zinc-800">
+              {/* Calendar Controls */}
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+                <div className="flex items-center justify-between sm:justify-start gap-1">
+                  <div className="flex items-center gap-0.5">
+                    <button onClick={() => {
+                        if (calendarView === 'day') setDayViewDate(d => { const dt = new Date(d); dt.setDate(dt.getDate() - 1); return localDateStr(dt) })
+                        else if (calendarView === 'week') setWarMapWeek(w => shiftWeek(w, -1))
+                        else { if (calendarMonth === 0) { setCalendarMonth(11); setCalendarYear(y => y - 1) } else setCalendarMonth(m => m - 1) }
+                      }}
+                      className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                    </button>
+                    <span className="text-sm font-semibold text-white min-w-[140px] sm:min-w-[200px] text-center">
+                      {calendarView === 'day'
+                        ? new Date(dayViewDate).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+                        : calendarView === 'week'
+                          ? formatWeekRange(warMapWeek)
+                          : `${MONTH_NAMES[calendarMonth]} ${calendarYear}`}
+                    </span>
+                    <button onClick={() => {
+                        if (calendarView === 'day') setDayViewDate(d => { const dt = new Date(d); dt.setDate(dt.getDate() + 1); return localDateStr(dt) })
+                        else if (calendarView === 'week') setWarMapWeek(w => shiftWeek(w, 1))
+                        else { if (calendarMonth === 11) { setCalendarMonth(0); setCalendarYear(y => y + 1) } else setCalendarMonth(m => m + 1) }
+                      }}
+                      className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                    </button>
+                  </div>
+                  <button onClick={() => { setDayViewDate(todayStr); setWarMapWeek(getMonday()); setCalendarYear(new Date().getFullYear()); setCalendarMonth(new Date().getMonth()) }}
+                    className="px-2.5 py-1 text-xs text-zinc-500 hover:text-gold uppercase tracking-wider font-semibold transition">
+                    Today
+                  </button>
+                </div>
+                <div className="flex items-center justify-between sm:justify-end gap-2">
+                  <button onClick={() => openNewTaskModal(calendarView === 'day' ? dayViewDate : todayStr)}
+                    className="px-4 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                    + Add
+                  </button>
+                  <div className="flex border border-zinc-700 rounded overflow-hidden">
+                    <button onClick={() => setCalendarView('day')}
+                      className={`px-3 sm:px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'day' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white active:text-white'}`}>
+                      Day
+                    </button>
+                    <button onClick={() => setCalendarView('week')}
+                      className={`px-3 sm:px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'week' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white active:text-white'}`}>
+                      Week
+                    </button>
+                    <button onClick={() => setCalendarView('month')}
+                      className={`px-3 sm:px-3.5 py-2 text-xs font-semibold uppercase tracking-wider transition ${calendarView === 'month' ? 'bg-zinc-700 text-white' : 'text-zinc-500 hover:text-white active:text-white'}`}>
+                      Month
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* ── DAY VIEW ──────────────────────────────────────────────── */}
+              {calendarView === 'day' && (() => {
+                const dayTasksAll = tasksForDay
+                const timedTasks = dayTasksAll.filter(t => t.scheduled_time)
+                const allDayTasks = dayTasksAll.filter(t => !t.scheduled_time)
+                const { day: dayName } = formatDayHeader(dayViewDate)
+                return (
+                  <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                    {allDayTasks.length > 0 && (
+                      <div className="px-3 py-2.5 border-b border-zinc-800 bg-zinc-900/40 space-y-1.5">
+                        <p className="text-[10px] font-semibold text-zinc-600 uppercase tracking-widest">All Day</p>
+                        {allDayTasks.map(task => (
+                          <div key={`${task.id}-${task._displayDate}`}
+                            onClick={() => openViewModal(task)}
+                            className={`text-sm px-3 py-2 rounded cursor-pointer ${task.completed ? 'bg-zinc-800 text-zinc-500 line-through' : 'bg-gold/20 text-gold active:bg-gold/30 transition'}`}>
+                            {task.title}
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    <div ref={weekViewRef} className="overflow-y-auto scrollbar-thin" style={{ maxHeight: '65vh' }}>
+                      <div className="relative" data-dayview={dayViewDate} style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+                        {dragOver && dragOver.date === dayViewDate && (
+                          <div className="absolute inset-x-0 z-30 pointer-events-none" style={{ top: `${getTimeTopPx(dragOver.time)}px`, left: '60px' }}>
+                            <div className="flex items-center gap-2">
+                              <div className="w-2 h-2 rounded-full bg-gold" />
+                              <div className="flex-1 h-0.5 bg-gold/60" />
+                              <span className="text-[10px] text-gold font-semibold pr-2">{formatTime(dragOver.time)}</span>
+                            </div>
+                          </div>
+                        )}
+                        {HOURS.map((h, i) => (
+                          <div key={h}
+                            style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
+                            className="absolute inset-x-0 flex border-t border-zinc-800/40 active:bg-zinc-800/30 cursor-pointer transition"
+                            onClick={() => openNewTaskModal(dayViewDate, `${String(h).padStart(2, '0')}:00`)}>
+                            <div className="w-14 flex-shrink-0 text-right pr-3 pt-1">
+                              <span className="text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                            </div>
+                          </div>
+                        ))}
+                        {timedTasks.map((task, tIdx) => {
+                          const top = getTimeTopPx(task.scheduled_time)
+                          const height = Math.max(40, ((task.duration_minutes || 60) / 60) * HOUR_H)
+                          const draggable = !task._isRecurring && !task.completed
+                          return (
+                            <div key={`${task.id}-${task._displayDate}`}
+                              style={{ top: `${top}px`, height: `${height}px`, left: '60px', touchAction: draggable ? 'none' : undefined }}
+                              className={`absolute right-2 rounded-lg px-3 py-2 overflow-hidden cursor-pointer z-10 border ${
+                                task.completed
+                                  ? 'bg-zinc-800/60 border-zinc-700 text-zinc-500'
+                                  : 'bg-gold/20 border-gold/40 text-gold active:bg-gold/30 transition'
+                              } ${draggable ? 'cursor-grab' : ''}`}
+                              onPointerDown={draggable ? (e) => handleCalDragStart(e, task) : undefined}
+                              onClick={e => { e.stopPropagation(); if (!dragRef.current?.moved) openViewModal(task) }}>
+                              <p className="font-semibold text-sm truncate leading-tight">{task.title}</p>
+                              {height > 44 && <p className="text-gold/60 mt-0.5 text-xs">{formatTime(task.scheduled_time)}{task.duration_minutes ? ` · ${task.duration_minutes}min` : ''}</p>}
+                              {task.recurring && task.recurring !== 'none' && <span className="text-gold/50 text-xs"> ↻ {task.recurring}</span>}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )
+              })()}
+
+              {/* ── WEEK VIEW ─────────────────────────────────────────────── */}
+              {calendarView === 'week' && (
+                <div className="border border-zinc-800 rounded-lg overflow-hidden">
+                  <div ref={weekViewRef} className="overflow-auto scrollbar-thin" style={{ maxHeight: '560px' }}>
+                    <div style={{ minWidth: '560px' }}>
+                      <div className="flex sticky top-0 z-20 bg-zinc-950 border-b border-zinc-800" style={{ paddingLeft: '48px' }}>
+                        {weekDays.map(dateStr => {
+                          const { day, date } = formatDayHeader(dateStr)
+                          const isToday = dateStr === todayStr
+                          return (
+                            <div key={dateStr}
+                              className={`flex-1 text-center py-2.5 border-l border-zinc-800 cursor-pointer active:bg-zinc-800/40 ${isToday ? 'bg-gold/10' : ''}`}
+                              onClick={() => { setDayViewDate(dateStr); setCalendarView('day') }}>
+                              <p className="text-[10px] sm:text-xs text-zinc-500 uppercase tracking-widest">{day}</p>
+                              <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center mx-auto mt-0.5 text-xs sm:text-sm font-bold ${isToday ? 'bg-gold text-zinc-950' : 'text-zinc-300'}`}>
+                                {date}
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                      <div className="flex" style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+                        <div className="flex-shrink-0 relative bg-zinc-900/30" style={{ width: '48px', minHeight: `${HOURS.length * HOUR_H}px` }}>
+                          {HOURS.map((h, i) => (
+                            <div key={h} style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
+                              className="absolute inset-x-0 flex items-start justify-end pr-2 pt-1 border-t border-zinc-800/50">
+                              <span className="text-[10px] sm:text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                            </div>
+                          ))}
+                        </div>
+                        {weekDays.map(dateStr => {
+                          const isToday = dateStr === todayStr
+                          const dayTasks = tasksForWeek.filter(t => t._displayDate === dateStr)
+                          const timedTasks = dayTasks.filter(t => t.scheduled_time)
+                          const allDayTasks = dayTasks.filter(t => !t.scheduled_time)
+                          return (
+                            <div key={dateStr} data-date={dateStr} className={`flex-1 relative border-l border-zinc-800 ${isToday ? 'bg-gold/[0.03]' : ''}`}
+                              style={{ minHeight: `${HOURS.length * HOUR_H}px` }}>
+                              {dragOver && dragOver.date === dateStr && (
+                                <div className="absolute inset-x-0 z-30 pointer-events-none" style={{ top: `${getTimeTopPx(dragOver.time)}px` }}>
+                                  <div className="flex items-center">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-gold" />
+                                    <div className="flex-1 h-0.5 bg-gold/60" />
+                                  </div>
+                                </div>
+                              )}
+                              {allDayTasks.length > 0 && (
+                                <div className="px-0.5 pt-0.5 pb-1 border-b border-zinc-800/50 space-y-0.5 z-10 relative bg-zinc-900/40">
+                                  {allDayTasks.map(task => (
+                                    <div key={`${task.id}-${task._displayDate}`}
+                                      onClick={() => openViewModal(task)}
+                                      className={`text-[10px] sm:text-xs px-1 py-0.5 rounded cursor-pointer truncate ${task.completed ? 'bg-zinc-800 text-zinc-500 line-through' : 'bg-gold/20 text-gold active:bg-gold/30 transition'}`}>
+                                      {task.title}
+                                    </div>
+                                  ))}
+                                </div>
+                              )}
+                              {HOURS.map((h, i) => (
+                                <div key={h}
+                                  style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
+                                  className="absolute inset-x-0 border-t border-zinc-800/40 active:bg-zinc-800/20 cursor-pointer transition"
+                                  onClick={() => openNewTaskModal(dateStr, `${String(h).padStart(2, '0')}:00`)}>
+                                </div>
+                              ))}
+                              {timedTasks.map((task, tIdx) => {
+                                const top = getTimeTopPx(task.scheduled_time)
+                                const height = Math.max(24, ((task.duration_minutes || 60) / 60) * HOUR_H)
+                                const draggable = !task._isRecurring && !task.completed
+                                return (
+                                  <div key={`${task.id}-${task._displayDate}`}
+                                    style={{ top: `${top}px`, height: `${height}px`, left: `${tIdx * 2}px`, touchAction: draggable ? 'none' : undefined }}
+                                    className={`absolute right-0.5 rounded px-1 py-0.5 text-[10px] sm:text-xs overflow-hidden cursor-pointer z-10 border ${
+                                      task.completed
+                                        ? 'bg-zinc-800/60 border-zinc-700 text-zinc-500'
+                                        : 'bg-gold/20 border-gold/40 text-gold active:bg-gold/30 transition'
+                                    } ${draggable ? 'cursor-grab' : ''}`}
+                                    onPointerDown={draggable ? (e) => handleCalDragStart(e, task) : undefined}
+                                    onClick={e => { e.stopPropagation(); if (!dragRef.current?.moved) openViewModal(task) }}>
+                                    <p className="font-semibold truncate leading-tight">{task.title}</p>
+                                    {height > 36 && <p className="text-gold/60 mt-0.5 text-[9px] sm:text-[10px]">{formatTime(task.scheduled_time)}</p>}
+                                    {task.recurring && task.recurring !== 'none' && <span className="text-gold/50 text-[9px]"> ↻</span>}
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* ── MONTH VIEW ────────────────────────────────────────────── */}
+              {calendarView === 'month' && (
+                <div>
+                  <div className="grid grid-cols-7 gap-px bg-zinc-800 border border-zinc-800 rounded-lg overflow-hidden">
+                    {[['M','Mon'],['T','Tue'],['W','Wed'],['T','Thu'],['F','Fri'],['S','Sat'],['S','Sun']].map(([short, full], i) => (
+                      <div key={i} className="bg-zinc-950 py-2 text-center text-[10px] sm:text-xs font-semibold text-zinc-600 uppercase tracking-wider">
+                        <span className="sm:hidden">{short}</span>
+                        <span className="hidden sm:inline">{full}</span>
+                      </div>
+                    ))}
+                    {calCells.map((day, i) => {
+                      if (!day) return <div key={`e-${i}`} className="bg-zinc-950 h-16 sm:h-20 md:h-24" />
+                      const dateStr = `${calendarYear}-${String(calendarMonth + 1).padStart(2, '0')}-${String(day).padStart(2, '0')}`
+                      const dayTasks = tasksForMonth.filter(t => t._displayDate === dateStr)
+                      const isToday = dateStr === todayStr
+                      const isSelected = selectedDay === dateStr
+                      return (
+                        <div key={day}
+                          className={`bg-zinc-950 h-16 sm:h-20 md:h-24 p-1 sm:p-1.5 cursor-pointer active:bg-zinc-900/60 hover:bg-zinc-900/60 transition ${isSelected ? 'ring-1 ring-inset ring-gold bg-zinc-900/40' : ''}`}
+                          onClick={() => setSelectedDay(isSelected ? null : dateStr)}>
+                          <div className={`w-6 h-6 sm:w-7 sm:h-7 rounded-full flex items-center justify-center text-[11px] sm:text-xs font-bold ${isToday ? 'bg-gold text-zinc-950' : 'text-zinc-500'}`}>
+                            {day}
+                          </div>
+                          <div className="space-y-0.5 mt-0.5 hidden sm:block">
+                            {dayTasks.slice(0, 2).map(task => (
+                              <div key={`${task.id}-${task._displayDate}`}
+                                className={`text-[10px] px-1 py-0.5 rounded truncate leading-tight ${task.completed ? 'text-zinc-600 line-through' : 'bg-gold/20 text-gold'}`}>
+                                {task.scheduled_time ? formatTime(task.scheduled_time) + ' ' : ''}{task.title}
+                              </div>
+                            ))}
+                            {dayTasks.length > 2 && <div className="text-[10px] text-zinc-600 px-1">+{dayTasks.length - 2} more</div>}
+                          </div>
+                          {dayTasks.length > 0 && (
+                            <div className="flex gap-0.5 mt-0.5 sm:hidden justify-center">
+                              {dayTasks.slice(0, 3).map((task, idx) => (
+                                <div key={idx} className={`w-1.5 h-1.5 rounded-full ${task.completed ? 'bg-zinc-600' : 'bg-gold'}`} />
+                              ))}
+                              {dayTasks.length > 3 && <div className="w-1.5 h-1.5 rounded-full bg-zinc-600" />}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })}
+                  </div>
+
+                  {/* Day Panel */}
+                  {selectedDay && (
+                    <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <p className="text-sm font-semibold text-white">
+                          {new Date(selectedDay).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+                        </p>
+                        <button onClick={() => openNewTaskModal(selectedDay)}
+                          className="px-3 py-1.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
+                          + Add
+                        </button>
+                      </div>
+                      {tasksForMonth.filter(t => t._displayDate === selectedDay).length === 0 ? (
+                        <p className="text-zinc-600 text-sm">No tasks scheduled — click + Add to create one.</p>
+                      ) : (
+                        <div className="space-y-2">
+                          {tasksForMonth.filter(t => t._displayDate === selectedDay).map(task => (
+                            <div key={`${task.id}-${task._displayDate}`}
+                              className={`flex items-center gap-3 rounded-lg px-4 py-3 border cursor-pointer transition ${
+                                task.completed ? 'border-zinc-800 opacity-50' : 'border-zinc-800 hover:border-gold/30'
+                              }`}
+                              onClick={() => openViewModal(task)}>
+                              <div className="flex-1 min-w-0">
+                                <p className={`text-sm font-medium ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                                <div className="flex gap-3 mt-0.5 text-xs text-zinc-600">
+                                  {task.scheduled_time && <span className="text-gold/70">{formatTime(task.scheduled_time)}{task.duration_minutes ? ` · ${task.duration_minutes}min` : ''}</span>}
+                                  {task.recurring && task.recurring !== 'none' && <span>↻ {task.recurring}</span>}
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+
             {/* Project Form */}
             {showProjectForm && (
               <div className="bg-zinc-900 border border-gold/30 rounded-xl p-5 mb-6">
@@ -4100,7 +4401,18 @@ export default function ClientPage() {
                                     className={`w-5 h-5 rounded border-2 flex-shrink-0 flex items-center justify-center transition ${task.completed ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 hover:border-zinc-400'}`}>
                                     {task.completed && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
                                   </button>
-                                  <p className={`text-sm flex-1 ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                                  <div className="flex-1 min-w-0 flex items-center gap-2">
+                                    <p className={`text-sm ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
+                                    {task.scheduled_date && (
+                                      <span className="text-[10px] text-gold/60">
+                                        {new Date(task.scheduled_date + 'T00:00:00').toLocaleDateString('en-GB', { month: 'short', day: 'numeric' })}{task.scheduled_time ? ` · ${formatTime(task.scheduled_time)}` : ''}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <button onClick={(e) => { e.stopPropagation(); setModalForm({ title: task.title, date: task.scheduled_date || localDateStr(), time: task.scheduled_time ? task.scheduled_time.slice(0,5) : '', duration: task.duration_minutes || 60, recurring: 'none' }); setTaskModal({ mode: 'edit', taskId: task.id, isProjectTask: true }) }}
+                                    className="p-1 text-zinc-700 hover:text-gold sm:opacity-0 sm:group-hover:opacity-100 transition">
+                                    <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                                  </button>
                                   <button onClick={() => deleteProjectTask(p.id, task.id)} className="p-1 text-zinc-700 hover:text-red-400 sm:opacity-0 sm:group-hover:opacity-100 transition">
                                     <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                                   </button>
