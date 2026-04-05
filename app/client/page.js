@@ -351,7 +351,11 @@ export default function ClientPage() {
   const [warMapTaskCompletions, setWarMapTaskCompletions] = useState([])
   const [warMapInput, setWarMapInput] = useState('')
   // War Map plans the upcoming week — on Sunday, plan next week; Mon-Sat, plan this week
-  const [warMapWeek, setWarMapWeek] = useState(() => getMonday())
+  const [warMapWeek, setWarMapWeek] = useState(() => {
+    const today = new Date()
+    if (today.getDay() === 0) return shiftWeek(getMonday(), 1) // Sunday: plan next week
+    return getMonday()
+  })
   const [weeklyPriorities, setWeeklyPriorities] = useState({ number_one_priority: '', priority_2: '', priority_3: '', priority_4: '', completed: false, completed_at: null })
   const [prioritiesSaving, setPrioritiesSaving] = useState(false)
   const [calendarView, setCalendarView] = useState('month')
