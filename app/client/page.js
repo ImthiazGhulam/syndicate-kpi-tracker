@@ -6,14 +6,14 @@ import { supabase } from '../../lib/supabase'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-const HOURS = Array.from({ length: 16 }, (_, i) => i + 6) // 6am – 9pm
+const HOURS = Array.from({ length: 24 }, (_, i) => i) // 12am – 11pm (full 24h)
 const HOUR_H = 64 // px per hour
 
 const TIME_OPTIONS = []
-for (let h = 6; h <= 21; h++) {
+for (let h = 0; h <= 23; h++) {
   for (const m of [0, 30]) {
     const period = h >= 12 ? 'pm' : 'am'
-    const display = h > 12 ? h - 12 : h
+    const display = h === 0 ? 12 : h > 12 ? h - 12 : h
     TIME_OPTIONS.push({
       value: `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}`,
       label: `${display}:${String(m).padStart(2, '0')} ${period}`,
@@ -89,7 +89,7 @@ function getWeekDays(mondayStr) {
 function getTimeTopPx(timeStr) {
   if (!timeStr) return 0
   const [h, m] = timeStr.split(':').map(Number)
-  return (h - 6) * HOUR_H + (m / 60) * HOUR_H
+  return h * HOUR_H + (m / 60) * HOUR_H
 }
 
 function formatTime(timeStr) {
@@ -374,7 +374,7 @@ export default function ClientPage() {
 
   useEffect(() => {
     if (activeTab === 'war-map' && calendarView === 'week' && weekViewRef.current) {
-      weekViewRef.current.scrollTop = 2 * HOUR_H // scroll to 8am
+      weekViewRef.current.scrollTop = 7 * HOUR_H // auto-scroll to 7am
     }
   }, [activeTab, calendarView])
 
@@ -1161,7 +1161,7 @@ export default function ClientPage() {
     const relY = y - containerRect.top + scrollTop
     const totalMinutes = Math.round((relY / HOUR_H) * 60)
     const snapped = Math.round(totalMinutes / 15) * 15 // snap to 15-min
-    const hour = Math.max(6, Math.min(21, Math.floor(snapped / 60) + 6))
+    const hour = Math.max(0, Math.min(23, Math.floor(snapped / 60)))
     const minute = Math.max(0, snapped % 60)
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
   }
@@ -2669,7 +2669,7 @@ export default function ClientPage() {
                           className="absolute inset-x-0 flex border-t border-zinc-800/40 active:bg-zinc-800/30 cursor-pointer transition"
                           onClick={() => openNewTaskModal(dayViewDate, `${String(h).padStart(2, '0')}:00`)}>
                           <div className="w-14 flex-shrink-0 text-right pr-3 pt-1">
-                            <span className="text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                            <span className="text-xs text-zinc-600">{h === 0 ? '12am' : h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
                           </div>
                         </div>
                       ))}
@@ -2732,7 +2732,7 @@ export default function ClientPage() {
                         {HOURS.map((h, i) => (
                           <div key={h} style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
                             className="absolute inset-x-0 flex items-start justify-end pr-2 pt-1 border-t border-zinc-800/50">
-                            <span className="text-[10px] sm:text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                            <span className="text-[10px] sm:text-xs text-zinc-600">{h === 0 ? '12am' : h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
                           </div>
                         ))}
                       </div>
@@ -4023,7 +4023,7 @@ export default function ClientPage() {
                             className="absolute inset-x-0 flex border-t border-zinc-800/40 active:bg-zinc-800/30 cursor-pointer transition"
                             onClick={() => openNewTaskModal(dayViewDate, `${String(h).padStart(2, '0')}:00`)}>
                             <div className="w-14 flex-shrink-0 text-right pr-3 pt-1">
-                              <span className="text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                              <span className="text-xs text-zinc-600">{h === 0 ? '12am' : h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
                             </div>
                           </div>
                         ))}
@@ -4079,7 +4079,7 @@ export default function ClientPage() {
                           {HOURS.map((h, i) => (
                             <div key={h} style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
                               className="absolute inset-x-0 flex items-start justify-end pr-2 pt-1 border-t border-zinc-800/50">
-                              <span className="text-[10px] sm:text-xs text-zinc-600">{h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
+                              <span className="text-[10px] sm:text-xs text-zinc-600">{h === 0 ? '12am' : h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
                             </div>
                           ))}
                         </div>
