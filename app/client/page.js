@@ -498,7 +498,7 @@ export default function ClientPage() {
 
     if (designRes.data) {
       setLifeDesign(designRes.data)
-      setDesignForm(f => ({ ...f, ...designRes.data }))
+      setDesignForm(f => ({ ...f, ...designRes.data, misogi_type: designRes.data.misogi_type || 'event' }))
       setDesignEditing(false)
     } else {
       setDesignEditing(true)
