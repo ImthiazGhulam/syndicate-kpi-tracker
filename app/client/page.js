@@ -542,9 +542,11 @@ export default function ClientPage() {
   // Fetch weekly priorities when week changes
   const fetchWeeklyPriorities = async (weekOf, autoAdvance = false) => {
     if (!clientData) return
-    // Clear immediately so old values don't bleed into new week
+    // Clear immediately and block saves until new data loads
+    prioritiesLoadedWeekRef.current = null
     setWeeklyPriorities({ number_one_priority: '', priority_2: '', priority_3: '', priority_4: '', revenue_target: '', completed: false, completed_at: null })
     const { data } = await supabase.from('war_map_weekly').select('*').eq('client_id', clientData.id).eq('week_of', weekOf).maybeSingle()
+    prioritiesLoadedWeekRef.current = weekOf
     if (data) {
       setWeeklyPriorities(data)
       // If this week is completed and we're on the current week, auto-switch to next week
@@ -1285,7 +1287,12 @@ export default function ClientPage() {
   }
 
   // Weekly priorities
+  const prioritiesLoadedWeekRef = useRef(null)
   const savePriorities = async () => {
+    // Block saves if we haven't loaded priorities for this week yet (prevents old values bleeding in)
+    if (prioritiesLoadedWeekRef.current !== warMapWeek) return
+    // Don't create empty records for weeks with no input
+    if (!weeklyPriorities.number_one_priority?.trim() && !weeklyPriorities.priority_2?.trim() && !weeklyPriorities.priority_3?.trim() && !weeklyPriorities.priority_4?.trim() && !weeklyPriorities.revenue_target) return
     await supabase.from('war_map_weekly').upsert({
       client_id: clientData.id,
       week_of: warMapWeek,
