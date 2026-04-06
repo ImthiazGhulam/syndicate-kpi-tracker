@@ -3026,10 +3026,10 @@ function AdminPageInner() {
                             <button onClick={async () => {
                               await supabase.from('monthly_review').update({ feedback_sent: true }).eq('client_id', selectedClient.id).eq('month', adminMonthlyMonth).eq('year', adminMonthlyYear)
                               setMonthlyReview(prev => ({ ...prev, feedback_sent: true }))
-                              // Refresh health data
-                              fetchAllClientHealth(clients)
+                              // Refresh health + daily ops so client disappears from all awaiting lists
+                              await Promise.all([fetchAllClientHealth(clients), fetchDailyOps()])
                             }} className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition">
-                              💬 Mark Feedback Sent
+                              Mark Feedback Sent
                             </button>
                           )}
                         </div>
