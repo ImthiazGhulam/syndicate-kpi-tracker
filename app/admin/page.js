@@ -3037,10 +3037,20 @@ function AdminPageInner() {
                             </div>
                           ) : (
                             <button onClick={async () => {
-                              await supabase.from('monthly_review').update({ feedback_sent: true }).eq('client_id', selectedClient.id).eq('month', adminMonthlyMonth).eq('year', adminMonthlyYear)
+                              const { error } = await supabase.from('monthly_review').update({ feedback_sent: true }).eq('client_id', selectedClient.id).eq('month', adminMonthlyMonth).eq('year', adminMonthlyYear)
+                              if (error) { console.error('Feedback update error:', error); alert('Failed to update: ' + error.message); return }
                               setMonthlyReview(prev => ({ ...prev, feedback_sent: true }))
-                              // Refresh health + daily ops so client disappears from all awaiting lists
-                              await Promise.all([fetchAllClientHealth(clients), fetchDailyOps()])
+                              // Immediately update health state so client disappears from awaiting list
+                              setClientHealth(prev => {
+                                const updated = { ...prev }
+                                if (updated[selectedClient.id]) {
+                                  updated[selectedClient.id] = { ...updated[selectedClient.id], awaitingFeedback: false, alerts: (updated[selectedClient.id].alerts || []).filter(a => !a.includes('awaiting your feedback')) }
+                                }
+                                return updated
+                              })
+                              // Also do a full refresh in background
+                              fetchAllClientHealth(clients)
+                              fetchDailyOps()
                             }} className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition">
                               Mark Feedback Sent
                             </button>
