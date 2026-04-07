@@ -637,7 +637,9 @@ export default function ClientPage() {
 
   const savePulse = async () => {
     if (!clientData) return
-    const { error } = await supabase.from('daily_pulse').upsert(buildPulsePayload(), { onConflict: 'client_id,date' })
+    const payload = { ...buildPulsePayload() }
+    if (dailyPulse.completed) { payload.completed = true; payload.completed_at = dailyPulse.completed_at }
+    const { error } = await supabase.from('daily_pulse').upsert(payload, { onConflict: 'client_id,date' })
     if (error) { console.error('Morning Ops save error:', error); return }
     flash()
   }
@@ -841,6 +843,7 @@ export default function ClientPage() {
   const saveEvening = async (overrides = {}) => {
     if (!clientData) return
     const payload = { ...buildEveningPayload(), ...overrides }
+    if (eveningPulse.completed) { payload.completed = true; payload.completed_at = eveningPulse.completed_at }
     const { error } = await supabase.from('evening_pulse').upsert(payload, { onConflict: 'client_id,date' })
     if (error) { console.error('Evening Debrief save error:', error); return }
     flash()
@@ -888,6 +891,7 @@ export default function ClientPage() {
       mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
       ...overrides,
     }
+    if (monthlyReview.completed) { payload.completed = true; payload.completed_at = monthlyReview.completed_at }
     const { error } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' })
     if (error) { console.error('Monthly Review save error:', error); return }
     flash()
@@ -972,6 +976,7 @@ export default function ClientPage() {
   const saveReview = async (overrides = {}) => {
     if (!clientData) return
     const payload = { ...buildReviewPayload(), ...overrides }
+    if (weeklyReview.completed) { payload.completed = true; payload.completed_at = weeklyReview.completed_at }
     const { error } = await supabase.from('weekly_review').upsert(payload, { onConflict: 'client_id,week_of' })
     if (error) { console.error('Lock In auto-save error:', error); return }
     flash()
@@ -1413,7 +1418,7 @@ export default function ClientPage() {
     if (prioritiesLoadedWeekRef.current !== warMapWeek) return
     // Don't create empty records for weeks with no input
     if (!weeklyPriorities.number_one_priority?.trim() && !weeklyPriorities.priority_2?.trim() && !weeklyPriorities.priority_3?.trim() && !weeklyPriorities.priority_4?.trim() && !weeklyPriorities.revenue_target) return
-    const { error } = await supabase.from('war_map_weekly').upsert({
+    const payload = {
       client_id: clientData.id,
       week_of: warMapWeek,
       number_one_priority: weeklyPriorities.number_one_priority || '',
@@ -1421,7 +1426,9 @@ export default function ClientPage() {
       priority_3: weeklyPriorities.priority_3 || '',
       priority_4: weeklyPriorities.priority_4 || '',
       revenue_target: weeklyPriorities.revenue_target || null,
-    }, { onConflict: 'client_id,week_of' })
+    }
+    if (weeklyPriorities.completed) { payload.completed = true; payload.completed_at = weeklyPriorities.completed_at }
+    const { error } = await supabase.from('war_map_weekly').upsert(payload, { onConflict: 'client_id,week_of' })
     if (error) { console.error('Priorities save error:', error); return }
     flash()
   }
