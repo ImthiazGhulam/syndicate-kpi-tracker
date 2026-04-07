@@ -183,6 +183,7 @@ function AdminPageInner() {
   const [dailyOpsChecklist, setDailyOpsChecklist] = useState([])
   const [dailyOpsLoading, setDailyOpsLoading] = useState(false)
   const [dailyOpsData, setDailyOpsData] = useState(null) // aggregated client data for today
+  const [expandedOpsItem, setExpandedOpsItem] = useState(null)
 
   // All-clients health data
   const [clientHealth, setClientHealth] = useState({})
@@ -940,17 +941,20 @@ function AdminPageInner() {
                 const alerts = []
                 if (d.recentFlywheels && d.recentFlywheels.length > 0) {
                   d.recentFlywheels.forEach(f => {
-                    alerts.push({ icon: '🔥', color: 'text-gold', bg: 'bg-gold/10 border-gold/30', label: `${f.clientName} deployed a Performance Flywheel™ plan`, sub: f.title || 'New plan generated — review and follow up' })
+                    const client = clients.find(c => c.id === f.client_id)
+                    alerts.push({ icon: '🔥', color: 'text-gold', bg: 'bg-gold/10 border-gold/30', label: `${f.clientName} deployed a Performance Flywheel™ plan`, sub: f.title || 'New plan generated — review and follow up', client })
                   })
                 }
                 if (d.nearComplete && d.nearComplete.length > 0) {
                   d.nearComplete.forEach(p => {
-                    alerts.push({ icon: '🏁', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: `${p.clientName} has ${p.remaining} task${p.remaining > 1 ? 's' : ''} left on "${p.name}"`, sub: `${p.total - p.remaining}/${p.total} complete — send encouragement` })
+                    const client = clients.find(c => c.id === p.client_id)
+                    alerts.push({ icon: '🏁', color: 'text-emerald-400', bg: 'bg-emerald-500/10 border-emerald-500/30', label: `${p.clientName} has ${p.remaining} task${p.remaining > 1 ? 's' : ''} left on "${p.name}"`, sub: `${p.total - p.remaining}/${p.total} complete — send encouragement`, client })
                   })
                 }
                 if (d.overdueProjects && d.overdueProjects.length > 0) {
                   d.overdueProjects.forEach(p => {
-                    alerts.push({ icon: '⏰', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', label: `${p.clientName}'s project "${p.name}" is ${p.daysOver} day${p.daysOver > 1 ? 's' : ''} overdue`, sub: 'Check in — do they need help or a deadline extension?' })
+                    const client = clients.find(c => c.id === p.client_id)
+                    alerts.push({ icon: '⏰', color: 'text-red-400', bg: 'bg-red-500/10 border-red-500/30', label: `${p.clientName}'s project "${p.name}" is ${p.daysOver} day${p.daysOver > 1 ? 's' : ''} overdue`, sub: 'Check in — do they need help or a deadline extension?', client })
                   })
                 }
 
@@ -959,8 +963,20 @@ function AdminPageInner() {
                 // ── MORNING BLOCK (do first thing) ──
                 const morningItems = [
                   { key: 'check_typeform', label: 'Check Typeform for mastery checkpoint completions', sub: 'Review submissions → grant access to next phase in Skool', link: 'https://admin.typeform.com/accounts/01GF2ZJC64DV92SE0MDZ0RN7H8/workspaces/hWF3Jh' },
-                  { key: 'review_dropoffs', label: `Review at-risk clients (${d.atRiskClients.length})`, sub: d.atRiskClients.length > 0 ? d.atRiskClients.slice(0, 5).map(c => c.name).join(', ') + (d.atRiskClients.length > 5 ? ` +${d.atRiskClients.length - 5} more` : '') : 'All clients healthy', highlight: d.atRiskClients.length > 0 },
-                  { key: 'check_morning_ops', label: `Check who's done Morning Ops today (${d.morningsDone}/${d.totalClients})`, sub: d.noMorningOps.length > 0 && d.noMorningOps.length <= 10 ? 'Not done: ' + d.noMorningOps.map(c => c.name.split(' ')[0]).join(', ') : d.noMorningOps.length > 10 ? `${d.noMorningOps.length} clients haven't logged yet` : 'Everyone\'s checked in' },
+                  { key: 'review_dropoffs', label: `Review at-risk clients (${d.atRiskClients.length})`, sub: d.atRiskClients.length > 0 ? d.atRiskClients.slice(0, 5).map(c => c.name).join(', ') + (d.atRiskClients.length > 5 ? ` +${d.atRiskClients.length - 5} more` : '') : 'All clients healthy', highlight: d.atRiskClients.length > 0, expandable: d.atRiskClients.length > 0, clients: d.atRiskClients.map(c => {
+                    const h = clientHealth[c.id] || {}
+                    const issues = []
+                    if (h.mornings === 0 && h.elapsed >= 3) issues.push('No morning ops this week')
+                    else if (h.elapsed > 0 && h.mornings / h.elapsed < 0.5) issues.push(`Morning ops: ${h.mornings}/${h.elapsed} days`)
+                    if (h.debriefs === 0 && h.elapsed >= 3) issues.push('No debriefs this week')
+                    else if (h.elapsed > 0 && h.debriefs / h.elapsed < 0.5) issues.push(`Debriefs: ${h.debriefs}/${h.elapsed} days`)
+                    if (h.elapsed > 0 && h.identityReads / h.elapsed < 0.5) issues.push('Low identity reads')
+                    if (!h.warMap) issues.push('War Map not done')
+                    if (!h.lockIn) issues.push('Lock In not done')
+                    if (h.alerts?.length > 0) issues.push(...h.alerts.filter(a => !issues.some(i => i.toLowerCase().includes(a.toLowerCase().slice(0, 8)))))
+                    return { ...c, score: h.score ?? 0, status: h.status, issues }
+                  }) },
+                  { key: 'check_morning_ops', label: `Check who's done Morning Ops today (${d.morningsDone}/${d.totalClients})`, sub: d.noMorningOps.length > 0 && d.noMorningOps.length <= 10 ? 'Not done: ' + d.noMorningOps.map(c => c.name.split(' ')[0]).join(', ') : d.noMorningOps.length > 10 ? `${d.noMorningOps.length} clients haven't logged yet` : 'Everyone\'s checked in', clients: d.noMorningOps },
                 ]
                 sections.push({ title: '☀️ Morning', subtitle: 'Start of day', items: morningItems })
 
@@ -975,13 +991,13 @@ function AdminPageInner() {
                 // ── RENEWALS & ADMIN ──
                 const adminItems = []
                 if (d.renewingSoon.length > 0) {
-                  adminItems.push({ key: 'check_renewals', label: `Chase renewals — ${d.renewingSoon.length} client${d.renewingSoon.length > 1 ? 's' : ''} within 30 days`, sub: d.renewingSoon.map(c => c.name).join(', '), highlight: true })
+                  adminItems.push({ key: 'check_renewals', label: `Chase renewals — ${d.renewingSoon.length} client${d.renewingSoon.length > 1 ? 's' : ''} within 30 days`, sub: d.renewingSoon.map(c => c.name).join(', '), highlight: true, clients: d.renewingSoon })
                 }
                 if (d.expired.length > 0) {
-                  adminItems.push({ key: 'check_expired', label: `Handle expired programmes — ${d.expired.length} client${d.expired.length > 1 ? 's' : ''}`, sub: d.expired.map(c => c.name).join(', '), highlight: true })
+                  adminItems.push({ key: 'check_expired', label: `Handle expired programmes — ${d.expired.length} client${d.expired.length > 1 ? 's' : ''}`, sub: d.expired.map(c => c.name).join(', '), highlight: true, clients: d.expired })
                 }
                 if (d.awaitingFeedback.length > 0) {
-                  adminItems.push({ key: 'send_monthly_feedback', label: `Send monthly review feedback (${d.awaitingFeedback.length} waiting)`, sub: 'Clients have completed their monthly review and are waiting on your feedback', highlight: true })
+                  adminItems.push({ key: 'send_monthly_feedback', label: `Send monthly review feedback (${d.awaitingFeedback.length} waiting)`, sub: 'Clients have completed their monthly review and are waiting on your feedback', highlight: true, clients: d.awaitingFeedback })
                 }
                 adminItems.push({ key: 'check_new_signups', label: 'Check for new client sign-ups', sub: 'Review onboarding submissions and send welcome messages' })
                 sections.push({ title: '📋 Admin & Renewals', subtitle: 'Business ops', items: adminItems })
@@ -1034,12 +1050,17 @@ function AdminPageInner() {
                         </div>
                         <div className="space-y-2.5">
                           {alerts.map((alert, ai) => (
-                            <div key={ai} className={`flex items-start gap-4 p-4 sm:p-5 rounded-xl border backdrop-blur-sm ${alert.bg}`}>
+                            <div key={ai}
+                              onClick={() => alert.client && selectClient(alert.client)}
+                              className={`flex items-start gap-4 p-4 sm:p-5 rounded-xl border backdrop-blur-sm ${alert.bg} ${alert.client ? 'cursor-pointer hover:brightness-110' : ''}`}>
                               <span className="text-xl flex-shrink-0 mt-0.5">{alert.icon}</span>
                               <div className="flex-1 min-w-0">
                                 <p className={`text-sm font-bold ${alert.color}`}>{alert.label}</p>
                                 <p className="text-xs text-zinc-500 mt-1 leading-relaxed">{alert.sub}</p>
                               </div>
+                              {alert.client && (
+                                <svg className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                              )}
                             </div>
                           ))}
                         </div>
@@ -1079,39 +1100,90 @@ function AdminPageInner() {
                         <div className="space-y-2.5">
                           {section.items.map((item) => {
                             const checked = isDailyOpsChecked(item.key)
+                            const isExpanded = expandedOpsItem === item.key
+                            const hasClients = item.clients && item.clients.length > 0
                             return (
-                              <div key={item.key}
-                                className={`flex items-start gap-4 p-4 sm:p-5 rounded-xl border transition-all duration-200 cursor-pointer ${
-                                  checked
-                                    ? 'bg-zinc-900/30 border-zinc-800/30'
-                                    : item.highlight
-                                      ? 'bg-amber-950/20 border-amber-900/40 hover:border-amber-700/60 hover:bg-amber-950/30'
-                                      : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900'
-                                }`}
-                                onClick={() => toggleDailyOpsItem(item.key)}>
-                                <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center mt-0.5 transition-all duration-200 ${
-                                  checked ? 'bg-emerald-500 border-emerald-500 scale-110' : 'border-zinc-600 hover:border-gold'
-                                }`}>
-                                  {checked && (
-                                    <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                                    </svg>
+                              <div key={item.key} className="space-y-0">
+                                <div
+                                  className={`flex items-start gap-4 p-4 sm:p-5 rounded-xl border transition-all duration-200 cursor-pointer ${
+                                    checked
+                                      ? 'bg-zinc-900/30 border-zinc-800/30'
+                                      : item.highlight
+                                        ? 'bg-amber-950/20 border-amber-900/40 hover:border-amber-700/60 hover:bg-amber-950/30'
+                                        : 'bg-zinc-900/80 border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900'
+                                  } ${isExpanded ? 'rounded-b-none' : ''}`}
+                                  onClick={() => toggleDailyOpsItem(item.key)}>
+                                  <div className={`flex-shrink-0 w-6 h-6 rounded-md border-2 flex items-center justify-center mt-0.5 transition-all duration-200 ${
+                                    checked ? 'bg-emerald-500 border-emerald-500 scale-110' : 'border-zinc-600 hover:border-gold'
+                                  }`}>
+                                    {checked && (
+                                      <svg className="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                                      </svg>
+                                    )}
+                                  </div>
+                                  <div className="flex-1 min-w-0">
+                                    <p className={`text-sm font-semibold transition ${checked ? 'text-zinc-600 line-through' : 'text-white'}`}>
+                                      {item.label}
+                                    </p>
+                                    <p className={`text-xs mt-1.5 leading-relaxed ${checked ? 'text-zinc-700' : item.highlight ? 'text-amber-400/70' : 'text-zinc-500'}`}>
+                                      {item.sub}
+                                    </p>
+                                  </div>
+                                  {item.link && !checked && (
+                                    <a href={item.link} target="_blank" rel="noopener noreferrer"
+                                      onClick={(e) => e.stopPropagation()}
+                                      className="flex-shrink-0 px-3.5 py-2 text-[10px] font-bold text-gold bg-gold/5 border border-gold/20 rounded-lg hover:bg-gold/10 hover:border-gold/40 transition-all uppercase tracking-widest">
+                                      Open
+                                    </a>
+                                  )}
+                                  {hasClients && !checked && (
+                                    <button
+                                      onClick={(e) => { e.stopPropagation(); setExpandedOpsItem(isExpanded ? null : item.key) }}
+                                      className="flex-shrink-0 px-3 py-2 text-[10px] font-bold text-zinc-400 bg-zinc-800 border border-zinc-700 rounded-lg hover:bg-zinc-700 hover:text-white transition-all uppercase tracking-widest">
+                                      {isExpanded ? 'Hide' : `View ${item.clients.length}`}
+                                    </button>
                                   )}
                                 </div>
-                                <div className="flex-1 min-w-0">
-                                  <p className={`text-sm font-semibold transition ${checked ? 'text-zinc-600 line-through' : 'text-white'}`}>
-                                    {item.label}
-                                  </p>
-                                  <p className={`text-xs mt-1.5 leading-relaxed ${checked ? 'text-zinc-700' : item.highlight ? 'text-amber-400/70' : 'text-zinc-500'}`}>
-                                    {item.sub}
-                                  </p>
-                                </div>
-                                {item.link && !checked && (
-                                  <a href={item.link} target="_blank" rel="noopener noreferrer"
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="flex-shrink-0 px-3.5 py-2 text-[10px] font-bold text-gold bg-gold/5 border border-gold/20 rounded-lg hover:bg-gold/10 hover:border-gold/40 transition-all uppercase tracking-widest">
-                                    Open
-                                  </a>
+                                {/* Expandable client dropdown */}
+                                {isExpanded && hasClients && (
+                                  <div className="border border-t-0 border-zinc-800 rounded-b-xl bg-zinc-950/80 overflow-hidden">
+                                    {item.expandable ? (
+                                      /* At-risk clients — show detailed breakdown */
+                                      item.clients.map(c => (
+                                        <button key={c.id}
+                                          onClick={() => { selectClient(c); setExpandedOpsItem(null) }}
+                                          className="w-full flex items-start gap-3 px-5 py-3.5 hover:bg-zinc-900 transition text-left border-b border-zinc-800/50 last:border-b-0">
+                                          <div className="flex-shrink-0 mt-0.5">
+                                            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                                              c.status === 'critical' ? 'bg-red-500/20 text-red-400' : 'bg-amber-500/20 text-amber-400'
+                                            }`}>{c.score}</div>
+                                          </div>
+                                          <div className="flex-1 min-w-0">
+                                            <p className="text-sm font-semibold text-white">{c.name}</p>
+                                            <div className="flex flex-wrap gap-1.5 mt-1.5">
+                                              {c.issues.map((issue, ii) => (
+                                                <span key={ii} className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${
+                                                  c.status === 'critical' ? 'bg-red-500/10 text-red-400 border border-red-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                                                }`}>{issue}</span>
+                                              ))}
+                                            </div>
+                                          </div>
+                                          <svg className="w-4 h-4 text-zinc-600 flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                        </button>
+                                      ))
+                                    ) : (
+                                      /* Simple client list — click to view */
+                                      item.clients.map(c => (
+                                        <button key={c.id}
+                                          onClick={() => { selectClient(c); setExpandedOpsItem(null) }}
+                                          className="w-full flex items-center gap-3 px-5 py-3 hover:bg-zinc-900 transition text-left border-b border-zinc-800/50 last:border-b-0">
+                                          <p className="text-sm font-medium text-zinc-300 flex-1">{c.name}</p>
+                                          <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                                        </button>
+                                      ))
+                                    )}
+                                  </div>
                                 )}
                               </div>
                             )
