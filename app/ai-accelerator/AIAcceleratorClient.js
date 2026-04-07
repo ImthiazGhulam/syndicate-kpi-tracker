@@ -113,12 +113,13 @@ export default function AIAcceleratorPage() {
 
   const saveAnswers = async () => {
     if (!record) return
-    await supabase.from('ai_accelerator').update({
+    const { error } = await supabase.from('ai_accelerator').update({
       manual_process: manualProcess,
       ideal_output: idealOutput,
       where_it_breaks: whereItBreaks,
       updated_at: new Date().toISOString(),
     }).eq('id', record.id)
+    if (error) { console.error('ai_accelerator save error:', error); return }
     flash()
   }
 
@@ -148,13 +149,14 @@ export default function AIAcceleratorPage() {
       if (result.tool) {
         const tool = { ...result.tool, comfort_level: comfortLevel }
         setGeneratedTool(tool)
-        await supabase.from('ai_accelerator').update({
+        const { error: toolErr } = await supabase.from('ai_accelerator').update({
           generated_tool: tool,
           manual_process: manualProcess,
           ideal_output: idealOutput,
           where_it_breaks: whereItBreaks,
           updated_at: new Date().toISOString(),
         }).eq('id', record.id)
+        if (toolErr) console.error('ai_accelerator save error:', toolErr)
       }
     } catch (e) { alert('Failed: ' + e.message) }
     setGenerating(false)
@@ -170,7 +172,7 @@ export default function AIAcceleratorPage() {
     tomorrow.setDate(tomorrow.getDate() + 1)
     const startDate = tomorrow.toISOString().split('T')[0]
 
-    const { data: project } = await supabase.from('projects').insert([{
+    const { data: project, error: projectErr } = await supabase.from('projects').insert([{
       client_id: clientData.id,
       name: `⚡ AI Accelerator: ${record?.title || 'New Tool'}`,
       description: record?.problem_statement || '',
@@ -180,6 +182,7 @@ export default function AIAcceleratorPage() {
       end_date: startDate,
     }]).select().single()
 
+    if (projectErr) { console.error('projects save error:', projectErr); setDeploying(false); return }
     if (project) {
       const tasks = []
       // Test task
@@ -209,7 +212,10 @@ export default function AIAcceleratorPage() {
           })
         })
       }
-      if (tasks.length > 0) await supabase.from('project_tasks').insert(tasks)
+      if (tasks.length > 0) {
+        const { error: tasksErr } = await supabase.from('project_tasks').insert(tasks)
+        if (tasksErr) console.error('project_tasks save error:', tasksErr)
+      }
     }
 
     setDeployed(true)

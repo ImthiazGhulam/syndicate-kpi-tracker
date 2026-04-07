@@ -299,10 +299,11 @@ export default function UnshakeablePage() {
 
   const saveToSupabase = useCallback(async (fields) => {
     if (!record) return
-    await supabase.from('unshakeable_playbook').update({
+    const { error } = await supabase.from('unshakeable_playbook').update({
       ...fields,
       updated_at: new Date().toISOString(),
     }).eq('id', record.id)
+    if (error) { console.error('unshakeable_playbook save error:', error); return }
     flash()
   }, [record, flash])
 
@@ -415,15 +416,17 @@ export default function UnshakeablePage() {
         setGeneratedTasks(tasksWithDates)
         setPlanSummary(result.summary || '')
         setGeneratedPlan(result.summary || '')
-        await supabase.from('unshakeable_playbook').update({
+        const { error: planErr } = await supabase.from('unshakeable_playbook').update({
           generated_plan: JSON.stringify({ tasks: tasksWithDates, summary: result.summary }),
           updated_at: new Date().toISOString(),
         }).eq('id', record.id)
+        if (planErr) console.error('unshakeable_playbook save error:', planErr)
       } else {
         // Fallback to text plan
         setGeneratedPlan(result.plan || '')
         setGeneratedTasks([])
-        await supabase.from('unshakeable_playbook').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', record.id)
+        const { error: fallbackErr } = await supabase.from('unshakeable_playbook').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', record.id)
+        if (fallbackErr) console.error('unshakeable_playbook save error:', fallbackErr)
       }
     } catch (e) { alert('Failed: ' + e.message) }
     setPlanLoading(false)
@@ -462,7 +465,8 @@ export default function UnshakeablePage() {
       completed: false,
     }))
 
-    await supabase.from('project_tasks').insert(taskInserts)
+    const { error: tasksErr } = await supabase.from('project_tasks').insert(taskInserts)
+    if (tasksErr) console.error('project_tasks save error:', tasksErr)
 
     // Auto-populate Identity Chamber from The Identity Shift™ (framework_1) go_deeper answer
     const identityAnswer = frameworkData.framework_1?.go_deeper?.trim()
@@ -478,11 +482,12 @@ export default function UnshakeablePage() {
       const currentAffirmations = existing?.affirmations || ''
       const updated = currentAffirmations.trim() ? `${currentAffirmations.trim()}${marker}` : cleanAffirmation
 
-      await supabase.from('identity_change').upsert({
+      const { error: identityErr } = await supabase.from('identity_change').upsert({
         client_id: clientData.id,
         affirmations: updated,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'client_id' })
+      if (identityErr) console.error('identity_change save error:', identityErr)
 
       setIdentityAffirmation(cleanAffirmation)
     }

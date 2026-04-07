@@ -267,10 +267,11 @@ export default function WealthWiredPage() {
 
   const saveToSupabase = useCallback(async (fields) => {
     if (!record) return
-    await supabase.from('wealth_wired').update({
+    const { error } = await supabase.from('wealth_wired').update({
       ...fields,
       updated_at: new Date().toISOString(),
     }).eq('id', record.id)
+    if (error) { console.error('wealth_wired save error:', error); return }
     flash()
   }, [record, flash])
 
@@ -361,7 +362,8 @@ export default function WealthWiredPage() {
       const result = await res.json()
       if (result.error) { alert('Failed to generate: ' + result.error); setPlanLoading(false); return }
       setGeneratedPlan(result.plan)
-      await supabase.from('wealth_wired').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+      const { error: planError } = await supabase.from('wealth_wired').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+      if (planError) { console.error('wealth_wired save error:', planError); alert('Failed to save plan'); return }
     } catch (e) { alert('Failed: ' + e.message) }
     setPlanLoading(false)
   }
@@ -446,7 +448,8 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
 
     setGeneratedPlan(plan)
     // Save to Supabase
-    await supabase.from('wealth_wired').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+    const { error } = await supabase.from('wealth_wired').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+    if (error) { console.error('wealth_wired save error:', error); return }
   }
 
   // ── Module Navigation ──────────────────────────────────────────────────────

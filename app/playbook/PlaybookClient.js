@@ -357,10 +357,11 @@ export default function PlaybookPage() {
 
   const saveToSupabase = useCallback(async (fields) => {
     if (!playbook) return
-    await supabase.from('offer_playbooks').update({
+    const { error } = await supabase.from('offer_playbooks').update({
       ...fields,
       updated_at: new Date().toISOString(),
     }).eq('id', playbook.id)
+    if (error) { console.error('offer_playbooks save error:', error); return }
   }, [playbook])
 
   // Save on blur — called when user leaves a field
@@ -1873,7 +1874,8 @@ export default function PlaybookPage() {
                     })
                     const result = await res.json()
                     if (result.error) { alert('Failed: ' + result.error); setPlaybook(prev => ({ ...prev, _planLoading: false })); return }
-                    await supabase.from('offer_playbooks').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', playbook.id)
+                    const { error: planError } = await supabase.from('offer_playbooks').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('id', playbook.id)
+                    if (planError) { console.error('offer_playbooks save error:', planError); alert('Failed to save plan'); setPlaybook(prev => ({ ...prev, _planLoading: false })); return }
                     setPlaybook(prev => ({ ...prev, generated_plan: result.plan, _planLoading: false }))
                   } catch (e) { alert('Failed: ' + e.message); setPlaybook(prev => ({ ...prev, _planLoading: false })) }
                 }} disabled={playbook._planLoading} className={`px-8 py-4 ${playbook.generated_plan ? 'bg-zinc-800 hover:bg-zinc-700 text-gold border border-gold/30' : 'bg-gold hover:bg-gold-light text-zinc-950'} disabled:opacity-50 font-bold text-xs uppercase tracking-widest rounded-lg transition`}>

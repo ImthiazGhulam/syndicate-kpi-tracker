@@ -341,10 +341,11 @@ export default function PremiumPositionPage() {
 
   const saveToSupabase = useCallback(async (fields) => {
     if (!record) return
-    await supabase.from('premium_position').update({
+    const { error } = await supabase.from('premium_position').update({
       ...fields,
       updated_at: new Date().toISOString(),
     }).eq('id', record.id)
+    if (error) { console.error('premium_position save error:', error); return }
     flash()
   }, [record, flash])
 
@@ -495,7 +496,8 @@ export default function PremiumPositionPage() {
     window.__regenData = { bucket: bucketData, brand_star: starData, hero: heroData, remarkable: remarkableData }
     window.__regenSave = async (plan) => {
       if (!clientData) return
-      await supabase.from('premium_position').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+      const { error } = await supabase.from('premium_position').update({ generated_plan: plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+      if (error) { console.error('premium_position save error:', error); return }
       setRecord(prev => ({ ...prev, generated_plan: plan }))
     }
   }, [bucketData, starData, heroData, remarkableData, clientData, record])
@@ -1201,7 +1203,8 @@ export default function PremiumPositionPage() {
                     })
                     const result = await res.json()
                     if (result.error) { alert('Failed: ' + result.error); setRecord(prev => ({ ...prev, _planLoading: false })); return }
-                    await supabase.from('premium_position').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+                    const { error: planError } = await supabase.from('premium_position').update({ generated_plan: result.plan, updated_at: new Date().toISOString() }).eq('client_id', clientData.id)
+                    if (planError) { console.error('premium_position save error:', planError); alert('Failed to save plan'); setRecord(prev => ({ ...prev, _planLoading: false })); return }
                     setRecord(prev => ({ ...prev, generated_plan: result.plan, _planLoading: false }))
                   } catch (e) { alert('Failed: ' + e.message); setRecord(prev => ({ ...prev, _planLoading: false })) }
                 }} disabled={record._planLoading} className={`px-8 py-4 ${record.generated_plan ? 'bg-zinc-800 hover:bg-zinc-700 text-gold border border-gold/30' : 'bg-gold hover:bg-gold-light text-zinc-950'} disabled:opacity-50 font-bold text-xs uppercase tracking-widest rounded-lg transition`}>

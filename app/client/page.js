@@ -614,7 +614,8 @@ export default function ClientPage() {
 
   const savePulse = async () => {
     if (!clientData) return
-    await supabase.from('daily_pulse').upsert(buildPulsePayload(), { onConflict: 'client_id,date' })
+    const { error } = await supabase.from('daily_pulse').upsert(buildPulsePayload(), { onConflict: 'client_id,date' })
+    if (error) { console.error('Morning Ops save error:', error); return }
     flash()
   }
 
@@ -646,7 +647,8 @@ export default function ClientPage() {
     KPI_COLS.filter(c => c.input).forEach(c => {
       payload[c.key] = Number(row[c.key]) || 0
     })
-    await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
+    const { error } = await supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
+    if (error) { console.error('KPI save error:', error); return }
     // Update weekKpis if this date is in the current week
     const weekDays = getWeekDays(getMonday())
     if (weekDays.includes(dateStr)) {
@@ -668,7 +670,9 @@ export default function ClientPage() {
       KPI_COLS.filter(c => c.input).forEach(c => { payload[c.key] = Number(row[c.key]) || 0 })
       return supabase.from('daily_kpis').upsert(payload, { onConflict: 'client_id,date' })
     })
-    await Promise.all(promises)
+    const results = await Promise.all(promises)
+    const failed = results.filter(r => r.error)
+    if (failed.length) { console.error('KPI bulk save errors:', failed.map(r => r.error)); return }
   }
 
   // Hot List
@@ -814,7 +818,8 @@ export default function ClientPage() {
   const saveEvening = async (overrides = {}) => {
     if (!clientData) return
     const payload = { ...buildEveningPayload(), ...overrides }
-    await supabase.from('evening_pulse').upsert(payload, { onConflict: 'client_id,date' })
+    const { error } = await supabase.from('evening_pulse').upsert(payload, { onConflict: 'client_id,date' })
+    if (error) { console.error('Evening Debrief save error:', error); return }
     flash()
   }
 
@@ -860,7 +865,8 @@ export default function ClientPage() {
       mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
       ...overrides,
     }
-    await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' })
+    const { error } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' })
+    if (error) { console.error('Monthly Review save error:', error); return }
     flash()
   }
 
@@ -886,11 +892,12 @@ export default function ClientPage() {
   // Identity Chamber
   const saveIdentity = async () => {
     if (!clientData) return
-    await supabase.from('identity_change').upsert({
+    const { error } = await supabase.from('identity_change').upsert({
       client_id: clientData.id,
       affirmations: identityAffirmations,
       updated_at: new Date().toISOString(),
     }, { onConflict: 'client_id' })
+    if (error) { console.error('Identity save error:', error); return }
     flash()
   }
 
@@ -1008,13 +1015,15 @@ export default function ClientPage() {
   const addProjectTask = async (projectId) => {
     const title = newTaskInputs[projectId]?.trim()
     if (!title) return
-    const { data } = await supabase.from('project_tasks').insert([{ project_id: projectId, client_id: clientData.id, title }]).select().single()
+    const { data, error } = await supabase.from('project_tasks').insert([{ project_id: projectId, client_id: clientData.id, title }]).select().single()
+    if (error) { console.error('Project task add error:', error); return }
     if (data) setProjectTasks(prev => ({ ...prev, [projectId]: [...(prev[projectId] || []), data] }))
     setNewTaskInputs(prev => ({ ...prev, [projectId]: '' }))
   }
 
   const toggleProjectTask = async (projectId, taskId, completed) => {
-    await supabase.from('project_tasks').update({ completed: !completed }).eq('id', taskId)
+    const { error } = await supabase.from('project_tasks').update({ completed: !completed }).eq('id', taskId)
+    if (error) { console.error('Project task toggle error:', error); return }
     setProjectTasks(prev => ({
       ...prev, [projectId]: (prev[projectId] || []).map(t => t.id === taskId ? { ...t, completed: !completed } : t)
     }))
@@ -1153,9 +1162,10 @@ export default function ClientPage() {
   // War Map
   const addToBrainDump = async () => {
     if (!warMapInput.trim()) return
-    const { data } = await supabase.from('war_map_tasks').insert([{
+    const { data, error } = await supabase.from('war_map_tasks').insert([{
       client_id: clientData.id, title: warMapInput.trim(), status: 'brain_dump', week_of: warMapWeek,
     }]).select().single()
+    if (error) { console.error('Brain Dump save error:', error); return }
     if (data) setWarMapTasks(prev => [data, ...prev])
     setWarMapInput('')
   }
@@ -1380,7 +1390,7 @@ export default function ClientPage() {
     if (prioritiesLoadedWeekRef.current !== warMapWeek) return
     // Don't create empty records for weeks with no input
     if (!weeklyPriorities.number_one_priority?.trim() && !weeklyPriorities.priority_2?.trim() && !weeklyPriorities.priority_3?.trim() && !weeklyPriorities.priority_4?.trim() && !weeklyPriorities.revenue_target) return
-    await supabase.from('war_map_weekly').upsert({
+    const { error } = await supabase.from('war_map_weekly').upsert({
       client_id: clientData.id,
       week_of: warMapWeek,
       number_one_priority: weeklyPriorities.number_one_priority || '',
@@ -1389,6 +1399,7 @@ export default function ClientPage() {
       priority_4: weeklyPriorities.priority_4 || '',
       revenue_target: weeklyPriorities.revenue_target || null,
     }, { onConflict: 'client_id,week_of' })
+    if (error) { console.error('Priorities save error:', error); return }
     flash()
   }
 
@@ -1446,7 +1457,7 @@ export default function ClientPage() {
   const saveTaskModal = async () => {
     if (!modalForm.title.trim() || !modalForm.date) return
     if (taskModal.mode === 'new') {
-      const { data } = await supabase.from('war_map_tasks').insert([{
+      const { data, error } = await supabase.from('war_map_tasks').insert([{
         client_id: clientData.id,
         title: modalForm.title.trim(),
         status: 'schedule',
@@ -1456,6 +1467,7 @@ export default function ClientPage() {
         recurring: modalForm.recurring,
         week_of: getMonday(new Date(modalForm.date)),
       }]).select().single()
+      if (error) { console.error('Task create error:', error); return }
       if (data) setWarMapTasks(prev => [data, ...prev])
     } else if (taskModal.mode === 'schedule' || taskModal.mode === 'edit') {
       const updates = {
@@ -1466,8 +1478,9 @@ export default function ClientPage() {
       }
       if (taskModal.isProjectTask) {
         // Project tasks — update in project_tasks table
-        const { data } = await supabase.from('project_tasks').update(updates)
+        const { data, error } = await supabase.from('project_tasks').update(updates)
           .eq('id', taskModal.taskId).select().single()
+        if (error) { console.error('Project task update error:', error); return }
         if (data) {
           const projectId = Object.keys(projectTasks).find(pid =>
             (projectTasks[pid] || []).some(t => t.id === taskModal.taskId)
@@ -1481,8 +1494,9 @@ export default function ClientPage() {
         // War map tasks
         updates.recurring = modalForm.recurring
         if (taskModal.mode === 'schedule') updates.status = 'schedule'
-        const { data } = await supabase.from('war_map_tasks').update(updates)
+        const { data, error } = await supabase.from('war_map_tasks').update(updates)
           .eq('id', taskModal.taskId).select().single()
+        if (error) { console.error('Task update error:', error); return }
         if (data) setWarMapTasks(prev => prev.map(t => t.id === taskModal.taskId ? data : t))
       }
     }
@@ -2354,7 +2368,7 @@ export default function ClientPage() {
                   const updated = { ...dailyPulse, identity_read: !dailyPulse.identity_read }
                   setDailyPulse(updated)
                   // auto-save
-                  supabase.from('daily_pulse').upsert({ ...buildPulsePayload(), identity_read: !dailyPulse.identity_read }, { onConflict: 'client_id,date' }).then(() => refreshDashboard())
+                  supabase.from('daily_pulse').upsert({ ...buildPulsePayload(), identity_read: !dailyPulse.identity_read }, { onConflict: 'client_id,date' }).then(({ error }) => { if (error) { console.error('Identity read toggle error:', error); return } refreshDashboard() })
                 }}
                 className="flex items-center gap-3 w-full text-left">
                 <div className={`w-6 h-6 rounded border-2 flex items-center justify-center transition flex-shrink-0 ${dailyPulse.identity_read ? 'bg-gold border-gold' : 'border-zinc-600 hover:border-gold'}`}>
