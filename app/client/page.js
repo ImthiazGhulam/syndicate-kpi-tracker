@@ -2413,6 +2413,10 @@ export default function ClientPage() {
                   <p className="text-zinc-500 text-xs">
                     Submitted {dailyPulse.completed_at ? new Date(dailyPulse.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) + ' at ' + new Date(dailyPulse.completed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
                   </p>
+                  <button onClick={savePulse} disabled={pulseSaving}
+                    className="mt-4 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition border border-zinc-700">
+                    {pulseSaving ? 'Updating...' : 'Update'}
+                  </button>
                 </div>
               ) : (
                 <div className="text-center">
@@ -3408,6 +3412,10 @@ export default function ClientPage() {
                   <p className="text-zinc-500 text-xs">
                     Submitted {weeklyPriorities.completed_at ? new Date(weeklyPriorities.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
                   </p>
+                  <button onClick={savePriorities} disabled={prioritiesSaving}
+                    className="mt-4 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition border border-zinc-700">
+                    {prioritiesSaving ? 'Updating...' : 'Update'}
+                  </button>
                 </div>
               ) : (
                 <div className="text-center">
@@ -3973,6 +3981,10 @@ export default function ClientPage() {
                   <p className="text-zinc-500 text-xs">
                     Submitted {eveningPulse.completed_at ? new Date(eveningPulse.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) + ' at ' + new Date(eveningPulse.completed_at).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}
                   </p>
+                  <button onClick={saveEvening} disabled={eveningSaving}
+                    className="mt-4 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition border border-zinc-700">
+                    {eveningSaving ? 'Updating...' : 'Update'}
+                  </button>
                 </div>
               ) : (
                 <div className="text-center">
@@ -4184,6 +4196,10 @@ export default function ClientPage() {
                   <p className="text-zinc-500 text-xs">
                     Submitted {weeklyReview.completed_at ? new Date(weeklyReview.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}
                   </p>
+                  <button onClick={saveReview} disabled={reviewSaving}
+                    className="mt-4 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition border border-zinc-700">
+                    {reviewSaving ? 'Updating...' : 'Update'}
+                  </button>
                   <p className="text-zinc-700 text-xs italic mt-3">"The weekly review is where clarity is created and standards are maintained."</p>
                 </div>
               ) : (
@@ -4375,6 +4391,10 @@ export default function ClientPage() {
                   <p className="text-zinc-500 text-xs">
                     Submitted {monthlyReview.completed_at ? new Date(monthlyReview.completed_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' }) : ''}
                   </p>
+                  <button onClick={() => saveMonthly()} disabled={monthlySaving}
+                    className="mt-4 px-8 py-3 bg-zinc-800 hover:bg-zinc-700 disabled:opacity-40 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition border border-zinc-700">
+                    {monthlySaving ? 'Updating...' : 'Update'}
+                  </button>
                 </div>
               ) : (
                 <div className="text-center">
