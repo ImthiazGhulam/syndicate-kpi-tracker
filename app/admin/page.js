@@ -277,7 +277,7 @@ function AdminPageInner() {
       safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
       safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
       safe(supabase.from('identity_change').select('client_id, affirmations')),
-      safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent').eq('month', prevMonth).eq('year', prevYear)),
+      safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent, month, year').or(`and(month.eq.${prevMonth},year.eq.${prevYear}),and(month.eq.${new Date().getMonth()},year.eq.${new Date().getFullYear()})`)),
     ])
 
     const health = {}
@@ -404,7 +404,7 @@ function AdminPageInner() {
       safe(supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),                  // 3
       safe(supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),                     // 4
       safe(supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),                      // 5
-      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1).eq('year', new Date().getMonth() === 0 ? year - 1 : year).maybeSingle()), // 6 — previous month by default
+      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year', { ascending: false }).order('month', { ascending: false }).limit(1).maybeSingle()), // 6 — most recent review
       safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month')),                            // 7
       safe(supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle()),                                          // 8
       safe(supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle()),                             // 9
@@ -441,8 +441,9 @@ function AdminPageInner() {
     setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
     setAdminReviewWeek(monday)
     setAdminWarMapWeek(monday)
-    setAdminMonthlyMonth(new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1)
-    setAdminMonthlyYear(new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear())
+    const fetchedMonthly = monthlyRes.data && !Array.isArray(monthlyRes.data) ? monthlyRes.data : null
+    setAdminMonthlyMonth(fetchedMonthly ? fetchedMonthly.month : new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1)
+    setAdminMonthlyYear(fetchedMonthly ? fetchedMonthly.year : new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear())
 
     if (adventuresRes.data?.length > 0) {
       const merged = defaultAdventures().map(def =>
@@ -514,7 +515,7 @@ function AdminPageInner() {
       safe(supabase.from('daily_kpis').select('client_id').eq('date', today)),
       safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
       safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
-      safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent').eq('month', prevMonth).eq('year', prevYear)),
+      safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent, month, year').or(`and(month.eq.${prevMonth},year.eq.${prevYear}),and(month.eq.${new Date().getMonth()},year.eq.${new Date().getFullYear()})`)),
       safe(supabase.from('offer_playbooks').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
       safe(supabase.from('premium_position').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
       safe(supabase.from('wealth_wired').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
@@ -536,7 +537,7 @@ function AdminPageInner() {
     const kpisDone = kpis.length
     const warMapsDone = warMaps.filter(w => w.completed).length
     const lockInsDone = lockIns.filter(l => l.completed).length
-    const monthlysDone = monthlys.filter(m => m.completed).length
+    const monthlysDone = new Set(monthlys.filter(m => m.completed).map(m => m.client_id)).size
     const awaitingFeedbackIds = new Set(monthlys.filter(m => m.completed && !m.feedback_sent).map(m => m.client_id))
     const awaitingFeedback = clients.filter(c => awaitingFeedbackIds.has(c.id))
     const renewingSoon = clients.filter(c => {
