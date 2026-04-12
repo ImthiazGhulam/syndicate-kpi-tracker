@@ -1285,6 +1285,8 @@ export default function ClientPage() {
     return `${String(hour).padStart(2, '0')}:${String(minute).padStart(2, '0')}`
   }
 
+  const autoScrollRef = useRef(null)
+
   const handleCalDragStart = (e, task) => {
     if (task._isRecurring || task.completed) return
     e.preventDefault()
@@ -1292,37 +1294,43 @@ export default function ClientPage() {
     const el = e.currentTarget
     const rect = el.getBoundingClientRect()
 
-    // Create ghost
-    const ghost = el.cloneNode(true)
-    ghost.style.position = 'fixed'
-    ghost.style.width = `${rect.width}px`
-    ghost.style.opacity = '0.85'
-    ghost.style.zIndex = '9999'
-    ghost.style.pointerEvents = 'none'
-    ghost.style.transition = 'none'
-    ghost.style.boxShadow = '0 8px 32px rgba(0,0,0,0.5)'
-    ghost.style.border = '1px solid #C9A84C'
-    ghost.style.left = `${rect.left}px`
-    ghost.style.top = `${rect.top}px`
-    document.body.appendChild(ghost)
-
     const scrollContainer = weekViewRef.current
     dragRef.current = {
       task,
-      ghostEl: ghost,
+      ghostEl: null,
       offsetX: e.clientX - rect.left,
       offsetY: e.clientY - rect.top,
       startX: e.clientX,
       startY: e.clientY,
       moved: false,
       scrollContainer,
+      originalEl: el,
+      elWidth: rect.width,
     }
-
-    el.style.opacity = '0.3'
-    dragRef.current.originalEl = el
 
     document.addEventListener('pointermove', handleCalDragMove)
     document.addEventListener('pointerup', handleCalDragEnd)
+  }
+
+  const startAutoScroll = (clientY) => {
+    const d = dragRef.current
+    if (!d?.scrollContainer) return
+    const rect = d.scrollContainer.getBoundingClientRect()
+    const edgeZone = 48
+    let speed = 0
+    if (clientY < rect.top + edgeZone) speed = -Math.max(2, (edgeZone - (clientY - rect.top)) * 0.15)
+    else if (clientY > rect.bottom - edgeZone) speed = Math.max(2, (edgeZone - (rect.bottom - clientY)) * 0.15)
+
+    if (speed !== 0) {
+      if (!autoScrollRef.current) {
+        autoScrollRef.current = setInterval(() => {
+          if (d.scrollContainer) d.scrollContainer.scrollTop += speed
+        }, 16)
+      }
+    } else if (autoScrollRef.current) {
+      clearInterval(autoScrollRef.current)
+      autoScrollRef.current = null
+    }
   }
 
   const handleCalDragMove = (e) => {
@@ -1332,52 +1340,72 @@ export default function ClientPage() {
 
     const dx = e.clientX - d.startX
     const dy = e.clientY - d.startY
-    if (!d.moved && Math.abs(dx) < 5 && Math.abs(dy) < 5) return
-    d.moved = true
+    if (!d.moved && Math.abs(dx) < 10 && Math.abs(dy) < 10) return
+
+    // Create ghost on first real move (not on pointerdown)
+    if (!d.moved) {
+      d.moved = true
+      const ghost = d.originalEl.cloneNode(true)
+      ghost.style.position = 'fixed'
+      ghost.style.width = `${d.elWidth}px`
+      ghost.style.opacity = '0.85'
+      ghost.style.zIndex = '9999'
+      ghost.style.pointerEvents = 'none'
+      ghost.style.transition = 'none'
+      ghost.style.boxShadow = '0 8px 32px rgba(0,0,0,0.5)'
+      ghost.style.border = '1px solid #C9A84C'
+      document.body.appendChild(ghost)
+      d.ghostEl = ghost
+      d.originalEl.style.opacity = '0.3'
+    }
 
     d.ghostEl.style.left = `${e.clientX - d.offsetX}px`
     d.ghostEl.style.top = `${e.clientY - d.offsetY}px`
 
+    // Auto-scroll near edges
+    startAutoScroll(e.clientY)
+
     // Find which day column we're over (week view)
     const dayCols = d.scrollContainer?.querySelectorAll('[data-date]')
+    let hoverDate = null
+    let hoverTime = null
     if (dayCols) {
-      let hoverDate = null
-      let hoverTime = null
       for (const col of dayCols) {
         const rect = col.getBoundingClientRect()
         if (e.clientX >= rect.left && e.clientX <= rect.right) {
           hoverDate = col.dataset.date
-          hoverTime = calcTimeFromY(e.clientY, rect, col.scrollTop || d.scrollContainer.scrollTop)
+          hoverTime = calcTimeFromY(e.clientY, rect, d.scrollContainer.scrollTop)
           break
         }
       }
-      // Day view — single column
-      if (!hoverDate && d.scrollContainer) {
-        const grid = d.scrollContainer.querySelector('[data-dayview]')
-        if (grid) {
-          const rect = grid.getBoundingClientRect()
-          if (e.clientX >= rect.left && e.clientX <= rect.right) {
-            hoverDate = grid.dataset.dayview
-            hoverTime = calcTimeFromY(e.clientY, rect, d.scrollContainer.scrollTop)
-          }
+    }
+    // Day view — single column
+    if (!hoverDate && d.scrollContainer) {
+      const grid = d.scrollContainer.querySelector('[data-dayview]')
+      if (grid) {
+        const rect = grid.getBoundingClientRect()
+        if (e.clientX >= rect.left && e.clientX <= rect.right) {
+          hoverDate = grid.dataset.dayview
+          hoverTime = calcTimeFromY(e.clientY, rect, d.scrollContainer.scrollTop)
         }
       }
-      if (hoverDate && hoverTime) {
-        const val = { date: hoverDate, time: hoverTime }
-        dragOverRef.current = val
-        setDragOver(val)
-      }
+    }
+    if (hoverDate && hoverTime) {
+      const val = { date: hoverDate, time: hoverTime }
+      dragOverRef.current = val
+      setDragOver(val)
     }
   }
 
   const handleCalDragEnd = async (e) => {
     document.removeEventListener('pointermove', handleCalDragMove)
     document.removeEventListener('pointerup', handleCalDragEnd)
+    if (autoScrollRef.current) { clearInterval(autoScrollRef.current); autoScrollRef.current = null }
     const d = dragRef.current
     if (!d) return
 
     // Clean up ghost
-    d.ghostEl.remove()
+    if (d.ghostEl) d.ghostEl.remove()
     if (d.originalEl) d.originalEl.style.opacity = '1'
     const moved = d.moved
     const over = dragOverRef.current
