@@ -1276,8 +1276,8 @@ export default function ClientPage() {
     }
   }
 
-  const calcTimeFromY = (y, containerRect, scrollTop) => {
-    const relY = y - containerRect.top + scrollTop
+  const calcTimeFromY = (y, containerRect) => {
+    const relY = y - containerRect.top
     const totalMinutes = Math.round((relY / HOUR_H) * 60)
     const snapped = Math.round(totalMinutes / 15) * 15 // snap to 15-min
     const hour = Math.max(0, Math.min(23, Math.floor(snapped / 60)))
@@ -1374,7 +1374,7 @@ export default function ClientPage() {
         const rect = col.getBoundingClientRect()
         if (e.clientX >= rect.left && e.clientX <= rect.right) {
           hoverDate = col.dataset.date
-          hoverTime = calcTimeFromY(e.clientY, rect, d.scrollContainer.scrollTop)
+          hoverTime = calcTimeFromY(e.clientY, rect)
           break
         }
       }
@@ -1386,7 +1386,7 @@ export default function ClientPage() {
         const rect = grid.getBoundingClientRect()
         if (e.clientX >= rect.left && e.clientX <= rect.right) {
           hoverDate = grid.dataset.dayview
-          hoverTime = calcTimeFromY(e.clientY, rect, d.scrollContainer.scrollTop)
+          hoverTime = calcTimeFromY(e.clientY, rect)
         }
       }
     }
