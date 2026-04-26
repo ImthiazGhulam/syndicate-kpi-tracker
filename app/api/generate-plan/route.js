@@ -3,6 +3,27 @@ import { NextResponse } from 'next/server'
 
 const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
+async function callClaude(system, user, maxTokens = 2500) {
+  let message
+  for (let attempt = 0; attempt < 3; attempt++) {
+    try {
+      message = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: maxTokens,
+        system,
+        messages: [{ role: 'user', content: user }],
+      })
+      return message
+    } catch (apiErr) {
+      if (apiErr.status === 529 && attempt < 2) {
+        await new Promise(r => setTimeout(r, (attempt + 1) * 2000))
+        continue
+      }
+      throw apiErr
+    }
+  }
+}
+
 export async function POST(req) {
   try {
     const { type, data } = await req.json()
@@ -329,6 +350,102 @@ Write a 30-day BounceBackAbility™ recovery plan structured as:
 End with their own message to their future self (from Consolidate Q5) as a reminder of who they are becoming.
 
 Reference their specific words and situations throughout. Do not give generic advice. Every action must be tied to something they personally revealed. Be direct. Be specific. Be useful. This person needs to bounce back — help them weaponize this setback.`
+
+    } else if (type === 'distinction-pillars') {
+      systemPrompt = 'You are a brand positioning expert who creates premium, memorable pillar names for coaching and consulting frameworks. Respond ONLY with valid JSON — no markdown, no code fences.'
+      userPrompt = `A coach/consultant in the "${data.niche || 'coaching'}" space solves three core problems:
+
+1. ${data.problem_1}
+2. ${data.problem_2}
+3. ${data.problem_3}
+
+For each problem, suggest 3 branded pillar names. These should be:
+- One word or short phrase (1-3 words max)
+- Clear, memorable, premium-sounding
+- Specific to their niche
+- Easy to explain on a sales call
+
+Respond with ONLY this JSON:
+{
+  "pillar_1": ["Name A", "Name B", "Name C"],
+  "pillar_2": ["Name A", "Name B", "Name C"],
+  "pillar_3": ["Name A", "Name B", "Name C"]
+}`
+
+      const msg = await callClaude(systemPrompt, userPrompt, 500)
+      const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        return NextResponse.json({ suggestions: JSON.parse(cleaned) })
+      } catch { return NextResponse.json({ error: 'Failed to parse suggestions' }, { status: 500 }) }
+
+    } else if (type === 'distinction-mechanisms') {
+      systemPrompt = 'You are a brand positioning expert who creates unique mechanism names — branded, ownable names for specific methods and processes. Respond ONLY with valid JSON — no markdown, no code fences.'
+      const solutionLines = data.solutions.map(s => `Pillar "${s.pillarName}" — Solution ${s.slot}: ${s.solution}`).join('\n')
+      userPrompt = `A coach/consultant in the "${data.niche || 'coaching'}" space has these solutions under their pillars:
+
+${solutionLines}
+
+For each solution, suggest 3 unique mechanism names. A unique mechanism is a branded name for a specific method (e.g. "Instagram profile visit ad" becomes "Growth Tax Ads"). They should be:
+- 2-4 words
+- Memorable and ownable
+- Sound like proprietary IP
+- Premium and specific
+
+Respond with ONLY this JSON where keys are "pillar_slot" format:
+{
+  "1_1": ["Name A", "Name B", "Name C"],
+  "1_2": ["Name A", "Name B", "Name C"],
+  "1_3": ["Name A", "Name B", "Name C"],
+  "2_1": ["Name A", "Name B", "Name C"],
+  "2_2": ["Name A", "Name B", "Name C"],
+  "2_3": ["Name A", "Name B", "Name C"],
+  "3_1": ["Name A", "Name B", "Name C"],
+  "3_2": ["Name A", "Name B", "Name C"],
+  "3_3": ["Name A", "Name B", "Name C"]
+}`
+
+      const msg = await callClaude(systemPrompt, userPrompt, 1000)
+      const text = msg.content[0].type === 'text' ? msg.content[0].text : ''
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        return NextResponse.json({ suggestions: JSON.parse(cleaned) })
+      } catch { return NextResponse.json({ error: 'Failed to parse suggestions' }, { status: 500 }) }
+
+    } else if (type === 'distinction-engine') {
+      systemPrompt = 'You are a premium brand strategist and copywriter. You create compelling intellectual property frameworks for coaches, consultants, and service providers. You write with clarity, authority, and commercial intent. No fluff.'
+      userPrompt = `Build a complete Distinction Engine output for this person based on their framework:
+
+PILLAR 1: ${data.pillar_1}
+Problem it solves: ${data.problem_1}
+Unique Mechanisms:
+  - ${data.mechanism_1_1} (solves: ${data.solution_1_1})
+  - ${data.mechanism_1_2} (solves: ${data.solution_1_2})
+  - ${data.mechanism_1_3} (solves: ${data.solution_1_3})
+
+PILLAR 2: ${data.pillar_2}
+Problem it solves: ${data.problem_2}
+Unique Mechanisms:
+  - ${data.mechanism_2_1} (solves: ${data.solution_2_1})
+  - ${data.mechanism_2_2} (solves: ${data.solution_2_2})
+  - ${data.mechanism_2_3} (solves: ${data.solution_2_3})
+
+PILLAR 3: ${data.pillar_3}
+Problem it solves: ${data.problem_3}
+Unique Mechanisms:
+  - ${data.mechanism_3_1} (solves: ${data.solution_3_1})
+  - ${data.mechanism_3_2} (solves: ${data.solution_3_2})
+  - ${data.mechanism_3_3} (solves: ${data.solution_3_3})
+
+Write TWO sections:
+
+SECTION 1 — COMPILED DISTINCTION ENGINE
+Lay out the complete framework in a clean, structured format. Show the three pillars with their mechanisms underneath. Make it look like premium intellectual property.
+
+SECTION 2 — NARRATIVE EXPLANATION
+Write a compelling narrative they can use in sales calls, bios, webinars, presentations, and content. It should explain what they do, how their three-part system works, and why their method is different. Write it in first person ("I help..."). Make it sound natural, confident, and commercially powerful — not robotic. Keep it under 300 words.
+
+Reference their specific pillar names and mechanism names throughout. This is THEIR framework — make it sound owned, structured, and hard to ignore.`
     }
 
     if (!systemPrompt) {

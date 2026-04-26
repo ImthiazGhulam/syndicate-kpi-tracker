@@ -215,6 +215,7 @@ function AdminPageInner() {
   const [clientUnshakeable, setClientUnshakeable] = useState(null)
   const [clientBounceBack, setClientBounceBack] = useState(null)
   const [editingBounceBack, setEditingBounceBack] = useState(false)
+  const [clientDistinction, setClientDistinction] = useState(null)
   const [clientAIAccelerator, setClientAIAccelerator] = useState(null)
   const [identityChange, setIdentityChange] = useState(null)
   const [lifeDesign, setLifeDesign] = useState(null)
@@ -371,6 +372,7 @@ function AdminPageInner() {
     setClientWealthWired(null)
     setClientUnshakeable(null)
     setClientBounceBack(null)
+    setClientDistinction(null)
     setClientAIAccelerator(null)
     setAllClientLockIns([])
     setAllClientWarMaps([])
@@ -407,6 +409,7 @@ function AdminPageInner() {
       wealthWiredRes,   // 16b. wealth_wired
       unshakeableRes,   // 16c. unshakeable_playbook
       bounceBackRes,    // 16e. bounce_back
+      distinctionRes,   // 16f. distinction_engine
       aiAccelRes,       // 16d. ai_accelerator
       allLockInsRes,    // 17. weekly_review (all)
       allWarMapsRes,    // 18. war_map_weekly (all)
@@ -430,6 +433,7 @@ function AdminPageInner() {
       safe(supabase.from('wealth_wired').select('*').eq('client_id', client.id).maybeSingle()),                                              // 16b
       safe(supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),         // 16c
       safe(supabase.from('bounce_back').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),                   // 16e
+      safe(supabase.from('distinction_engine').select('*').eq('client_id', client.id).maybeSingle()),                                        // 16f
       safe(supabase.from('ai_accelerator').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),              // 16d
       safe(supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false })), // 17
       safe(supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false })), // 18
@@ -451,6 +455,7 @@ function AdminPageInner() {
     setClientWealthWired(wealthWiredRes.data && !Array.isArray(wealthWiredRes.data) ? wealthWiredRes.data : null)
     setClientUnshakeable(Array.isArray(unshakeableRes.data) && unshakeableRes.data.length > 0 ? unshakeableRes.data : null)
     setClientBounceBack(Array.isArray(bounceBackRes.data) && bounceBackRes.data.length > 0 ? bounceBackRes.data : null)
+    setClientDistinction(distinctionRes.data && !Array.isArray(distinctionRes.data) ? distinctionRes.data : null)
     setClientAIAccelerator(Array.isArray(aiAccelRes.data) && aiAccelRes.data.length > 0 ? aiAccelRes.data : null)
     setAllClientLockIns(Array.isArray(allLockInsRes.data) ? allLockInsRes.data : [])
     setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
@@ -865,6 +870,7 @@ function AdminPageInner() {
     { heading: 'Build™', items: [
       { id: 'playbook',     label: 'Sold Out™ Playbook' },
       { id: 'premium-pos',  label: 'Premium Position™' },
+      { id: 'distinction',  label: 'Distinction Engine™' },
       { id: 'ai-accel',     label: 'AI Accelerator™' },
     ]},
     { heading: 'Rewire™', items: [
@@ -4178,6 +4184,54 @@ function AdminPageInner() {
                     </div>
                     )
                   })}
+                </div>
+                )
+              })()}
+
+              {activeTab === 'distinction' && (() => {
+                if (!clientDistinction) return (
+                  <div className="fade-in text-center py-16">
+                    <span className="text-4xl mb-4 block">{'\u2699\uFE0F'}</span>
+                    <p className="text-zinc-500 text-sm font-medium">Client hasn&apos;t started their Distinction Engine&trade; yet.</p>
+                  </div>
+                )
+
+                const de = clientDistinction
+                const d = de.engine_data || {}
+
+                return (
+                <div className="fade-in">
+                  {/* Header */}
+                  <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-8 mb-6">
+                    <h2 className="text-lg font-black text-white uppercase tracking-wider">Distinction Engine&trade;</h2>
+                    <p className="text-zinc-600 text-xs mt-2">Stage {de.current_stage || 1} of 5 &middot; Updated {de.updated_at ? new Date(de.updated_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '\u2014'}</p>
+                  </div>
+
+                  {/* Pillars + Mechanisms */}
+                  <div className="space-y-4 mb-6">
+                    {[1, 2, 3].map(p => (
+                      <div key={p} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                        <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Pillar {p}: {d[`pillar_${p}`] || '\u2014'}</h3>
+                        <p className="text-xs text-zinc-500 mb-3">{d[`problem_${p}`] || '\u2014'}</p>
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                          {[1, 2, 3].map(s => (
+                            <div key={s} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
+                              <p className="text-xs font-bold text-gold mb-1">{d[`mechanism_${p}_${s}`] || '\u2014'}</p>
+                              <p className="text-xs text-zinc-500">{d[`solution_${p}_${s}`] || '\u2014'}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Generated Output */}
+                  {de.generated_output && (
+                    <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
+                      <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Generated Distinction Engine&trade;</h3>
+                      <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{de.generated_output}</div>
+                    </div>
+                  )}
                 </div>
                 )
               })()}

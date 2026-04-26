@@ -1828,6 +1828,7 @@ export default function ClientPage() {
     { heading: 'Build™', items: [
       { id: 'premium-pos', label: 'Premium Position™',    icon: '👑', href: '/premium-position' },
       { id: 'playbook',    label: 'Sold Out™ Playbook',   icon: '📖', href: '/playbook' },
+      { id: 'distinction', label: 'Distinction Engine™',  icon: '⚙️', href: '/distinction-engine' },
       { id: 'ai-accel',    label: 'AI Accelerator™',      icon: '⚡', href: '/ai-accelerator' },
     ]},
     { heading: 'Rewire™', items: [
