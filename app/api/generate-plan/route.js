@@ -352,18 +352,33 @@ End with their own message to their future self (from Consolidate Q5) as a remin
 Reference their specific words and situations throughout. Do not give generic advice. Every action must be tied to something they personally revealed. Be direct. Be specific. Be useful. This person needs to bounce back — help them weaponize this setback.`
 
     } else if (type === 'distinction-pillars') {
+      const b = data.brand?.brand_star || {}
+      const brandContext = b.name ? `
+BRAND VOICE CONTEXT (from their Premium Position™ Blueprint):
+Brand: ${b.name || ''}
+Personality traits: ${(b.personality || []).join(', ') || 'Not set'}
+Values: ${(b.values || []).join(', ') || 'Not set'}
+Who they serve: ${b.specific_description || b.client_type || ''}
+What they do: ${b.what_you_do || ''}
+Contrarian belief: ${b.contrarian_belief || ''}
+Sector: ${b.sector || ''}
+
+IMPORTANT: All suggested names MUST align with their brand personality and values above. If they are bold and direct, the names should be bold and direct. If they are warm and nurturing, reflect that. Match the energy of their brand.` : ''
+
       systemPrompt = 'You are a brand positioning expert who creates premium, memorable pillar names for coaching and consulting frameworks. Respond ONLY with valid JSON — no markdown, no code fences.'
       userPrompt = `A coach/consultant in the "${data.niche || 'coaching'}" space solves three core problems:
 
 1. ${data.problem_1}
 2. ${data.problem_2}
 3. ${data.problem_3}
+${brandContext}
 
 For each problem, suggest 3 branded pillar names. These should be:
 - One word or short phrase (1-3 words max)
 - Clear, memorable, premium-sounding
 - Specific to their niche
 - Easy to explain on a sales call
+- Aligned with their brand voice and personality
 
 Respond with ONLY this JSON:
 {
@@ -380,17 +395,26 @@ Respond with ONLY this JSON:
       } catch { return NextResponse.json({ error: 'Failed to parse suggestions' }, { status: 500 }) }
 
     } else if (type === 'distinction-mechanisms') {
+      const b = data.brand?.brand_star || {}
+      const brandContext = b.name ? `
+BRAND VOICE CONTEXT:
+Brand: ${b.name || ''} | Personality: ${(b.personality || []).join(', ') || 'Not set'} | Values: ${(b.values || []).join(', ') || 'Not set'}
+Contrarian belief: ${b.contrarian_belief || ''} | Sector: ${b.sector || ''}
+IMPORTANT: All mechanism names MUST match this brand's tone and energy.` : ''
+
       systemPrompt = 'You are a brand positioning expert who creates unique mechanism names — branded, ownable names for specific methods and processes. Respond ONLY with valid JSON — no markdown, no code fences.'
       const solutionLines = data.solutions.map(s => `Pillar "${s.pillarName}" — Solution ${s.slot}: ${s.solution}`).join('\n')
       userPrompt = `A coach/consultant in the "${data.niche || 'coaching'}" space has these solutions under their pillars:
 
 ${solutionLines}
+${brandContext}
 
 For each solution, suggest 3 unique mechanism names. A unique mechanism is a branded name for a specific method (e.g. "Instagram profile visit ad" becomes "Growth Tax Ads"). They should be:
 - 2-4 words
 - Memorable and ownable
 - Sound like proprietary IP
 - Premium and specific
+- Aligned with their brand voice
 
 Respond with ONLY this JSON where keys are "pillar_slot" format:
 {
@@ -413,8 +437,20 @@ Respond with ONLY this JSON where keys are "pillar_slot" format:
       } catch { return NextResponse.json({ error: 'Failed to parse suggestions' }, { status: 500 }) }
 
     } else if (type === 'distinction-engine') {
+      const b = data.brand?.brand_star || {}
+      const h = data.brand?.hero || {}
+      const brandBlock = b.name ? `
+BRAND VOICE (from their Premium Position™ Blueprint):
+Brand: ${b.name || ''} | Personality: ${(b.personality || []).join(', ') || 'Not set'} | Values: ${(b.values || []).join(', ') || 'Not set'}
+Who they serve: ${b.specific_description || ''} | Sector: ${b.sector || ''}
+What they do: ${b.what_you_do || ''} | Contrarian belief: ${b.contrarian_belief || ''}
+Identity label: ${h.identity_label || ''} | Why they do this: ${h.why || ''}
+IMPORTANT: The narrative MUST be written in this person's brand voice. Match their personality traits and values. If they are bold and direct, write bold and direct. If they are warm, write warm. The narrative should sound like THEM, not generic copywriting.
+` : ''
+
       systemPrompt = 'You are a premium brand strategist and copywriter. You create compelling intellectual property frameworks for coaches, consultants, and service providers. You write with clarity, authority, and commercial intent. No fluff.'
       userPrompt = `Build a complete Distinction Engine output for this person based on their framework:
+${brandBlock}
 
 PILLAR 1: ${data.pillar_1}
 Problem it solves: ${data.problem_1}

@@ -105,6 +105,7 @@ export default function DistinctionEnginePage() {
   const [loading, setLoading] = useState(true)
 
   const [record, setRecord] = useState(null)
+  const [brandData, setBrandData] = useState(null)
   const [currentStage, setCurrentStage] = useState(1)
   const [data, setData] = useState(defaultData())
   const [generatedOutput, setGeneratedOutput] = useState('')
@@ -139,6 +140,10 @@ export default function DistinctionEnginePage() {
       const { data: client } = await supabase.from('clients').select('*').eq('email', session.user.email).single()
       if (!client) { router.push('/client'); return }
       setClientData(client)
+
+      // Fetch Premium Position for brand voice context
+      const { data: ppData } = await supabase.from('premium_position').select('brand_star, hero, bucket').eq('client_id', client.id).maybeSingle()
+      if (ppData) setBrandData(ppData)
 
       const { data: existing } = await supabase.from('distinction_engine').select('*').eq('client_id', client.id).maybeSingle()
       if (existing) {
@@ -213,6 +218,7 @@ export default function DistinctionEnginePage() {
             problem_2: data.problem_2,
             problem_3: data.problem_3,
             niche: clientData.business || '',
+            brand: brandData || null,
           },
         }),
       })
@@ -252,6 +258,7 @@ export default function DistinctionEnginePage() {
           data: {
             solutions: allSolutions,
             niche: clientData.business || '',
+            brand: brandData || null,
           },
         }),
       })
@@ -281,7 +288,7 @@ export default function DistinctionEnginePage() {
       const res = await fetch('/api/generate-plan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'distinction-engine', data }),
+        body: JSON.stringify({ type: 'distinction-engine', data: { ...data, brand: brandData || null } }),
       })
       const result = await res.json()
       if (result.error) { alert('Failed: ' + result.error); setGenerating(false); return }
