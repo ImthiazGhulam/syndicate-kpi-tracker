@@ -958,13 +958,6 @@ export default function PlaybookPage() {
             ))}
           </div>
 
-          {/* AI Research Button */}
-          <div className="mt-6 pt-6 border-t border-zinc-800">
-            <p className="text-xs text-zinc-500 mb-3">Let AI research your niche and suggest targeted demographics, psychographics, and pain points specific to your market.</p>
-            <AIButton loading={aiLoading['sold-out-niche-research']} onClick={runNicheResearch} hasOutput={!!icpData.ai_niche_research} label="Research My Niche" regenerateLabel="Re-research My Niche" />
-            <AIOutput content={icpData.ai_niche_research} title="Niche Research" />
-          </div>
-
           <div className="flex justify-end mt-8">
             <button onClick={() => setIcpSection('demographics')} className="px-6 py-2.5 bg-gold/10 text-gold border border-gold/30 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-gold/20 transition">
               Next: Demographics &rarr;
