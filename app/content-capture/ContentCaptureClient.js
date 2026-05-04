@@ -114,6 +114,10 @@ export default function ContentCaptureClient() {
   const [currentStage, setCurrentStage] = useState(1)
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
+  // Business context
+  const [brandData, setBrandData] = useState(null)
+  const [offerData, setOfferData] = useState(null)
+
   // Capture data
   const [debriefData, setDebriefData] = useState([])
   const [hasDebriefs, setHasDebriefs] = useState(true)
@@ -166,6 +170,12 @@ export default function ContentCaptureClient() {
       const { data: client } = await supabase.from('clients').select('*').eq('email', session.user.email).single()
       if (!client) { router.push('/client'); return }
       setClientData(client)
+
+      // Fetch Premium Position + Sold Out for business context
+      const { data: ppData } = await supabase.from('premium_position').select('brand_star, hero').eq('client_id', client.id).maybeSingle()
+      if (ppData) setBrandData(ppData)
+      const { data: opData } = await supabase.from('offer_playbooks').select('icp, bang_bang').eq('client_id', client.id).maybeSingle()
+      if (opData) setOfferData(opData)
 
       // Fetch last 7 days of debriefs
       const sevenDaysAgo = new Date()
@@ -248,6 +258,40 @@ export default function ContentCaptureClient() {
     saveTimerRef.current = setTimeout(() => saveToSupabase(fields), 500)
   }, [saveToSupabase])
 
+  // ── Business Context Builder ─────────────────────────────────────────────────
+
+  const getBusinessContext = () => {
+    const parts = []
+    if (brandData?.brand_star) {
+      const s = brandData.brand_star
+      if (s.what_you_do) parts.push(`What they do: ${s.what_you_do}`)
+      if (s.sector) parts.push(`Sector: ${s.sector}`)
+      if (s.client_type) parts.push(`Serves: ${s.client_type}`)
+      if (s.specific_description) parts.push(`Specifically: ${s.specific_description}`)
+      if (s.contrarian_belief) parts.push(`Contrarian belief: ${s.contrarian_belief}`)
+      if (s.personality?.length) parts.push(`Brand personality: ${s.personality.join(', ')}`)
+    }
+    if (brandData?.hero) {
+      const h = brandData.hero
+      if (h.gift) parts.push(`Their gift/expertise: ${h.gift}`)
+      if (h.identity_label) parts.push(`Identity: ${h.identity_label}`)
+    }
+    if (offerData?.icp) {
+      const i = offerData.icp
+      if (i.sector) parts.push(`Client sector: ${i.sector}`)
+      if (i.specific_description) parts.push(`Ideal client: ${i.specific_description}`)
+      if (i.desired_identity) parts.push(`Client wants to become: ${i.desired_identity}`)
+      if (i.trigger_moment) parts.push(`Client trigger moment: ${i.trigger_moment}`)
+    }
+    if (offerData?.bang_bang) {
+      const b = offerData.bang_bang
+      if (b.name) parts.push(`Main offer: ${b.name}`)
+      if (b.promise) parts.push(`Promise: ${b.promise}`)
+      if (b.who_for) parts.push(`Offer is for: ${b.who_for}`)
+    }
+    return parts.length > 0 ? parts.join('\n') : ''
+  }
+
   // ── Suggest Hooks from Captures ──────────────────────────────────────────────
 
   const suggestHooks = async () => {
@@ -262,7 +306,7 @@ export default function ContentCaptureClient() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           type: 'content-capture-hooks',
-          data: { captures: captureText, templates: templateList },
+          data: { captures: captureText, templates: templateList, business_context: getBusinessContext() },
         }),
       })
       const result = await res.json()
@@ -295,6 +339,7 @@ export default function ContentCaptureClient() {
             captures: captureText,
             format: selectedFormat,
             cta: ctaText,
+            business_context: getBusinessContext(),
           },
         }),
       })

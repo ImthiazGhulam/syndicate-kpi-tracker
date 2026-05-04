@@ -777,11 +777,14 @@ Suggest:
 
 Be specific to their niche and offer type.`
     } else if (type === 'content-capture-hooks') {
-      systemPrompt = 'You are a content strategist for coaches, consultants, and service providers. You write scroll-stopping hooks. No fluff. Every hook must be specific to what the person actually experienced — never generic.'
+      systemPrompt = 'You are a content strategist for coaches, consultants, and service providers. You write scroll-stopping hooks. No fluff. Every hook must be specific to what the person actually experienced — never generic. You understand their brand, their audience, and their offer.'
       userPrompt = `Based on this person's real story/capture, suggest 5 completed hooks they can use as content openers.
 
 THE CAPTURE (one specific story, win, learning, or insight):
 ${data.captures}
+
+${data.business_context ? `THEIR BUSINESS CONTEXT (who they are, who they serve, what they sell):
+${data.business_context}` : ''}
 
 HOOK TEMPLATES TO DRAW FROM:
 ${data.templates}
@@ -789,6 +792,7 @@ ${data.templates}
 Rules:
 - Each hook must be a COMPLETE, ready-to-use sentence (not a template with blanks)
 - Each hook must be directly tied to the specific capture above
+- The hooks must sound like THEM — aligned with their brand, sector, and audience
 - Pick the 5 best-fitting templates and fill them in using the person's actual story
 - Make them punchy, curiosity-driven, and scroll-stopping
 - Return ONLY the 5 hooks, one per line, numbered 1-5. No explanation.`
@@ -802,13 +806,16 @@ Rules:
         'photo-caption': 'PHOTO CAPTION. Write a compelling caption that works with a photo. Structure: Hook (first line must stop the scroll — use line break after). Story (2-3 short paragraphs, personal and raw). Key insight or steps (use line breaks or bullet points). Payoff (the lesson). CTA (question to drive comments or link direction). Keep under 300 words.',
       }
 
-      systemPrompt = 'You are a content strategist for coaches, consultants, and service providers. You write direct, engaging, scroll-stopping content. No fluff. No corporate speak. Write like a real person who gives genuine value. Match the energy of someone who has been in the trenches and is sharing what actually works.'
+      systemPrompt = 'You are a content strategist for coaches, consultants, and service providers. You write direct, engaging, scroll-stopping content. No fluff. No corporate speak. Write like a real person who gives genuine value. Match the energy of someone who has been in the trenches and is sharing what actually works. You know their brand voice, their audience, and their offer inside out.'
       userPrompt = `Create content using this structure:
 
 HOOK: ${data.hook}
 
 SOURCE MATERIAL (from their real week):
 ${data.captures}
+
+${data.business_context ? `THEIR BUSINESS CONTEXT (who they are, who they serve, what they sell):
+${data.business_context}` : ''}
 
 CTA DIRECTION: ${data.cta}
 
@@ -822,7 +829,9 @@ Rules:
 - Include the CTA naturally
 - Write in first person
 - Be specific — use details from the source material, not generic advice
-- Match the tone: confident, direct, slightly raw, real`
+- Match the tone: confident, direct, slightly raw, real
+- If business context is provided, write as THEM — use their language, speak to their audience, and position content around their offer/expertise
+- The content should subtly position them as the expert in their space without being salesy`
     }
 
     if (!systemPrompt) {
