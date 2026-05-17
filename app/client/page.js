@@ -1099,16 +1099,17 @@ export default function ClientPage() {
 
     // Save each adventure individually — update existing or insert new
     for (const adv of adventuresForm) {
+      const cleared = !adv.title?.trim()
       const payload = {
         client_id: clientData.id,
         year,
         order_index: adv.order_index,
         title: adv.title || '',
-        who_with: adv.who_with || '',
-        when_planned: adv.when_planned || '',
-        where_planned: adv.where_planned || '',
-        planned_date: adv.planned_date || null,
-        completed: adv.completed || false,
+        who_with: cleared ? '' : (adv.who_with || ''),
+        when_planned: cleared ? '' : (adv.when_planned || ''),
+        where_planned: cleared ? '' : (adv.where_planned || ''),
+        planned_date: cleared ? null : (adv.planned_date || null),
+        completed: cleared ? false : (adv.completed || false),
       }
       if (adv.id) {
         await supabase.from('mini_adventures').update(payload).eq('id', adv.id)
