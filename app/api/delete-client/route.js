@@ -2,10 +2,9 @@ import { createClient } from '@supabase/supabase-js'
 import { NextResponse } from 'next/server'
 
 function getSupabase() {
-  return createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL,
-    process.env.SUPABASE_SERVICE_ROLE_KEY
-  )
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+  if (!key) throw new Error('No Supabase key found — add SUPABASE_SERVICE_ROLE_KEY to Vercel env vars')
+  return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, key)
 }
 
 const CHILD_TABLES = [
