@@ -854,7 +854,7 @@ function AdminPageInner() {
       const res = await fetch('/api/delete-client', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ clientId, adminEmail: user.email }),
+        body: JSON.stringify({ clientId, adminEmail: process.env.NEXT_PUBLIC_ADMIN_EMAIL }),
       })
       const result = await res.json()
       if (result.success) {
