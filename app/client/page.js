@@ -741,8 +741,14 @@ export default function ClientPage() {
     if (editingLead?.id === leadId) setEditingLead(null)
   }
 
+  const toggleLeadMagnet = async (lead) => {
+    const newVal = !lead.lead_magnet_sent
+    const { data } = await supabase.from('leads').update({ lead_magnet_sent: newVal, updated_at: new Date().toISOString() }).eq('id', lead.id).select().single()
+    if (data) setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
+  }
+
   const openLeadModal = (lead) => {
-    setLeadForm({ name: lead.name || '', instagram: lead.instagram || '', notes: lead.notes || '' })
+    setLeadForm({ name: lead.name || '', instagram: lead.instagram || '', notes: lead.notes || '', lead_magnet_sent: lead.lead_magnet_sent || false })
     setEditingLead(lead)
   }
 
@@ -752,6 +758,7 @@ export default function ClientPage() {
       name: leadForm.name.trim(),
       instagram: leadForm.instagram.trim() || null,
       notes: leadForm.notes.trim() || null,
+      lead_magnet_sent: leadForm.lead_magnet_sent || false,
       updated_at: new Date().toISOString(),
     }).eq('id', editingLead.id).select().single()
     if (data) setLeads(prev => prev.map(l => l.id === editingLead.id ? data : l))
@@ -3870,9 +3877,15 @@ export default function ClientPage() {
                               </div>
                             </div>
                             {lead.notes && <p className="text-[10px] text-zinc-500 mt-1 line-clamp-2">{lead.notes}</p>}
-                            <p className="text-[10px] text-zinc-600 mt-1.5">
-                            Moved: {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                            </p>
+                            <div className="flex items-center justify-between mt-1.5">
+                              <button onClick={(e) => { e.stopPropagation(); toggleLeadMagnet(lead) }}
+                                className={`text-[10px] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded transition ${lead.lead_magnet_sent ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' : 'text-zinc-600 hover:text-zinc-400 border border-zinc-700/50'}`}>
+                                {lead.lead_magnet_sent ? '✓ Magnet Sent' : 'Magnet'}
+                              </button>
+                              <p className="text-[10px] text-zinc-600">
+                                {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                              </p>
+                            </div>
                             {/* Mobile move buttons */}
                             <div className="flex items-center gap-1.5 mt-2 sm:hidden">
                               {prevStageId && (
@@ -3977,6 +3990,16 @@ export default function ClientPage() {
                       </div>
                     )
                   })()}
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Lead Magnet</label>
+                  <button onClick={() => setLeadForm(f => ({ ...f, lead_magnet_sent: !f.lead_magnet_sent }))}
+                    className={`flex items-center gap-2 px-4 py-2.5 rounded border transition text-sm font-semibold ${leadForm.lead_magnet_sent ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}>
+                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition ${leadForm.lead_magnet_sent ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`}>
+                      {leadForm.lead_magnet_sent && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                    {leadForm.lead_magnet_sent ? 'Lead Magnet Sent' : 'Not Sent'}
+                  </button>
                 </div>
                 <div className="bg-zinc-800/50 rounded-lg px-4 py-3">
                   <div className="flex justify-between text-xs text-zinc-600">
