@@ -3,35 +3,9 @@ import { NextResponse } from 'next/server'
 
 function getSupabase() {
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-  if (!key) throw new Error('No Supabase key found — add SUPABASE_SERVICE_ROLE_KEY to Vercel env vars')
+  if (!key) throw new Error('No Supabase key found')
   return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, key)
 }
-
-const CHILD_TABLES = [
-  'war_map_tasks',
-  'war_map_weekly',
-  'daily_pulse',
-  'evening_pulse',
-  'daily_kpis',
-  'leads',
-  'weekly_review',
-  'monthly_review',
-  'life_design',
-  'mini_adventures',
-  'identity_change',
-  'offer_playbooks',
-  'premium_position',
-  'wealth_wired',
-  'bounce_back',
-  'unshakeable_playbook',
-  'ai_accelerator',
-  'distinction_engine',
-  'content_captures',
-  'misogi_milestones',
-  'misogi_recurring_blocks',
-  'days_off',
-  'checkins',
-]
 
 export async function POST(req) {
   try {
@@ -46,49 +20,16 @@ export async function POST(req) {
 
     const supabase = getSupabase()
 
-    // Delete task completions/exclusions tied to war_map_tasks
-    const { data: warTasks } = await supabase.from('war_map_tasks').select('id').eq('client_id', clientId)
-    if (warTasks?.length > 0) {
-      const taskIds = warTasks.map(t => t.id)
-      await supabase.from('war_map_task_completions').delete().in('task_id', taskIds)
-      await supabase.from('war_map_task_exclusions').delete().in('task_id', taskIds)
-    }
-
-    // Delete project_tasks via projects
-    const { data: projects } = await supabase.from('projects').select('id').eq('client_id', clientId)
-    if (projects?.length > 0) {
-      const projectIds = projects.map(p => p.id)
-      await supabase.from('project_tasks').delete().in('project_id', projectIds)
-    }
-    await supabase.from('projects').delete().eq('client_id', clientId)
-
-    // Delete all child tables
-    for (const table of CHILD_TABLES) {
-      await supabase.from(table).delete().eq('client_id', clientId)
-    }
-
-    // Get client email before deleting
-    const { data: clientRecord } = await supabase.from('clients').select('email').eq('id', clientId).single()
-
-    // Delete the client record
-    const { error } = await supabase.from('clients').delete().eq('id', clientId)
+    // Call the database function — runs with SECURITY DEFINER, bypasses RLS
+    const { error } = await supabase.rpc('delete_client_cascade', { target_client_id: clientId })
     if (error) {
       return NextResponse.json({ error: error.message }, { status: 500 })
     }
 
-    // Verify the client was actually deleted (RLS may silently block with anon key)
+    // Verify
     const { data: stillExists } = await supabase.from('clients').select('id').eq('id', clientId).maybeSingle()
     if (stillExists) {
-      return NextResponse.json({ error: 'Delete blocked by database permissions. Add SUPABASE_SERVICE_ROLE_KEY to Vercel environment variables and redeploy.' }, { status: 500 })
-    }
-
-    // Delete the auth user so they can no longer log in
-    if (clientRecord?.email) {
-      try {
-        const { data: { users } } = await supabase.auth.admin.listUsers()
-        const authUser = users?.find(u => u.email === clientRecord.email)
-        if (authUser) await supabase.auth.admin.deleteUser(authUser.id)
-      } catch (_) { /* needs service role key */ }
+      return NextResponse.json({ error: 'Delete failed — client still exists' }, { status: 500 })
     }
 
     return NextResponse.json({ success: true })
