@@ -721,6 +721,16 @@ export default function ClientPage() {
 
   const addLead = async (status) => {
     if (!newLeadName.trim()) return
+    const duplicate = leads.find(l => l.name.toLowerCase().trim() === newLeadName.trim().toLowerCase())
+    if (duplicate) {
+      const stage = LEAD_STAGES.find(s => s.id === duplicate.status)?.label || duplicate.status
+      setConfirmAction({ message: `"${duplicate.name}" already exists in "${stage}". Add anyway?`, onConfirm: async () => {
+        const { data } = await supabase.from('leads').insert([{ client_id: clientData.id, name: newLeadName.trim(), status, instagram: newLeadIG.trim() || null }]).select().single()
+        if (data) setLeads(prev => [...prev, data])
+        setNewLeadName(''); setNewLeadIG(''); setAddingLeadCol(null)
+      }})
+      return
+    }
     const { data } = await supabase.from('leads').insert([{
       client_id: clientData.id, name: newLeadName.trim(), status,
       instagram: newLeadIG.trim() || null,
@@ -3865,6 +3875,12 @@ export default function ClientPage() {
                                 {lead.instagram && (
                                   <p className="text-xs text-violet-400 mt-0.5 truncate">@{lead.instagram.replace('@', '')}</p>
                                 )}
+                                {(() => {
+                                  const dupes = leads.filter(l => l.id !== lead.id && l.name.toLowerCase().trim() === lead.name.toLowerCase().trim())
+                                  if (dupes.length === 0) return null
+                                  const stages = dupes.map(d => LEAD_STAGES.find(s => s.id === d.status)?.label || d.status).join(', ')
+                                  return <p className="text-[10px] text-amber-400 mt-0.5">Duplicate — also in {stages}</p>
+                                })()}
                               </div>
                               <div className="flex items-center gap-0.5 flex-shrink-0">
                                 <button onClick={(e) => { e.stopPropagation(); openLeadModal(lead) }}
