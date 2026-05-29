@@ -3881,17 +3881,17 @@ export default function ClientPage() {
                             <p className="text-[10px] text-zinc-600 mt-1.5">
                             Moved: {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                             </p>
-                            {/* Mobile move buttons */}
-                            <div className="flex items-center gap-1.5 mt-2 sm:hidden">
+                            {/* Move buttons */}
+                            <div className="flex items-center gap-1.5 mt-2">
                               {prevStageId && (
                                 <button onClick={(e) => { e.stopPropagation(); moveLead(lead.id, prevStageId) }}
-                                  className="flex-1 py-1.5 text-[10px] font-semibold text-zinc-500 active:text-white bg-zinc-900 active:bg-zinc-700 rounded transition uppercase tracking-wider text-center">
+                                  className="flex-1 py-1.5 text-[10px] font-semibold text-zinc-500 hover:text-white active:text-white bg-zinc-900 hover:bg-zinc-700 active:bg-zinc-700 rounded transition uppercase tracking-wider text-center">
                                   ← Back
                                 </button>
                               )}
                               {nextStageId && (
                                 <button onClick={(e) => { e.stopPropagation(); moveLead(lead.id, nextStageId) }}
-                                  className="flex-1 py-1.5 text-[10px] font-semibold text-gold active:text-gold-light bg-gold/10 active:bg-gold/20 rounded transition uppercase tracking-wider text-center">
+                                  className="flex-1 py-1.5 text-[10px] font-semibold text-gold hover:text-gold-light active:text-gold-light bg-gold/10 hover:bg-gold/20 active:bg-gold/20 rounded transition uppercase tracking-wider text-center">
                                   Next →
                                 </button>
                               )}
