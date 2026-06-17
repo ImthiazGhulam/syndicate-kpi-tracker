@@ -1,10 +1,13 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+function getClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+}
 
 async function callClaude(system, user, maxTokens = 2500) {
   let message
+  const client = getClient()
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       message = await client.messages.create({
@@ -934,6 +937,7 @@ Rules:
       : 2500
 
     let message
+    const client = getClient()
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         message = await client.messages.create({

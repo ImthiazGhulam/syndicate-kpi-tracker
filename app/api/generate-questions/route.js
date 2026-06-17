@@ -1,7 +1,9 @@
 import Anthropic from '@anthropic-ai/sdk'
 import { NextResponse } from 'next/server'
 
-const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+function getClient() {
+  return new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+}
 
 export async function POST(req) {
   try {
@@ -11,6 +13,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Problem statement required' }, { status: 400 })
     }
 
+    const client = getClient()
     const message = await client.messages.create({
       model: 'claude-sonnet-4-6',
       max_tokens: 2000,
