@@ -32,18 +32,7 @@ export async function POST(req) {
   try {
     const { type, data } = await req.json()
 
-    // Debug: test API key works
-    if (type === 'debug-test') {
-      const testRes = await fetch('https://api.anthropic.com/v1/messages', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
-        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 5, messages: [{ role: 'user', content: 'Hi' }] }),
-      })
-      const testData = await testRes.json()
-      return NextResponse.json({ status: testRes.status, key_length: (process.env.ANTHROPIC_API_KEY || '').length, response: testData, version: 'v3' })
-    }
-
-    let systemPrompt = ''
+let systemPrompt = ''
     let userPrompt = ''
 
     if (type === 'wealth-wired') {
