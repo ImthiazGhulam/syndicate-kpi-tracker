@@ -26,9 +26,22 @@ async function callAnthropicAPI(system, user, maxTokens = 2500) {
   }
 }
 
+export const dynamic = 'force-dynamic'
+
 export async function POST(req) {
   try {
     const { type, data } = await req.json()
+
+    // Debug: test API key works
+    if (type === 'debug-test') {
+      const testRes = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 5, messages: [{ role: 'user', content: 'Hi' }] }),
+      })
+      const testData = await testRes.json()
+      return NextResponse.json({ status: testRes.status, key_length: (process.env.ANTHROPIC_API_KEY || '').length, response: testData, version: 'v3' })
+    }
 
     let systemPrompt = ''
     let userPrompt = ''
@@ -969,6 +982,6 @@ Rules:
   } catch (err) {
     console.error('Generate plan error:', err?.status, err?.message, JSON.stringify(err?.error))
     const msg = err.status === 529 ? 'AI is temporarily busy — please try again in a minute' : (err.message || 'Failed to generate plan')
-    return NextResponse.json({ error: msg, detail: `${err?.status} ${err?.error?.message || err?.message}` }, { status: 500 })
+    return NextResponse.json({ error: msg, detail: `${err?.status} ${err?.error?.message || err?.message}`, version: 'v2-fetch' }, { status: 500 })
   }
 }
