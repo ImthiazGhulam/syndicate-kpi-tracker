@@ -1859,6 +1859,7 @@ export default function ClientPage() {
       { id: 'distinction', label: 'Distinction Engine™',  icon: '⚙️', href: '/distinction-engine' },
       { id: 'ai-accel',    label: 'AI Accelerator™',      icon: '⚡', href: '/ai-accelerator' },
       { id: 'content-cap', label: 'Content Capture™',     icon: '🎬', href: '/content-capture' },
+      { id: 'comeback',    label: 'Comeback Story™',      icon: '🔥', href: '/build/comeback-story' },
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™',       icon: '🧠', href: '/wealth-wired' },

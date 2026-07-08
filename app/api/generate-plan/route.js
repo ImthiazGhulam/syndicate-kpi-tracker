@@ -928,18 +928,68 @@ Rules:
 - The content should subtly position them as the expert without being salesy${captionInstruction}`
     }
 
+    // ── Comeback Story™ — MAP ─────────────────────────────────────────────────
+    if (type === 'comeback-map') {
+      systemPrompt = `You are the story engine inside "The Comeback Story", a carousel playbook for men rebuilding after a collapse. A client picked collapse type "${data.collapse_type}" and wrote this raw story:
+"""${data.dump}"""
+TASK 1 — Extract. For each beat, pull what their story actually contains, quoting or closely paraphrasing THEIR words. Null only if genuinely absent. Never invent facts. Beats: opener (a reason to tell it today: anniversary, object found, message received, small milestone, or change happening now), receipt_date (exact date it became real), receipt_proof (visible proof: headline, letter, photo, message, document), line (where they decided + first 2-3 raw actions), zero (one small thing they could NOT do at the restart), graft (unglamorous work nobody clapped for), ally (who backed them), stakes (what made it bigger than them), wins (2-3 concrete provable results), chain (what was STILL hanging over them while winning), truth (the one thing their journey proves).
+TASK 2 — Motifs. Exactly 3 short phrases (3-6 words) drawn from THEIR language or imagery, usable at the decision moment and again at the end. Never "line in the sand".
+TASK 3 — Gaps. For each null beat (plus receipt_date if no date, opener if no reason-to-tell-today), ONE sharp second-person British question that uses details from their story to jog memory. Max 6, prioritised: receipt_date, receipt_proof, opener, chain, zero, stakes.
+Respond ONLY with JSON: {"found":{"opener":null_or_string,"receipt_date":null_or_string,"receipt_proof":null_or_string,"line":null_or_string,"zero":null_or_string,"graft":null_or_string,"ally":null_or_string,"stakes":null_or_string,"wins":null_or_string,"chain":null_or_string,"truth":null_or_string},"motifs":["","",""],"questions":[{"key":"","q":"","hint":""}]}`
+      userPrompt = `Analyse the story above and return the JSON.`
+    }
+
+    // ── Comeback Story™ — COMPOSE ───────────────────────────────────────────────
+    if (type === 'comeback-compose') {
+      const rewriteFlag = data.rewrite ? 'This is a REWRITE — take a noticeably different angle on the wording, keep all facts.' : ''
+      systemPrompt = `You are the copywriter inside "The Comeback Story" carousel playbook. Compose a 10-slide story carousel for this client, built ONLY from their material. ${rewriteFlag}
+COLLAPSE TYPE: ${data.collapse_type}
+RAW STORY: """${data.dump}"""
+MAPPED BEATS: ${JSON.stringify(data.found || {})}
+GAP ANSWERS: ${JSON.stringify(data.gap_answers || {})}
+THEIR MOTIF: "${data.chosen_motif}"
+HOW TO WRITE IT: First compose the whole thing as ONE continuous piece of spoken narration — a man telling his story in one take — then cut it into 10 slides at the tension points. The swipe is the punctuation. Never write a slide as an isolated caption.
+THE 10 CUTS: 1 CLIFFHANGER (present-tense reason to tell it today, one moment, zero backstory, end mid-tension). 2 RECEIPT (date + what caught up with them, reference their visible proof). 3 THE LINE (where they decided + raw first actions, MUST contain the motif verbatim). 4 ZERO POINT (restart with nothing, include their small humiliation, contrast: nothing vs a vision). 5 GRAFT. 6 ALLY (if alone, solitude is the point). 7 STAKES. 8 WINS (named plainly). 9 HIDDEN CHAIN (the late twist, darkest slide). 10 HANDOVER (one truth pivoted onto the reader, ending with a command that reuses the motif).
+FLOW RULES: every slide except 10 ends with forward pull the next slide answers; thread 1-2 concrete details through as callbacks; vary sentence length, never three same-length sentences in a row; read-aloud test — sounds like a man talking, contractions on, natural connectives allowed.
+VOICE: first person, their vocabulary lifted where possible, British English, 1-3 sentences per slide, no em-dashes, no tricolons, no hype, no invented facts. Thin beat = keep it short, never pad.
+Also: one anthem caption (max 8 words) in their register, and per-slide one-line image direction using photos this man would plausibly have.
+Respond ONLY with JSON: {"slides":[{"n":1,"beat":"CLIFFHANGER","text":"","image":""},{"n":2,"beat":"RECEIPT","text":"","image":""},{"n":3,"beat":"THE LINE","text":"","image":""},{"n":4,"beat":"ZERO POINT","text":"","image":""},{"n":5,"beat":"GRAFT","text":"","image":""},{"n":6,"beat":"ALLY","text":"","image":""},{"n":7,"beat":"STAKES","text":"","image":""},{"n":8,"beat":"WINS","text":"","image":""},{"n":9,"beat":"HIDDEN CHAIN","text":"","image":""},{"n":10,"beat":"HANDOVER","text":"","image":""}],"caption":""}`
+      userPrompt = `Write the 10-slide carousel and return the JSON.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
     const maxTokens = type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
-      : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft') ? 4000
-      : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure') ? 3000
+      : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft' || type === 'comeback-compose') ? 4000
+      : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map') ? 3000
       : 2500
 
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // For comeback story, parse structured JSON
+    if (type === 'comeback-map' || type === 'comeback-compose') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json(parsed)
+      } catch (parseErr) {
+        // One automatic retry on malformed output
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', type === 'comeback-compose' ? 4000 : 3000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const retryParsed = JSON.parse(retryCleaned)
+          return NextResponse.json(retryParsed)
+        } catch (retryErr) {
+          console.error('Comeback Story JSON parse failed after retry:', retryErr)
+          return NextResponse.json({ error: 'Failed to parse story output. Please try again.' }, { status: 500 })
+        }
+      }
+    }
 
     // For AI accelerator, parse structured JSON tool
     if (type === 'ai-accelerator') {
