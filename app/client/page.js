@@ -175,7 +175,7 @@ function StatCard({ label, value, target, color = 'gold' }) {
   }
   const pct = target && value ? Math.min(100, Math.round((value / target) * 100)) : null
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+    <div className="glass-card p-5">
       <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">{label}</p>
       <p className={`text-2xl font-bold ${colors[color].text}`}>{value ?? '—'}</p>
       {target && (
@@ -1775,7 +1775,7 @@ export default function ClientPage() {
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email isn't linked to a client account. Please contact your coach.</p>
         <button onClick={handleSignOut} className="px-5 py-2.5 bg-zinc-800 hover:bg-zinc-700 text-zinc-300 rounded text-xs uppercase tracking-widest font-semibold transition">Sign Out</button>
@@ -1878,14 +1878,14 @@ export default function ClientPage() {
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       {/* Logo */}
-      <div className="p-5 pb-4 border-b border-zinc-800/50">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
+      <div className="p-5 pb-4 border-b border-white/[0.06]">
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       {/* User card */}
-      <div className="px-4 py-4 border-b border-zinc-800/50">
+      <div className="px-4 py-4 border-b border-white/[0.06]">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
+          <div className="w-9 h-9 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0 shadow-glow-gold-sm">
             <span className="text-xs font-black text-gold">{(clientData.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()}</span>
           </div>
           <div className="min-w-0">
@@ -1900,14 +1900,14 @@ export default function ClientPage() {
         {navSections.map((section, si) => (
           <div key={si}>
             {section.heading && (
-              <p className="px-5 pt-5 pb-2 text-[10px] font-bold text-zinc-700 uppercase tracking-[0.25em]">{section.heading}</p>
+              <p className="px-5 pt-5 pb-2 text-[10px] font-display font-bold text-zinc-600 uppercase tracking-[0.25em]">{section.heading}</p>
             )}
             {section.items.map(tab => (
               <button key={tab.id} onClick={() => tab.external ? window.open(tab.href, '_blank') : tab.href ? router.push(tab.href) : switchTab(tab.id)}
-                className={`w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-medium transition ${
+                className={`w-full flex items-center gap-3 px-5 py-2.5 text-[13px] font-medium ${
                   activeTab === tab.id
-                    ? 'text-gold bg-gold/[0.06] border-r-2 border-gold'
-                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                    ? 'text-gold sidebar-active'
+                    : 'text-zinc-400 sidebar-item'
                 }`}>
                 <span className="text-sm w-5 text-center">{tab.icon}</span>
                 <span className="tracking-wide">{tab.label}</span>
@@ -1918,9 +1918,9 @@ export default function ClientPage() {
       </div>
 
       {/* Sign out */}
-      <div className="p-4 border-t border-zinc-800/50">
+      <div className="p-4 border-t border-white/[0.06]">
         <button onClick={handleSignOut}
-          className="w-full flex items-center gap-3 px-3 py-2.5 text-zinc-600 hover:text-white text-sm font-medium rounded-lg hover:bg-zinc-800/50 transition">
+          className="w-full flex items-center gap-3 px-3 py-2.5 text-zinc-600 hover:text-white text-sm font-medium rounded-lg hover:bg-white/[0.03] transition">
           <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
           </svg>
@@ -1941,7 +1941,7 @@ export default function ClientPage() {
       {recurringDragChoice && (
         <div className="fixed inset-0 z-[60] flex items-center justify-center">
           <div className="absolute inset-0 bg-black/60" onClick={() => setRecurringDragChoice(null)} />
-          <div className="relative bg-zinc-900 border border-zinc-700 rounded-xl p-6 max-w-sm w-full mx-4 shadow-2xl">
+          <div className="relative glass-card p-6 max-w-sm w-full mx-4 shadow-2xl">
             <h3 className="text-sm font-bold text-white uppercase tracking-widest mb-1">Move Recurring Task</h3>
             <p className="text-zinc-500 text-xs mb-5">{recurringDragChoice.task.title}</p>
             <div className="space-y-2">
@@ -1965,36 +1965,36 @@ export default function ClientPage() {
       )}
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800 z-20">
+      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 glass-sidebar z-20">
         {sidebarNav}
       </aside>
 
       {/* Mobile sidebar overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden fade-overlay">
-          <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="absolute left-0 top-0 bottom-0 w-64 bg-zinc-950 border-r border-zinc-800 slide-in-left shadow-2xl">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setSidebarOpen(false)} />
+          <aside className="absolute left-0 top-0 bottom-0 w-64 glass-sidebar slide-in-left shadow-2xl">
             {sidebarNav}
           </aside>
         </div>
       )}
 
       {/* Main content */}
-      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden bg-grid">
         {/* Mobile header */}
-        <header className="md:hidden bg-zinc-950/90 backdrop-blur-xl border-b border-zinc-800/50 px-4 py-3 flex items-center justify-between sticky top-0 z-10">
+        <header className="md:hidden bg-zinc-950/80 backdrop-blur-xl border-b border-white/[0.06] px-4 py-3 flex items-center justify-between sticky top-0 z-10">
           <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-zinc-400 hover:text-white active:text-white transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           <div className="w-9" />
         </header>
 
         <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-8">
 
           {/* Page title */}
-          <div className="mb-8">
-            <p className="text-gold/60 text-[10px] font-bold uppercase tracking-[0.3em] mb-1.5">
+          <div className="mb-8 animate-fade-in">
+            <p className="text-gold/60 text-[10px] font-display font-bold uppercase tracking-[0.3em] mb-1.5">
               {clientData.name.split(' ')[0]} · {clientData.business}
             </p>
             <h1 className="text-xl sm:text-2xl font-black text-white tracking-tight">
@@ -2005,13 +2005,13 @@ export default function ClientPage() {
         {/* ── IDENTITY CHANGE™ ────────────────────────────────────────── */}
         {/* ── COMMAND CENTRE — Programme Progress ────────────────────────── */}
         {activeTab === 'progress' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
 
             {/* Hero Score Card */}
-            <div className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-8 mb-6">
+            <div className="relative overflow-hidden glass-card gold-glow-border p-6 sm:p-8 mb-6 animate-glow-pulse">
               {/* Background glow */}
-              <div className="absolute top-0 right-0 w-64 h-64 bg-gold/[0.04] rounded-full blur-3xl -mr-32 -mt-32" />
-              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gold/[0.03] rounded-full blur-3xl -ml-24 -mb-24" />
+              <div className="absolute top-0 right-0 w-64 h-64 bg-gold/[0.06] rounded-full blur-3xl -mr-32 -mt-32" />
+              <div className="absolute bottom-0 left-0 w-48 h-48 bg-gold/[0.04] rounded-full blur-3xl -ml-24 -mb-24" />
 
               <div className="relative flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
                 {/* Progress Ring */}
@@ -2033,7 +2033,7 @@ export default function ClientPage() {
 
                 {/* Score Info */}
                 <div className="text-center sm:text-left flex-1">
-                  <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-wider mb-1">Programme Score</h2>
+                  <h2 className="text-lg sm:text-xl font-display font-black text-white uppercase tracking-wider mb-1">Programme Score</h2>
                   <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">
                     Week of {new Date(getMonday()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
                   </p>
@@ -2202,7 +2202,7 @@ export default function ClientPage() {
             {/* Two-column: Foundations + Business */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
               {/* Programme Foundations */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <div className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Programme Foundations</h3></div>
                 <div className="space-y-3">
                   {/* Identity Chamber */}
@@ -2246,7 +2246,7 @@ export default function ClientPage() {
 
               {/* Revenue Targets */}
               {(weeklyPriorities.revenue_target > 0 || monthlyReview.revenue_target > 0) && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-3">
+                <div className="glass-card p-5 mb-3">
                   <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Revenue Targets</h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     {weeklyPriorities.revenue_target > 0 && (() => {
@@ -2296,7 +2296,7 @@ export default function ClientPage() {
               )}
 
               {/* Business Snapshot — This Week */}
-              <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <div className="glass-card p-5">
                 <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">This Week's Numbers</h3></div>
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                   <div>
@@ -2320,7 +2320,7 @@ export default function ClientPage() {
             </div>
 
             {/* Pipeline Summary */}
-            <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <div className="glass-card p-5">
               <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Pipeline</h3></div>
               <div className="flex items-end justify-between gap-1">
                 {[
@@ -2359,7 +2359,7 @@ export default function ClientPage() {
               </p>
             </div>
 
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 sm:p-7">
+            <div className="glass-card p-5 sm:p-7">
               <div className="flex items-center gap-3 mb-5 pb-4 border-b border-zinc-800">
                 <span className="text-2xl">🪞</span>
                 <div>
@@ -2402,7 +2402,7 @@ export default function ClientPage() {
 
         {/* ── MORNING OPS™ ──────────────────────────────────────────────── */}
         {activeTab === 'morning-ops' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             {/* Date nav */}
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -2647,7 +2647,7 @@ export default function ClientPage() {
 
         {/* ── DESIGN™ ──────────────────────────────────────────────────────── */}
         {activeTab === 'design' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             <div className="flex items-center justify-between mb-7">
               <div>
                 <h2 className="text-base font-bold text-white uppercase tracking-widest">Design™</h2>
@@ -2671,7 +2671,7 @@ export default function ClientPage() {
                 const todayStr = localDateStr()
 
                 return (
-                  <div key={monthIdx} className="bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+                  <div key={monthIdx} className="glass-card p-3">
                     <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">{MONTH_NAMES[monthIdx]}</p>
                     <div className="grid grid-cols-7 gap-0.5">
                       {['M','T','W','T','F','S','S'].map((d, di) => <div key={di} className="text-[7px] text-zinc-600 text-center font-bold">{d}</div>)}
@@ -2833,7 +2833,7 @@ export default function ClientPage() {
                   <p className="text-zinc-600 text-xs mb-5">Six experiences outside of business — physical, travel, anything that fills you up.</p>
                   <div className="space-y-4">
                     {adventuresForm.map((adv, i) => (
-                      <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                      <div key={i} className="glass-card p-4">
                         <p className="text-xs font-semibold text-zinc-500 uppercase tracking-widest mb-3">Adventure {i + 1}</p>
                         <input value={adv.title} onChange={e => setAdventuresForm(prev => prev.map((a, j) => j === i ? { ...a, title: e.target.value } : a))}
                           placeholder="What is it?"
@@ -2973,7 +2973,7 @@ export default function ClientPage() {
                 {/* ── Misogi (read-only) ──────────────────────────────────── */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">Misogi</h3>
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                  <div className="glass-card p-5">
                     <p className="text-white text-sm leading-relaxed">{lifeDesign?.misoji || <span className="text-zinc-600">Not set</span>}</p>
                     {lifeDesign?.misogi_type && (
                       <div className="flex flex-wrap gap-3 mt-3 text-xs text-zinc-500">
@@ -3053,7 +3053,7 @@ export default function ClientPage() {
                     return (
                       <div className="space-y-4">
                         {weekly.length > 0 && (
-                          <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                          <div className="glass-card p-4">
                             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">Weekly</p>
                             <div className="flex gap-2">
                               {weekly.map((d, i) => <span key={i} className="px-3 py-1 bg-gold/10 text-gold border border-gold/20 rounded text-sm font-medium">{dayNames[d.day_of_week]}</span>)}
@@ -3061,7 +3061,7 @@ export default function ClientPage() {
                           </div>
                         )}
                         {[{ items: monthly, label: 'Monthly' }, { items: quarterly, label: 'Quarterly' }, { items: yearly, label: 'Yearly' }].filter(g => g.items.length > 0).map(({ items, label }) => (
-                          <div key={label} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                          <div key={label} className="glass-card p-4">
                             <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">{label}</p>
                             <div className="space-y-1.5">
                               {items.map((d, i) => (
@@ -3082,7 +3082,7 @@ export default function ClientPage() {
                 {/* ── Skills (read-only) ──────────────────────────────────── */}
                 <section>
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Skills</h3>
-                  <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5 space-y-3">
+                  <div className="glass-card p-5 space-y-3">
                     {lifeDesign?.skill_1 && <div className="flex items-center gap-3"><span className="text-zinc-600 text-xs uppercase tracking-widest w-16">Skill 1</span><span className="text-zinc-300 text-sm">{lifeDesign.skill_1}</span></div>}
                     {lifeDesign?.skill_2 && <div className="flex items-center gap-3"><span className="text-zinc-600 text-xs uppercase tracking-widest w-16">Skill 2</span><span className="text-zinc-300 text-sm">{lifeDesign.skill_2}</span></div>}
                     {lifeDesign?.key_skill && <div className="flex items-center gap-3 pt-2 border-t border-zinc-800"><span className="text-gold text-xs uppercase tracking-widest w-16 font-semibold">Primary</span><span className="text-white text-sm font-semibold">{lifeDesign.key_skill}</span></div>}
@@ -3109,7 +3109,7 @@ export default function ClientPage() {
 
         {/* ── WEEKLY WAR MAP™ ───────────────────────────────────────────────── */}
         {activeTab === 'war-map' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
 
             {/* Week header + nav + completion status */}
             <div className="mb-6">
@@ -3539,7 +3539,7 @@ export default function ClientPage() {
 
                 {/* Day Panel */}
                 {selectedDay && (
-                  <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                  <div className="mt-3 glass-card p-5">
                     <div className="flex items-center justify-between mb-4">
                       <p className="text-sm font-semibold text-white">
                         {new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -3677,7 +3677,7 @@ export default function ClientPage() {
 
         {/* ── DASHBOARD — Daily KPI Tracker ─────────────────────────────── */}
         {activeTab === 'dashboard' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             {/* Month nav */}
             <div className="flex items-center justify-between mb-6">
               <h2 className="text-base font-bold text-white uppercase tracking-widest">Dashboard</h2>
@@ -3804,22 +3804,22 @@ export default function ClientPage() {
             <div className="mt-8">
               <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Monthly Benchmarks</h3>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                <div className="glass-card p-4">
                   <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Avg Daily New Followers</p>
                   <p className="text-xl font-bold text-sky-400">{kpiTotals.new_followers ? Math.round(kpiTotals.new_followers / kpiDaysWithData) : '—'}</p>
                   <p className="text-zinc-600 text-[10px] mt-1">Target: 10+ per day</p>
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                <div className="glass-card p-4">
                   <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Avg Daily New Convos</p>
                   <p className="text-xl font-bold text-violet-400">{kpiTotals.new_convos ? Math.round(kpiTotals.new_convos / kpiDaysWithData) : '—'}</p>
                   <p className="text-zinc-600 text-[10px] mt-1">Target: 20+ per day</p>
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                <div className="glass-card p-4">
                   <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">DM Response Rate</p>
                   <p className="text-xl font-bold text-gold">{kpiTotals.new_convos ? Math.round(kpiTotals.responded / kpiTotals.new_convos * 100) + '%' : '—'}</p>
                   <p className="text-zinc-600 text-[10px] mt-1">Target: 30%+</p>
                 </div>
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                <div className="glass-card p-4">
                   <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Show Up Rate</p>
                   <p className="text-xl font-bold text-emerald-400">{kpiTotals.calls_booked ? Math.round(kpiTotals.calls_taken / kpiTotals.calls_booked * 100) + '%' : '—'}</p>
                   <p className="text-zinc-600 text-[10px] mt-1">Target: 95%+</p>
@@ -3831,7 +3831,7 @@ export default function ClientPage() {
 
         {/* ── HOT LIST — Lead Pipeline ─────────────────────────────────────── */}
         {activeTab === 'hot-list' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             <div className="mb-6">
               <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
               <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client. Drag cards between columns.</p>
@@ -4039,7 +4039,7 @@ export default function ClientPage() {
 
         {/* ── THE DEBRIEF™ ──────────────────────────────────────────────── */}
         {activeTab === 'debrief' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             {/* Date nav */}
             <div className="flex items-center justify-between mb-6">
               <div>
@@ -4174,7 +4174,7 @@ export default function ClientPage() {
                 <p className="text-zinc-600 text-xs mb-4">Capture your victories — big or small.</p>
                 <div className="space-y-4">
                   {[1,2,3,4,5].map(n => (
-                    <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                    <div key={n} className="glass-card p-4">
                       <div className="flex items-center gap-2 mb-3">
                         <span className="text-gold font-bold text-sm">Win {n}</span>
                       </div>
@@ -4233,7 +4233,7 @@ export default function ClientPage() {
 
         {/* ── THE LOCK IN™ — Weekly Review ───────────────────────────────── */}
         {activeTab === 'lock-in' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             {/* Week nav */}
             <div className="flex items-center justify-between mb-2">
               <p className="text-zinc-500 text-xs">Review the week that's ending. Complete on Sunday.</p>
@@ -4262,7 +4262,7 @@ export default function ClientPage() {
             <div className="space-y-6 mt-6">
               {/* War Map Priorities — Execution Rating */}
               {reviewPriorities && (reviewPriorities.number_one_priority || reviewPriorities.priority_2 || reviewPriorities.priority_3 || reviewPriorities.priority_4) && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                <div className="glass-card p-5">
                   <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-1">Your Priorities This Week</h3>
                   <p className="text-zinc-600 text-[10px] uppercase tracking-widest mb-4">Rate how effectively you executed on each priority (1-10)</p>
                   <div className="space-y-5">
@@ -4365,7 +4365,7 @@ export default function ClientPage() {
                 <p className="text-zinc-600 text-xs mb-4">Celebrate progress. Build momentum.</p>
                 <div className="space-y-4">
                   {[1,2,3,4,5].map(n => (
-                    <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                    <div key={n} className="glass-card p-4">
                       <span className="text-gold font-bold text-sm mb-3 block">Win {n}</span>
                       <div className="space-y-2">
                         <div>
@@ -4477,7 +4477,7 @@ export default function ClientPage() {
 
         {/* ── MONTHLY REVIEW ──────────────────────────────────────────────── */}
         {activeTab === 'monthly' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             {/* Month nav */}
             <div className="flex items-center justify-between mb-2">
               <p className="text-zinc-500 text-xs">Reflect on the month. Recalibrate for the next.</p>
@@ -4643,7 +4643,7 @@ export default function ClientPage() {
 
         {/* ── PROJECTS ─────────────────────────────────────────────────────── */}
         {activeTab === 'projects' && (
-          <div className="fade-in">
+          <div className="fade-in stagger-in">
             <div className="flex items-center justify-between mb-5">
               <h2 className="text-base font-semibold text-white uppercase tracking-wider">Projects</h2>
               <button onClick={() => { resetProjectForm(); setShowProjectForm(true) }}
@@ -4916,7 +4916,7 @@ export default function ClientPage() {
 
                   {/* Day Panel */}
                   {selectedDay && (
-                    <div className="mt-3 bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                    <div className="mt-3 glass-card p-5">
                       <div className="flex items-center justify-between mb-4">
                         <p className="text-sm font-semibold text-white">
                           {new Date(selectedDay + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
@@ -5155,7 +5155,7 @@ export default function ClientPage() {
         {confirmAction && (
           <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"
             onClick={() => setConfirmAction(null)}>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 w-full max-w-sm shadow-2xl slide-up"
+            <div className="glass-card p-6 w-full max-w-sm shadow-2xl slide-up"
               onClick={e => e.stopPropagation()}>
               <p className="text-white font-semibold text-sm mb-2">Are you sure?</p>
               <p className="text-zinc-400 text-sm mb-6">{confirmAction.message}</p>
