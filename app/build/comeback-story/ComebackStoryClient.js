@@ -151,7 +151,7 @@ function QualityChecklist({ slides, caption, motif }) {
   ]
 
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6">
+    <div className="glass-card p-4 mb-6">
       <Label>Quality Checklist</Label>
       <div className="space-y-2">
         {checks.map((c, i) => (
@@ -427,7 +427,7 @@ export default function ComebackStoryClient() {
   const activeMotif = chosenMotif === '__custom__' ? customMotif : chosenMotif
 
   return (
-    <div className="min-h-screen bg-zinc-950 text-white">
+    <div className="min-h-screen bg-zinc-950 bg-grid text-white">
       {mappingStory && <LoadingOverlay lines={MAP_STATUS_LINES} />}
       {composing && <LoadingOverlay lines={COMPOSE_STATUS_LINES} />}
 
@@ -445,9 +445,9 @@ export default function ComebackStoryClient() {
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 z-30 w-72 h-screen bg-zinc-950 border-r border-zinc-800 flex flex-col transition-transform lg:transition-none overflow-y-auto`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 z-30 w-72 h-screen glass-sidebar flex flex-col transition-transform lg:transition-none overflow-y-auto`}>
           <div className="p-6 border-b border-zinc-800">
-            <h2 className="text-lg font-bold text-white tracking-tight">The Comeback Story</h2>
+            <h2 className="text-lg font-bold font-display text-white tracking-tight">The Comeback Story</h2>
             <p className="text-xs text-zinc-500 mt-1">Carousel Playbook</p>
           </div>
 
@@ -458,7 +458,7 @@ export default function ComebackStoryClient() {
               <button
                 key={s.id}
                 onClick={() => { loadStory(s); setSidebarOpen(false) }}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition ${record?.id === s.id ? 'bg-gold/10 text-gold border border-gold/30' : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'}`}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm transition glass-card-hover ${record?.id === s.id ? 'bg-gold/10 text-gold border border-gold/30' : 'bg-zinc-900 text-zinc-400 hover:text-white border border-zinc-800'}`}
               >
                 <div className="font-bold text-xs uppercase tracking-widest">{COLLAPSE_TYPES.find(c => c.id === s.collapse_type)?.label || s.collapse_type}</div>
                 <div className="text-xs text-zinc-500 mt-1 truncate">{s.dump?.slice(0, 60) || 'Empty draft'}...</div>
@@ -504,7 +504,7 @@ export default function ComebackStoryClient() {
           {effectiveStage === 1 && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight mb-1">The Dump</h1>
+                <h1 className="text-2xl font-bold font-display tracking-tight mb-1">The Dump</h1>
                 <p className="text-zinc-500 text-sm">Pick what happened, then tell the story.</p>
               </div>
 
@@ -563,7 +563,7 @@ export default function ComebackStoryClient() {
           {effectiveStage === 2 && storyMap && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight mb-1">The Story Map</h1>
+                <h1 className="text-2xl font-bold font-display tracking-tight mb-1">The Story Map</h1>
                 <p className="text-zinc-500 text-sm">Here is what we found in your story, mapped against the 10 beats.</p>
               </div>
 
@@ -656,13 +656,13 @@ export default function ComebackStoryClient() {
           {effectiveStage === 3 && hasGaps && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight mb-1">The Gaps</h1>
+                <h1 className="text-2xl font-bold font-display tracking-tight mb-1">The Gaps</h1>
                 <p className="text-zinc-500 text-sm">A few things are missing. These questions use your own details to jog your memory.</p>
               </div>
 
               <div className="space-y-4">
                 {questions.map((q, i) => (
-                  <div key={q.key} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <div key={q.key} className="glass-card p-4">
                     <GoldLabel>{BEAT_LABELS[q.key] || q.key}</GoldLabel>
                     <p className="text-sm text-zinc-300 mb-3">{q.q}</p>
                     <TextArea
@@ -700,7 +700,7 @@ export default function ComebackStoryClient() {
           {effectiveStage === 4 && slides.length > 0 && (
             <div className="space-y-6">
               <div>
-                <h1 className="text-2xl font-bold tracking-tight mb-1">The Script</h1>
+                <h1 className="text-2xl font-bold font-display tracking-tight mb-1">The Script</h1>
                 <p className="text-zinc-500 text-sm">Your 10-slide carousel, built from your words. Edit anything directly.</p>
               </div>
 
@@ -709,7 +709,7 @@ export default function ComebackStoryClient() {
               {/* Slides */}
               <div className="space-y-4">
                 {slides.map((slide, i) => (
-                  <div key={slide.n} className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <div key={slide.n} className="glass-card overflow-hidden">
                     <div className="flex items-center gap-3 px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                       <span className="text-gold font-bold text-sm">{slide.n}</span>
                       <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">{slide.beat}</span>

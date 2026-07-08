@@ -305,7 +305,7 @@ function AIButton({ loading, onClick, label = 'AI Research & Suggest', regenerat
 function AIOutput({ content, title = 'AI Suggestions' }) {
   if (!content) return null
   return (
-    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden mt-4">
+    <div className="glass-card overflow-hidden mt-4">
       <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
         <span className="text-xs font-bold text-gold uppercase tracking-widest">{title}</span>
       </div>
@@ -906,7 +906,7 @@ export default function PlaybookPage() {
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email is not linked to a client account. Please contact your coach.</p>
       </div>
@@ -918,7 +918,7 @@ export default function PlaybookPage() {
   const renderStage1 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-white mb-1">ICP Sniper</h1>
+        <h1 className="text-xl font-bold font-display text-white mb-1">ICP Sniper</h1>
         <p className="text-zinc-500 text-sm">The 4 Ps: Person, Promise, Problem, Path. Define who you serve and how you transform them.</p>
       </div>
 
@@ -1248,7 +1248,7 @@ export default function PlaybookPage() {
           {dePopulated && <AutoPopBanner source="Distinction Engine" />}
 
           {icpData.problems.filter(Boolean).length === 0 && (
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 text-center mb-6">
+            <div className="glass-card p-6 text-center mb-6">
               <p className="text-zinc-400 text-sm mb-2">Your Distinction Engine data will auto-populate here.</p>
               <p className="text-zinc-600 text-xs">Complete your Distinction Engine first to define your 3 problems, 9 solutions, and branded mechanisms.</p>
               <button onClick={() => router.push('/distinction-engine')} className="mt-4 px-5 py-2 bg-gold/10 text-gold border border-gold/30 rounded-lg text-xs font-semibold uppercase tracking-wider hover:bg-gold/20 transition">
@@ -1316,7 +1316,7 @@ export default function PlaybookPage() {
   const renderStage2 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-white mb-1">Path Planner</h1>
+        <h1 className="text-xl font-bold font-display text-white mb-1">Path Planner</h1>
         <p className="text-zinc-500 text-sm">Map out the client journey from payment to transformation. Think milestones: early, midterm, and long-term. Your first milestone becomes The Dip (micro offer).</p>
       </div>
 
@@ -1325,7 +1325,7 @@ export default function PlaybookPage() {
       </FieldGroup>
 
       {/* Onboarding */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="glass-card p-5 mb-6">
         <SectionHeading title="Onboarding (Day 0 → Day 1)" description="What happens between payment and the first call? This is where you handle the boring but necessary stuff — mindset, setup, assessments. Typically 5-7 days." />
 
         <FieldGroup label="Onboarding Duration">
@@ -1359,7 +1359,7 @@ export default function PlaybookPage() {
       </div>
 
       {/* Milestone 2 */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="glass-card p-5 mb-6">
         <SectionHeading title="Second Milestone" description="The next major checkpoint. What should they achieve here?" />
 
         <FieldGroup label="Timeframe">
@@ -1376,7 +1376,7 @@ export default function PlaybookPage() {
       </div>
 
       {/* Extended Programme */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-6">
+      <div className="glass-card p-5 mb-6">
         <SectionHeading title="Extended Programme" description="What happens after the initial milestones? Cover the remaining pillars and hit long-term goals." />
 
         <FieldGroup label="Description">
@@ -1421,7 +1421,7 @@ export default function PlaybookPage() {
   const renderStage3 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-white mb-1">Bang Bang Offer</h1>
+        <h1 className="text-xl font-bold font-display text-white mb-1">Bang Bang Offer</h1>
         <p className="text-zinc-500 text-sm">Five elements: Promise + Bonuses (increase reward), Guarantee + Payment Plan (reduce risk), and Urgency + Scarcity (get them over the line). Run it as intakes.</p>
       </div>
 
@@ -1496,7 +1496,7 @@ export default function PlaybookPage() {
 
         <div className="space-y-4">
           {(bangBangData.phases || []).map((phase, i) => (
-            <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div key={i} className="glass-card p-4">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Phase {i + 1}</span>
                 {bangBangData.phases.length > 1 && (
@@ -1533,7 +1533,7 @@ export default function PlaybookPage() {
 
         <div className="space-y-3">
           {(bangBangData.stack || []).map((item, i) => (
-            <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div key={i} className="glass-card p-4">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Item {i + 1}</span>
                 {bangBangData.stack.length > 1 && (
@@ -1598,7 +1598,7 @@ export default function PlaybookPage() {
 
         <div className="space-y-3">
           {(bangBangData.bonuses || []).map((bonus, i) => (
-            <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div key={i} className="glass-card p-4">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Bonus {i + 1}</span>
                 {bangBangData.bonuses.length > 1 && (
@@ -1716,7 +1716,7 @@ export default function PlaybookPage() {
 
         <div className="space-y-3">
           {(bangBangData.tiers || []).map((tier, i) => (
-            <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+            <div key={i} className="glass-card p-4">
               <div className="flex justify-between items-center mb-3">
                 <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Tier {i + 1}</span>
                 {bangBangData.tiers.length > 1 && (
@@ -1780,7 +1780,7 @@ export default function PlaybookPage() {
   const renderStage4 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-white mb-1">The Dip</h1>
+        <h1 className="text-xl font-bold font-display text-white mb-1">The Dip</h1>
         <p className="text-zinc-500 text-sm">Your micro offer — the first milestone packaged as a standalone product. Same structure as the Bang Bang but shorter, lower barrier, no payment plan. It gives people a taste of what you do, then bridges to the main offer.</p>
       </div>
 
@@ -1836,7 +1836,7 @@ export default function PlaybookPage() {
       <SectionHeading title="Bonuses" description="What do they get on top of the core Dip offer?" />
       <div className="space-y-3 mb-4">
         {(dipData.bonuses || []).map((bonus, i) => (
-          <div key={i} className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+          <div key={i} className="glass-card p-4">
             <div className="flex justify-between items-center mb-3">
               <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Bonus {i + 1}</span>
               {dipData.bonuses.length > 1 && <button onClick={() => removeDipBonus(i)} className="text-zinc-700 hover:text-red-400 transition text-sm">&#10005;</button>}
@@ -1902,7 +1902,7 @@ export default function PlaybookPage() {
   const renderStage5 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-xl font-bold text-white mb-1">Communication & Delivery</h1>
+        <h1 className="text-xl font-bold font-display text-white mb-1">Communication & Delivery</h1>
         <p className="text-zinc-500 text-sm">Define what the client gets within the programme. How do you communicate, deliver, and support?</p>
       </div>
 
@@ -1985,12 +1985,12 @@ export default function PlaybookPage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-xl font-bold text-white mb-1">Blueprint Summary</h1>
+          <h1 className="text-xl font-bold font-display text-white mb-1">Blueprint Summary</h1>
           <p className="text-zinc-500 text-sm">Your complete Sold Out™ playbook with scoring, flags, and generated offer documents.</p>
         </div>
 
         {/* Score Overview */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-8">
+        <div className="glass-card p-6 mb-8">
           <div className="flex flex-col md:flex-row items-center gap-8">
             <ScoreRing score={scores.overall.total} max={scores.overall.max} size={140} strokeWidth={10} />
             <div className="flex-1 w-full">
@@ -2053,7 +2053,7 @@ export default function PlaybookPage() {
                 )}
               </>
             ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+              <div className="glass-card p-4">
                 <p className="text-zinc-400 text-sm">Score {scores.overall.total}/50 — you need 35 to generate your offer document.</p>
                 <div className="w-full max-w-xs h-2 bg-zinc-800 rounded-full overflow-hidden mt-2">
                   <div className="h-full bg-gold rounded-full transition-all" style={{ width: `${(scores.overall.total / 35) * 100}%` }} />
@@ -2080,7 +2080,7 @@ export default function PlaybookPage() {
                 )}
               </>
             ) : (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+              <div className="glass-card p-4">
                 <p className="text-zinc-400 text-sm">Complete more of your playbook to unlock micro offer generation.</p>
               </div>
             )}
@@ -2088,7 +2088,7 @@ export default function PlaybookPage() {
         </div>
 
         {/* Quick Summary */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-6 mb-6">
+        <div className="glass-card p-6 mb-6">
           <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Quick Summary</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8">
             <SummaryField label="Pyramid Level" value={icpData.pyramid_level ? PYRAMID_LEVELS.find(p => p.id === icpData.pyramid_level)?.label : ''} />
@@ -2117,7 +2117,7 @@ export default function PlaybookPage() {
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       <div className="p-5 pb-4 border-b border-zinc-800">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
@@ -2133,15 +2133,15 @@ export default function PlaybookPage() {
       </div>
 
       <div className="flex-1 py-4 overflow-y-auto">
-        <p className="px-5 pb-3 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.2em]">Stages</p>
+        <p className="px-5 pb-3 text-[10px] font-bold font-display text-zinc-600 uppercase tracking-[0.2em]">Stages</p>
         {stages.map(stage => (
           <button
             key={stage.num}
             onClick={() => goToStage(stage.num)}
             className={`w-full flex items-center gap-3 px-5 py-3 text-[13px] font-medium transition ${
               currentStage === stage.num
-                ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'sidebar-active text-gold bg-gold/[0.08] border-r-2 border-gold'
+                : 'sidebar-item text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
@@ -2183,7 +2183,7 @@ export default function PlaybookPage() {
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800 z-20">
+      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 glass-sidebar z-20">
         {sidebarNav}
       </aside>
 
@@ -2191,7 +2191,7 @@ export default function PlaybookPage() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div className="fixed inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <div className="fixed inset-y-0 left-0 w-60 bg-zinc-950 border-r border-zinc-800">
+          <div className="fixed inset-y-0 left-0 w-60 glass-sidebar">
             {sidebarNav}
           </div>
         </div>
@@ -2202,12 +2202,12 @@ export default function PlaybookPage() {
         <button onClick={() => setSidebarOpen(true)} className="text-zinc-400 hover:text-white transition">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
-        <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
         <div className="w-6" />
       </div>
 
       {/* Main content */}
-      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden bg-grid">
         <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7 mt-14 md:mt-0" onBlur={saveAll}>
           <ProgressIndicator current={currentStage} stages={PLAYBOOK_STAGES} />
           {currentStage === 1 && renderStage1()}

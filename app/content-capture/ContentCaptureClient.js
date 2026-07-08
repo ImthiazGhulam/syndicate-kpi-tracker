@@ -794,7 +794,7 @@ export default function ContentCaptureClient() {
           </button>
         ) : (
           <>
-            <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+            <div className="glass-card overflow-hidden">
               <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                 <span className="text-xs font-bold text-gold uppercase tracking-widest">Generated Structure</span>
               </div>
@@ -947,7 +947,7 @@ export default function ContentCaptureClient() {
           + New Piece
         </button>
       </div>
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+      <div className="glass-card overflow-hidden">
         <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
           <span className="text-xs font-bold text-gold uppercase tracking-widest">Final Content</span>
         </div>
@@ -1004,7 +1004,7 @@ export default function ContentCaptureClient() {
   return (
     <div className="flex min-h-screen bg-zinc-950">
       {/* Mobile header */}
-      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 bg-zinc-900 border-b border-zinc-800 px-4 py-3 flex items-center justify-between">
+      <div className="lg:hidden fixed top-0 left-0 right-0 z-50 glass-sidebar px-4 py-3 flex items-center justify-between">
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-white">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
@@ -1013,12 +1013,12 @@ export default function ContentCaptureClient() {
       </div>
 
       {/* Sidebar */}
-      <aside className={`fixed lg:sticky top-0 left-0 h-screen w-64 bg-zinc-900 border-r border-zinc-800 z-40 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+      <aside className={`fixed lg:sticky top-0 left-0 h-screen w-64 glass-sidebar z-40 transition-transform lg:translate-x-0 ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="p-5 pb-4 border-b border-zinc-800/50">
           <button onClick={() => router.push('/client')} className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
             ← Back to Dashboard
           </button>
-          <h2 className="text-gold font-bold text-lg mt-3">Content Capture™</h2>
+          <h2 className="text-gold font-bold font-display text-lg mt-3">Content Capture™</h2>
           <p className="text-zinc-500 text-xs mt-1">Turn your week into content</p>
         </div>
         <nav className="p-4 space-y-1">
@@ -1028,8 +1028,8 @@ export default function ContentCaptureClient() {
               onClick={() => { setCurrentStage(stage.num); setSidebarOpen(false) }}
               className={`w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition ${
                 currentStage === stage.num
-                  ? 'bg-gold/10 text-gold border border-gold/20'
-                  : 'text-zinc-400 hover:text-white hover:bg-zinc-800'
+                  ? 'sidebar-active'
+                  : 'sidebar-item'
               }`}
             >
               <span className="text-base">{stage.icon}</span>
@@ -1043,7 +1043,7 @@ export default function ContentCaptureClient() {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main content */}
-      <main className="flex-1 lg:ml-0 pt-16 lg:pt-0">
+      <main className="flex-1 lg:ml-0 pt-16 lg:pt-0 bg-grid">
         <div className="max-w-2xl mx-auto p-6 lg:p-10">
           {(generatingStructure || suggestingHooks || generating) && <LoadingOverlay lines={AI_STATUS_LINES} />}
 
@@ -1052,7 +1052,7 @@ export default function ContentCaptureClient() {
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <span className="text-2xl">{STAGES[currentStage - 1]?.icon}</span>
-              <h1 className="text-2xl font-bold text-white">{STAGES[currentStage - 1]?.label}</h1>
+              <h1 className="text-2xl font-bold font-display text-white">{STAGES[currentStage - 1]?.label}</h1>
             </div>
           </div>
 

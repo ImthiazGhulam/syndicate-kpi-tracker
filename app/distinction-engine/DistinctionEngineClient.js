@@ -420,16 +420,16 @@ export default function DistinctionEnginePage() {
   const renderStage1 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Stage 1: Core Problems</h1>
+        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Stage 1: Core Problems</h1>
         <p className="text-zinc-500 text-sm">What are the three biggest pain points or problems you solve for your clients?</p>
       </div>
 
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <p className="text-sm text-zinc-300 leading-relaxed mb-4">Think about the broad areas where your work creates the most transformation. These are usually things like visibility, confidence, sales, messaging, mindset, systems, delivery, productivity, leadership, health, relationships, or client results.</p>
       </div>
 
       {[1, 2, 3].map(n => (
-        <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div key={n} className="glass-card p-5 mb-5">
           <GoldLabel>Problem {n}</GoldLabel>
           <TextArea
             value={data[`problem_${n}`]}
@@ -464,7 +464,7 @@ export default function DistinctionEnginePage() {
   const renderStage2 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Stage 2: Brand Your Pillars</h1>
+        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Stage 2: Brand Your Pillars</h1>
         <p className="text-zinc-500 text-sm">Turn each problem into a branded, memorable pillar name. Type your own or use AI suggestions.</p>
       </div>
 
@@ -477,7 +477,7 @@ export default function DistinctionEnginePage() {
       </div>
 
       {[1, 2, 3].map(n => (
-        <div key={n} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div key={n} className="glass-card p-5 mb-5">
           <Label>Problem {n}</Label>
           <p className="text-sm text-zinc-400 mb-3">{data[`problem_${n}`] || '(not set yet — go back to Stage 1)'}</p>
           <GoldLabel>Branded Pillar Name</GoldLabel>
@@ -509,12 +509,12 @@ export default function DistinctionEnginePage() {
   const renderStage3 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Stage 3: Solutions</h1>
+        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Stage 3: Solutions</h1>
         <p className="text-zinc-500 text-sm">For each pillar, what are three things you teach, install, fix, or guide your clients through?</p>
       </div>
 
       {[1, 2, 3].map(p => (
-        <div key={p} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div key={p} className="glass-card p-5 mb-5">
           <GoldLabel>Pillar {p}: {data[`pillar_${p}`] || data[`problem_${p}`] || `Problem ${p}`}</GoldLabel>
           {[1, 2, 3].map(s => (
             <div key={s} className="mb-4">
@@ -544,7 +544,7 @@ export default function DistinctionEnginePage() {
   const renderStage4 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Stage 4: Unique Mechanisms</h1>
+        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Stage 4: Unique Mechanisms</h1>
         <p className="text-zinc-500 text-sm">Give each solution a branded name — a unique mechanism that makes your method feel ownable and premium.</p>
       </div>
 
@@ -557,7 +557,7 @@ export default function DistinctionEnginePage() {
       </div>
 
       {[1, 2, 3].map(p => (
-        <div key={p} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div key={p} className="glass-card p-5 mb-5">
           <GoldLabel>Pillar {p}: {data[`pillar_${p}`] || `Problem ${p}`}</GoldLabel>
           {[1, 2, 3].map(s => (
             <div key={s} className="mb-5">
@@ -595,7 +595,7 @@ export default function DistinctionEnginePage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Your Distinction Engine&trade;</h1>
+          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Your Distinction Engine&trade;</h1>
           <p className="text-zinc-500 text-sm">Name your engine, review your framework, and generate your compiled output with a narrative explanation.</p>
         </div>
 
@@ -628,7 +628,7 @@ export default function DistinctionEnginePage() {
         {/* Visual Summary */}
         <div className="space-y-4 mb-8">
           {[1, 2, 3].map(p => (
-            <div key={p} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+            <div key={p} className="glass-card p-5">
               <div className="flex items-center justify-between mb-3">
                 <GoldLabel>Pillar {p}: {data[`pillar_${p}`] || '—'}</GoldLabel>
                 <button onClick={() => goToStage(2)}
@@ -713,7 +713,7 @@ export default function DistinctionEnginePage() {
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email is not linked to a client account. Please contact your coach.</p>
       </div>
@@ -725,7 +725,7 @@ export default function DistinctionEnginePage() {
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       <div className="p-5 pb-4 border-b border-zinc-800">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
@@ -748,8 +748,8 @@ export default function DistinctionEnginePage() {
             onClick={() => goToStage(stage.num)}
             className={`w-full flex items-center gap-3 px-5 py-3 text-[13px] font-medium transition ${
               currentStage === stage.num
-                ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'sidebar-active'
+                : 'sidebar-item'
             }`}
           >
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
@@ -781,25 +781,25 @@ export default function DistinctionEnginePage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex">
-      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800">
+      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 glass-sidebar">
         {sidebarNav}
       </aside>
 
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-60 h-full bg-zinc-950 border-r border-zinc-800">
+          <aside className="relative w-60 h-full glass-sidebar">
             {sidebarNav}
           </aside>
         </div>
       )}
 
-      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden bg-grid">
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
           <button onClick={() => setSidebarOpen(true)} className="text-zinc-400 hover:text-white transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           <div className="w-6" />
         </header>
 

@@ -263,7 +263,7 @@ export default function AIAcceleratorPage() {
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email is not linked to a client account. Please contact your coach.</p>
       </div>
@@ -273,12 +273,12 @@ export default function AIAcceleratorPage() {
   // ── Problem Picker ────────────────────────────────────────────────────────
 
   if (!selectedEntry) return (
-    <div className="min-h-screen bg-zinc-950">
-      <header className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800/50 bg-zinc-950/90 backdrop-blur-xl">
+    <div className="min-h-screen bg-zinc-950 bg-grid">
+      <header className="glass-sidebar flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800/50">
         <div className="flex items-center gap-4">
-          <img src="/logo.png" alt="The Syndicate" className="h-10 w-auto" />
+          <img src="/logo.png" alt="The Syndicate" className="h-10 w-auto logo-glow" />
           <div>
-            <h1 className="text-sm font-bold text-white uppercase tracking-widest">AI Accelerator™</h1>
+            <h1 className="text-sm font-bold font-display text-white uppercase tracking-widest">AI Accelerator™</h1>
             <p className="text-zinc-600 text-xs">Pick a problem. Answer 3 questions. Get your AI tool.</p>
           </div>
         </div>
@@ -322,7 +322,7 @@ export default function AIAcceleratorPage() {
                 const hasTool = entry.generated_tool && Object.keys(entry.generated_tool).length > 0
                 return (
                   <button key={entry.id} onClick={() => selectEntry(entry)}
-                    className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-left hover:border-zinc-700 transition">
+                    className="w-full glass-card glass-card-hover p-5 text-left transition">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1 min-w-0">
                         <p className="text-sm font-bold text-white truncate">{entry.title || 'Untitled'}</p>
@@ -350,23 +350,23 @@ export default function AIAcceleratorPage() {
   const allAnswered = manualProcess.trim() && idealOutput.trim() && whereItBreaks.trim() && comfortLevel
 
   return (
-    <div className="min-h-screen bg-zinc-950">
+    <div className="min-h-screen bg-zinc-950 bg-grid">
       {generating && <LoadingOverlay lines={AI_STATUS_LINES} />}
-      <header className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800/50 bg-zinc-950/90 backdrop-blur-xl sticky top-0 z-10">
+      <header className="glass-sidebar flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800/50 sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <button onClick={backToList} className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             <span className="tracking-wide">All Tools</span>
           </button>
         </div>
-        <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
       </header>
 
       <div className="max-w-3xl mx-auto p-4 md:px-8 md:py-8">
         {/* Problem header */}
         <div className="mb-8">
           <p className="text-gold text-[10px] font-bold uppercase tracking-[0.3em] mb-1.5">AI Accelerator™</p>
-          <h1 className="text-xl font-black text-white tracking-tight">{record?.title || 'Build Your Tool'}</h1>
+          <h1 className="text-xl font-black font-display text-white tracking-tight">{record?.title || 'Build Your Tool'}</h1>
           <div className="bg-zinc-900 border border-gold/20 rounded-lg px-4 py-2.5 mt-3">
             <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-1">Your Problem</p>
             <p className="text-sm text-zinc-300">{record?.problem_statement}</p>
@@ -451,7 +451,7 @@ export default function AIAcceleratorPage() {
           <div className="space-y-5">
             {/* The Prompt */}
             {generatedTool.prompt && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="glass-card overflow-hidden">
                 <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
                   <span className="text-xs font-bold text-gold uppercase tracking-widest">Your AI Prompt</span>
                   <button onClick={() => { navigator.clipboard.writeText(generatedTool.prompt); flash('Copied!') }}
@@ -468,7 +468,7 @@ export default function AIAcceleratorPage() {
 
             {/* SOP */}
             {generatedTool.sop && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="glass-card overflow-hidden">
                 <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                   <span className="text-xs font-bold text-gold uppercase tracking-widest">How to Use It — Step by Step</span>
                 </div>
@@ -495,7 +495,7 @@ export default function AIAcceleratorPage() {
 
             {/* Test Task */}
             {generatedTool.test_task && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="glass-card overflow-hidden">
                 <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                   <span className="text-xs font-bold text-gold uppercase tracking-widest">Your Test Task — Do This Tomorrow</span>
                 </div>
@@ -510,7 +510,7 @@ export default function AIAcceleratorPage() {
 
             {/* Build Guide (Level 4 only) */}
             {generatedTool.build_guide && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="glass-card overflow-hidden">
                 <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                   <span className="text-xs font-bold text-gold uppercase tracking-widest">Build Guide — Claude Code</span>
                 </div>

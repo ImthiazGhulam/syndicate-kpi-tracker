@@ -580,17 +580,17 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Module {moduleDef.num}: {moduleDef.title}</h1>
+          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Module {moduleDef.num}: {moduleDef.title}</h1>
         </div>
 
         {/* Recap */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <SectionHeading title="Framework Recap" />
           <p className="text-sm text-zinc-300 leading-relaxed">{moduleDef.recap}</p>
         </div>
 
         {/* Reflection */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <FieldGroup label="Reflection" gold>
             <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{moduleDef.reflection}</p>
             <TextArea
@@ -604,7 +604,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
         </div>
 
         {/* Audit */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <FieldGroup label="Audit" gold>
             <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{moduleDef.audit}</p>
             <TextArea
@@ -618,7 +618,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
         </div>
 
         {/* Go Deeper */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <FieldGroup label="Go Deeper" gold>
             <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{moduleDef.go_deeper}</p>
             <TextArea
@@ -659,12 +659,12 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Generate Plan &amp; Summary</h1>
+          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Generate Plan &amp; Summary</h1>
           <p className="text-zinc-500 text-sm">Review all your answers, see your score, and generate a personalised 30-day action plan.</p>
         </div>
 
         {/* Overall Score Ring */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-5 flex flex-col items-center">
+        <div className="glass-card p-6 mb-5 flex flex-col items-center">
           <ScoreRing score={scores.total} max={scores.max} size={140} strokeWidth={10} />
           <p className={`text-sm font-bold mt-3 ${scores.band === 'Wealth Ready' ? 'text-gold' : scores.band === 'Strong' ? 'text-emerald-400' : scores.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>
             {scores.band}
@@ -678,7 +678,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
             const key = `module_${m.num}`
             const modScore = scores.moduleScores[key] || 0
             return (
-              <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <div key={key} className="glass-card p-5">
                 <ProgressBar score={modScore} max={4} label={`M${m.num}: ${m.title}`} />
               </div>
             )
@@ -692,7 +692,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
             const mod = moduleData[key] || {}
             const hasContent = mod.reflection || mod.audit || mod.go_deeper
             return (
-              <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <div key={key} className="glass-card p-5">
                 <div className="flex items-center justify-between mb-3">
                   <GoldLabel>Module {m.num}: {m.title}</GoldLabel>
                   <button
@@ -813,7 +813,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email is not linked to a client account. Please contact your coach.</p>
       </div>
@@ -825,7 +825,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       <div className="p-5 pb-4 border-b border-zinc-800">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
@@ -848,8 +848,8 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
             onClick={() => goToModule(stage.num)}
             className={`w-full flex items-center gap-3 px-5 py-3 text-[13px] font-medium transition ${
               currentModule === stage.num
-                ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'sidebar-active'
+                : 'sidebar-item'
             }`}
           >
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
@@ -884,7 +884,7 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
     <div className="min-h-screen bg-zinc-950 flex">
       {planLoading && <LoadingOverlay lines={AI_STATUS_LINES} />}
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800">
+      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 glass-sidebar">
         {sidebarNav}
       </aside>
 
@@ -892,19 +892,19 @@ Review it weekly. Adjust as you grow. Stay in The Wealth Cycle™.
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-60 h-full bg-zinc-950 border-r border-zinc-800">
+          <aside className="relative w-60 h-full glass-sidebar">
             {sidebarNav}
           </aside>
         </div>
       )}
 
-      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden bg-grid">
         {/* Mobile header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
           <button onClick={() => setSidebarOpen(true)} className="text-zinc-400 hover:text-white transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           <div className="w-6" />
         </header>
 

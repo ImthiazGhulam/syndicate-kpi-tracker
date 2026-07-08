@@ -596,7 +596,7 @@ export default function PremiumPositionPage() {
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email is not linked to a client account. Please contact your coach.</p>
       </div>
@@ -715,12 +715,12 @@ export default function PremiumPositionPage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">The Brand Bucket</h1>
+          <h1 className="text-base font-bold font-display text-white uppercase tracking-widest mb-1">The Brand Bucket</h1>
           <p className="text-zinc-500 text-sm">Audit your visibility, engagement, and trust. Rate each statement from 1 (strongly disagree) to 5 (strongly agree).</p>
         </div>
 
         {/* Visibility */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <SectionHeading title="Visibility" description="Can your target market find you?" />
           {VISIBILITY_QUESTIONS.map(q => (
             <LikertScale key={q.key} value={likerts[q.key] || 0} onChange={v => updateLikert(q.key, v)} question={q.text} />
@@ -737,7 +737,7 @@ export default function PremiumPositionPage() {
         </div>
 
         {/* Engagement */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <SectionHeading title="Engagement" description="Does your audience stop scrolling?" />
           {ENGAGEMENT_QUESTIONS.map(q => (
             <LikertScale key={q.key} value={likerts[q.key] || 0} onChange={v => updateLikert(q.key, v)} question={q.text} />
@@ -754,7 +754,7 @@ export default function PremiumPositionPage() {
         </div>
 
         {/* Trust */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <SectionHeading title="Trust" description="Do prospects believe you can deliver?" />
           {TRUST_QUESTIONS.map(q => (
             <LikertScale key={q.key} value={likerts[q.key] || 0} onChange={v => updateLikert(q.key, v)} question={q.text} />
@@ -772,7 +772,7 @@ export default function PremiumPositionPage() {
 
         {/* Leak Diagnosis */}
         {diagnosis && (
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+          <div className="glass-card p-5 mb-5">
             <SectionHeading title="Leak Diagnosis" />
             <div className={`rounded-lg p-4 border ${diagnosis.score <= 8 ? 'bg-red-500/5 border-red-500/20' : 'bg-yellow-500/5 border-yellow-500/20'}`}>
               <p className={`text-sm font-semibold mb-1 ${diagnosis.score <= 8 ? 'text-red-400' : 'text-yellow-400'}`}>
@@ -784,7 +784,7 @@ export default function PremiumPositionPage() {
         )}
 
         {/* Gap Description */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <FieldGroup label="In your own words — where do you feel the biggest gap is right now?">
             <TextArea value={bucketData.gap_description} onChange={v => updateBucket('gap_description', v)} placeholder="Describe honestly where you think your brand leaks the most attention, trust, or engagement..." rows={4} />
             <p className="text-zinc-600 text-xs mt-1">Write at least 10 words for full scoring credit</p>
@@ -809,7 +809,7 @@ export default function PremiumPositionPage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">The Colt Brand Star</h1>
+          <h1 className="text-base font-bold font-display text-white uppercase tracking-widest mb-1">The Colt Brand Star</h1>
           <p className="text-zinc-500 text-sm">Define the five points of your personal brand. Each shapes how the market sees and remembers you.</p>
         </div>
 
@@ -825,7 +825,7 @@ export default function PremiumPositionPage() {
         {/* 2x2 Grid — Points 1-4 */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5 mb-5">
           {/* Point 1: Identity */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Point 1 — Identity</GoldLabel>
             <FieldGroup label="Your name / brand name">
               <TextInput value={starData.name} onChange={v => updateStar('name', v)} placeholder="e.g. Jane Smith / The Growth Lab" />
@@ -836,7 +836,7 @@ export default function PremiumPositionPage() {
           </div>
 
           {/* Point 2: Audience */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Point 2 — Audience</GoldLabel>
             <FieldGroup label="Describe your ideal client">
               <TextArea value={starData.specific_description} onChange={v => updateStar('specific_description', v)} placeholder="Who do you serve? Be specific about their situation, not just demographics." rows={3} />
@@ -848,7 +848,7 @@ export default function PremiumPositionPage() {
           </div>
 
           {/* Point 3: Position */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Point 3 — Position</GoldLabel>
             <FieldGroup label="Your contrarian belief">
               <TextArea value={starData.contrarian_belief} onChange={v => updateStar('contrarian_belief', v)} placeholder="What do you believe that most people in your industry would disagree with?" rows={3} />
@@ -861,7 +861,7 @@ export default function PremiumPositionPage() {
           </div>
 
           {/* Point 4: Expertise */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Point 4 — Expertise</GoldLabel>
             <FieldGroup label="What you do — in one sentence">
               <TextArea value={starData.what_you_do} onChange={v => updateStar('what_you_do', v)} placeholder="I help [who] achieve [what] through [how]" rows={2} />
@@ -874,7 +874,7 @@ export default function PremiumPositionPage() {
         </div>
 
         {/* Point 5: Boundaries — full width */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <GoldLabel>Point 5 — Boundaries</GoldLabel>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
             <FieldGroup label="What you refuse to do">
@@ -904,12 +904,12 @@ export default function PremiumPositionPage() {
   const renderStage3 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">The Hero Framework</h1>
+        <h1 className="text-base font-bold font-display text-white uppercase tracking-widest mb-1">The Hero Framework</h1>
         <p className="text-zinc-500 text-sm">Build your personal brand story. The hero is YOU — the service provider. This is the narrative that makes clients choose you over everyone else.</p>
       </div>
 
       {/* Chapter 1 */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <GoldLabel>Chapter 1 — The Ordinary World</GoldLabel>
         <p className="text-zinc-600 text-xs mb-4">Where you came from</p>
 
@@ -924,7 +924,7 @@ export default function PremiumPositionPage() {
       </div>
 
       {/* Chapter 2 */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <GoldLabel>Chapter 2 — The Turning Point</GoldLabel>
         <p className="text-zinc-600 text-xs mb-4">The moment everything changed</p>
 
@@ -939,7 +939,7 @@ export default function PremiumPositionPage() {
       </div>
 
       {/* Chapter 3 */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <GoldLabel>Chapter 3 — The Road</GoldLabel>
         <p className="text-zinc-600 text-xs mb-4">What you went through to get here</p>
 
@@ -958,7 +958,7 @@ export default function PremiumPositionPage() {
       </div>
 
       {/* Chapter 4 */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <GoldLabel>Chapter 4 — The Gift</GoldLabel>
         <p className="text-zinc-600 text-xs mb-4">What your journey gives your clients</p>
 
@@ -977,7 +977,7 @@ export default function PremiumPositionPage() {
       </div>
 
       {/* Chapter 5 */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <GoldLabel>Chapter 5 — The Character</GoldLabel>
         <p className="text-zinc-600 text-xs mb-4">Who you are now</p>
 
@@ -1007,12 +1007,12 @@ export default function PremiumPositionPage() {
   const renderStage4 = () => (
     <div>
       <div className="mb-6">
-        <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">The Remarkable Factor</h1>
+        <h1 className="text-base font-bold font-display text-white uppercase tracking-widest mb-1">The Remarkable Factor</h1>
         <p className="text-zinc-500 text-sm">Define what makes you genuinely different — not just better, but impossible to compare.</p>
       </div>
 
       {/* Core fields */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <SectionHeading title="Your Unique Position" />
 
         <FieldGroup label="Category you own or create">
@@ -1040,7 +1040,7 @@ export default function PremiumPositionPage() {
       </div>
 
       {/* Premium Signal Audit */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <SectionHeading title="Premium Signal Audit" description="Which signals are you sending — and which are you missing?" />
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1057,7 +1057,7 @@ export default function PremiumPositionPage() {
       </div>
 
       {/* Competitive Landscape */}
-      <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+      <div className="glass-card p-5 mb-5">
         <SectionHeading title="Competitive Landscape" />
 
         <FieldGroup label="Your actual competitors">
@@ -1106,12 +1106,12 @@ export default function PremiumPositionPage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Blueprint Summary</h1>
+          <h1 className="text-base font-bold font-display text-white uppercase tracking-widest mb-1">Blueprint Summary</h1>
           <p className="text-zinc-500 text-sm">Your complete Premium Position at a glance. Review scores, fix flags, and export.</p>
         </div>
 
         {/* Overall Score Ring */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-5 flex flex-col items-center">
+        <div className="glass-card p-6 mb-5 flex flex-col items-center">
           <ScoreRing score={scores.overall.total} max={scores.overall.max} size={140} strokeWidth={10} />
           <p className={`text-sm font-bold mt-3 ${scores.overall.band === 'Offer-Ready' ? 'text-gold' : scores.overall.band === 'Strong Foundation' ? 'text-emerald-400' : scores.overall.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>
             {scores.overall.band}
@@ -1121,16 +1121,16 @@ export default function PremiumPositionPage() {
 
         {/* Section Score Cards */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <ProgressBar score={scores.bucket.total} max={scores.bucket.max} label="Brand Bucket" />
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <ProgressBar score={scores.star.total} max={scores.star.max} label="Brand Star" />
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <ProgressBar score={scores.hero.total} max={scores.hero.max} label="Hero Framework" />
           </div>
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <ProgressBar score={scores.remarkable.total} max={scores.remarkable.max} label="Remarkable Factor" />
           </div>
         </div>
@@ -1163,7 +1163,7 @@ export default function PremiumPositionPage() {
         <div className="space-y-5">
 
           {/* Brand Bucket Summary */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Brand Bucket</GoldLabel>
             <div className="grid grid-cols-3 gap-4 mb-4">
               <div className="text-center">
@@ -1193,7 +1193,7 @@ export default function PremiumPositionPage() {
           </div>
 
           {/* Brand Star Summary */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Colt Brand Star</GoldLabel>
             <div className="space-y-3">
               {starData.name && <div><p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Name</p><p className="text-sm text-zinc-300">{starData.name}</p></div>}
@@ -1209,7 +1209,7 @@ export default function PremiumPositionPage() {
           </div>
 
           {/* Hero Framework Summary */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Hero Framework</GoldLabel>
             <div className="space-y-3">
               {heroData.origin && <div><p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Origin</p><p className="text-sm text-zinc-300 leading-relaxed">{heroData.origin}</p></div>}
@@ -1228,7 +1228,7 @@ export default function PremiumPositionPage() {
           </div>
 
           {/* Remarkable Factor Summary */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+          <div className="glass-card p-5">
             <GoldLabel>Remarkable Factor</GoldLabel>
             <div className="space-y-3">
               {remarkableData.category && <div><p className="text-xs font-bold text-zinc-500 uppercase tracking-widest">Category</p><p className="text-sm text-zinc-300">{remarkableData.category}</p></div>}
@@ -1271,7 +1271,7 @@ export default function PremiumPositionPage() {
                 {record.generated_plan && <p className="text-zinc-600 text-xs mt-2">Updated your answers? Hit regenerate to refresh your plan.</p>}
               </div>
               {record.generated_plan && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="glass-card overflow-hidden">
                   <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                     <span className="text-xs font-bold text-gold uppercase tracking-widest">Your Positioning Action Plan</span>
                   </div>
@@ -1317,7 +1317,7 @@ export default function PremiumPositionPage() {
                   <div className="space-y-2">
                     {improvements.slice(0, 8).map((imp, i) => (
                       <button key={i} onClick={() => goToStage(imp.stage)}
-                        className="w-full flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
+                        className="w-full flex items-center gap-3 glass-card px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
                         <span className="text-amber-400 text-lg flex-shrink-0">⚠️</span>
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-white">{imp.label}</p>
@@ -1348,7 +1348,7 @@ export default function PremiumPositionPage() {
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       <div className="p-5 pb-4 border-b border-zinc-800">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
@@ -1371,8 +1371,8 @@ export default function PremiumPositionPage() {
             onClick={() => goToStage(stage.num)}
             className={`w-full flex items-center gap-3 px-5 py-3 text-[13px] font-medium transition ${
               currentStage === stage.num
-                ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'sidebar-active text-gold bg-gold/[0.08] border-r-2 border-gold'
+                : 'sidebar-item text-zinc-400 hover:text-white hover:bg-zinc-900'
             }`}
           >
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
@@ -1406,7 +1406,7 @@ export default function PremiumPositionPage() {
   return (
     <div className="min-h-screen bg-zinc-950 flex">
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800">
+      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 glass-sidebar">
         {sidebarNav}
       </aside>
 
@@ -1414,19 +1414,19 @@ export default function PremiumPositionPage() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-60 h-full bg-zinc-950 border-r border-zinc-800">
+          <aside className="relative w-60 h-full glass-sidebar">
             {sidebarNav}
           </aside>
         </div>
       )}
 
-      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden bg-grid">
         {/* Mobile header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
           <button onClick={() => setSidebarOpen(true)} className="text-zinc-400 hover:text-white transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           <div className="w-6" />
         </header>
 

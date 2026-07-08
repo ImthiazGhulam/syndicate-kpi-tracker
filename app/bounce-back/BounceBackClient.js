@@ -495,13 +495,13 @@ export default function BounceBackPage() {
             <button onClick={() => router.push('/client')} className="text-zinc-400 hover:text-white transition">
               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             </button>
-            <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+            <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           </div>
-          <h1 className="text-lg font-black text-white uppercase tracking-widest mt-6 mb-1">BounceBackAbility&trade;</h1>
+          <h1 className="text-lg font-black text-white uppercase tracking-widest mt-6 mb-1 font-display">BounceBackAbility&trade;</h1>
           <p className="text-zinc-500 text-sm mb-8">The LARCC Framework. Use it every time life throws a punch — business, family, health, anything. Each setback gets its own playbook.</p>
 
           {/* New Setback Form */}
-          <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-8">
+          <div className="glass-card p-5 mb-8">
             <GoldLabel>New Setback</GoldLabel>
             <input
               type="text"
@@ -544,7 +544,7 @@ export default function BounceBackPage() {
                     <button
                       key={entry.id}
                       onClick={() => selectEntry(entry)}
-                      className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-5 text-left hover:border-zinc-700 active:border-gold/30 transition"
+                      className="w-full glass-card p-5 text-left hover:border-zinc-700 active:border-gold/30 transition"
                     >
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1 min-w-0">
@@ -594,19 +594,19 @@ export default function BounceBackPage() {
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
             <span className="w-8 h-8 rounded-full bg-gold/20 text-gold flex items-center justify-center text-sm font-black">{moduleDef.letter}</span>
-            <h1 className="text-base font-bold text-white uppercase tracking-widest">Module {moduleDef.num}: {moduleDef.title}</h1>
+            <h1 className="text-base font-bold text-white uppercase tracking-widest font-display">Module {moduleDef.num}: {moduleDef.title}</h1>
           </div>
         </div>
 
         {/* Recap */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+        <div className="glass-card p-5 mb-5">
           <SectionHeading title="Framework Recap" />
           <p className="text-sm text-zinc-300 leading-relaxed">{moduleDef.recap}</p>
         </div>
 
         {/* Questions */}
         {moduleDef.questions.map((question, qi) => (
-          <div key={qi} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 mb-5">
+          <div key={qi} className="glass-card p-5 mb-5">
             <FieldGroup label={`Question ${qi + 1}`} gold>
               <p className="text-sm text-zinc-400 mb-3 leading-relaxed">{question}</p>
               <TextArea
@@ -648,12 +648,12 @@ export default function BounceBackPage() {
     return (
       <div>
         <div className="mb-6">
-          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1">Generate Plan &amp; Summary</h1>
+          <h1 className="text-base font-bold text-white uppercase tracking-widest mb-1 font-display">Generate Plan &amp; Summary</h1>
           <p className="text-zinc-500 text-sm">Review all your answers, see your score, and generate a personalised BounceBackAbility&trade; action plan.</p>
         </div>
 
         {/* Overall Score Ring */}
-        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-5 flex flex-col items-center">
+        <div className="glass-card p-6 mb-5 flex flex-col items-center">
           <ScoreRing score={scores.total} max={scores.max} size={140} strokeWidth={10} />
           <p className={`text-sm font-bold mt-3 ${scores.band === 'Resilient' ? 'text-gold' : scores.band === 'Strong' ? 'text-emerald-400' : scores.band === 'Getting There' ? 'text-yellow-400' : 'text-red-400'}`}>
             {scores.band}
@@ -667,7 +667,7 @@ export default function BounceBackPage() {
             const key = `module_${m.num}`
             const modScore = scores.moduleScores[key] || 0
             return (
-              <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <div key={key} className="glass-card p-5">
                 <ProgressBar score={modScore} max={10} label={`${m.letter}: ${m.title}`} />
               </div>
             )
@@ -681,7 +681,7 @@ export default function BounceBackPage() {
             const mod = moduleData[key] || {}
             const hasContent = mod.q1 || mod.q2 || mod.q3 || mod.q4 || mod.q5
             return (
-              <div key={key} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+              <div key={key} className="glass-card p-5">
                 <div className="flex items-center justify-between mb-3">
                   <GoldLabel>Module {m.num}: {m.title}</GoldLabel>
                   <button
@@ -724,7 +724,7 @@ export default function BounceBackPage() {
                 {generatedPlan && <p className="text-zinc-600 text-xs mt-2">Updated your answers? Hit regenerate to refresh your plan.</p>}
               </div>
               {generatedPlan && (
-                <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="glass-card overflow-hidden">
                   <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
                     <span className="text-xs font-bold text-gold uppercase tracking-widest">Your BounceBackAbility Action Plan</span>
                   </div>
@@ -761,7 +761,7 @@ export default function BounceBackPage() {
                     <div className="space-y-2">
                       {improvements.slice(0, 10).map((imp, i) => (
                         <button key={i} onClick={() => goToModule(imp.module)}
-                          className="w-full flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
+                          className="w-full flex items-center gap-3 glass-card px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
                           <span className="text-amber-400 text-lg flex-shrink-0">{'\u26A0\uFE0F'}</span>
                           <div className="flex-1 min-w-0">
                             <p className="text-sm font-medium text-white">{imp.title}</p>
@@ -798,7 +798,7 @@ export default function BounceBackPage() {
 
   if (!clientData) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center p-4">
-      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-8 text-center max-w-sm">
+      <div className="glass-card p-8 text-center max-w-sm">
         <h2 className="text-white font-semibold mb-2">Account Not Found</h2>
         <p className="text-zinc-400 text-sm mb-5 leading-relaxed">Your email is not linked to a client account. Please contact your coach.</p>
       </div>
@@ -814,7 +814,7 @@ export default function BounceBackPage() {
   const sidebarNav = (
     <nav className="flex flex-col h-full">
       <div className="p-5 pb-4 border-b border-zinc-800">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto" />
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       <div className="px-5 py-4 border-b border-zinc-800">
@@ -837,8 +837,8 @@ export default function BounceBackPage() {
             onClick={() => goToModule(stage.num)}
             className={`w-full flex items-center gap-3 px-5 py-3 text-[13px] font-medium transition ${
               currentModule === stage.num
-                ? 'text-gold bg-gold/[0.08] border-r-2 border-gold'
-                : 'text-zinc-400 hover:text-white hover:bg-zinc-900'
+                ? 'sidebar-active'
+                : 'sidebar-item'
             }`}
           >
             <span className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold border ${
@@ -873,7 +873,7 @@ export default function BounceBackPage() {
     <div className="min-h-screen bg-zinc-950 flex">
       {planLoading && <LoadingOverlay lines={AI_STATUS_LINES} />}
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 bg-zinc-950 border-r border-zinc-800">
+      <aside className="hidden md:flex md:flex-col md:w-60 md:fixed md:inset-y-0 glass-sidebar">
         {sidebarNav}
       </aside>
 
@@ -881,19 +881,19 @@ export default function BounceBackPage() {
       {sidebarOpen && (
         <div className="fixed inset-0 z-50 md:hidden">
           <div className="absolute inset-0 bg-black/60" onClick={() => setSidebarOpen(false)} />
-          <aside className="relative w-60 h-full bg-zinc-950 border-r border-zinc-800">
+          <aside className="relative w-60 h-full glass-sidebar">
             {sidebarNav}
           </aside>
         </div>
       )}
 
-      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
+      <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden bg-grid">
         {/* Mobile header */}
         <header className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
           <button onClick={() => setSidebarOpen(true)} className="text-zinc-400 hover:text-white transition">
             <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto" />
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           <div className="w-6" />
         </header>
 
