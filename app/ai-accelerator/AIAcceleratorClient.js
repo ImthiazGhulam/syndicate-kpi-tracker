@@ -4,6 +4,36 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
+// ── Constants ───────────────────────────────────────────────────────────────
+
+const AI_STATUS_LINES = [
+  'Reading your problem...',
+  'Designing your AI tool...',
+  'Writing the prompt...',
+  'Building the SOP...',
+]
+
+// ── Loading Overlay ─────────────────────────────────────────────────────────
+
+function LoadingOverlay({ lines }) {
+  const [lineIndex, setLineIndex] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLineIndex(prev => (prev + 1) % lines.length)
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [lines])
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
+      </div>
+    </div>
+  )
+}
+
 // ── Main Component ──────────────────────────────────────────────────────────
 
 export default function AIAcceleratorPage() {
@@ -321,6 +351,7 @@ export default function AIAcceleratorPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950">
+      {generating && <LoadingOverlay lines={AI_STATUS_LINES} />}
       <header className="flex items-center justify-between px-4 md:px-8 py-4 border-b border-zinc-800/50 bg-zinc-950/90 backdrop-blur-xl sticky top-0 z-10">
         <div className="flex items-center gap-4">
           <button onClick={backToList} className="flex items-center gap-2 text-zinc-400 hover:text-white transition text-sm">
@@ -420,66 +451,80 @@ export default function AIAcceleratorPage() {
           <div className="space-y-5">
             {/* The Prompt */}
             {generatedTool.prompt && (
-              <div className="bg-zinc-900 border border-gold/30 rounded-2xl p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-xs font-bold text-gold uppercase tracking-[0.2em]">Your AI Prompt</h3>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
+                  <span className="text-xs font-bold text-gold uppercase tracking-widest">Your AI Prompt</span>
                   <button onClick={() => { navigator.clipboard.writeText(generatedTool.prompt); flash('Copied!') }}
                     className="px-3 py-1.5 text-[10px] font-bold text-gold bg-gold/5 border border-gold/20 rounded-lg hover:bg-gold/10 transition uppercase tracking-widest">
                     Copy
                   </button>
                 </div>
-                <p className="text-zinc-500 text-xs mb-3">Paste this into Claude (claude.ai) and press enter:</p>
-                <div className="bg-zinc-800 rounded-xl p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-mono">{generatedTool.prompt}</div>
+                <div className="p-4">
+                  <p className="text-zinc-500 text-xs mb-3">Paste this into Claude (claude.ai) and press enter:</p>
+                  <div className="bg-zinc-800 rounded-xl p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap font-mono">{generatedTool.prompt}</div>
+                </div>
               </div>
             )}
 
             {/* SOP */}
             {generatedTool.sop && (
-              <div className="bg-zinc-900 border border-zinc-800 rounded-2xl p-6">
-                <h3 className="text-xs font-bold text-gold uppercase tracking-[0.2em] mb-4">How to Use It — Step by Step</h3>
-                {generatedTool.sop.tool_recommendation && (
-                  <div className="bg-zinc-800 rounded-xl px-4 py-3 mb-4">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Recommended Tool</p>
-                    <p className="text-sm text-white font-semibold">{generatedTool.sop.tool_recommendation}</p>
-                  </div>
-                )}
-                <div className="space-y-4">
-                  {(generatedTool.sop.steps || []).map((step, i) => (
-                    <div key={i} className="flex items-start gap-4 bg-zinc-800/50 rounded-xl p-4">
-                      <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-black text-gold">{i + 1}</span>
-                      </div>
-                      <p className="text-sm text-zinc-300 leading-relaxed pt-0.5">{step}</p>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                  <span className="text-xs font-bold text-gold uppercase tracking-widest">How to Use It — Step by Step</span>
+                </div>
+                <div className="p-4">
+                  {generatedTool.sop.tool_recommendation && (
+                    <div className="bg-zinc-800 rounded-xl px-4 py-3 mb-4">
+                      <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Recommended Tool</p>
+                      <p className="text-sm text-white font-semibold">{generatedTool.sop.tool_recommendation}</p>
                     </div>
-                  ))}
+                  )}
+                  <div className="space-y-4">
+                    {(generatedTool.sop.steps || []).map((step, i) => (
+                      <div key={i} className="flex items-start gap-4 bg-zinc-800/50 rounded-xl p-4">
+                        <div className="w-8 h-8 rounded-lg bg-gold/10 border border-gold/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-black text-gold">{i + 1}</span>
+                        </div>
+                        <p className="text-sm text-zinc-300 leading-relaxed pt-0.5">{step}</p>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}
 
             {/* Test Task */}
             {generatedTool.test_task && (
-              <div className="bg-zinc-900 border border-emerald-500/20 rounded-2xl p-6">
-                <h3 className="text-xs font-bold text-emerald-400 uppercase tracking-[0.2em] mb-3">Your Test Task — Do This Tomorrow</h3>
-                <p className="text-white text-sm font-semibold">{generatedTool.test_task.title}</p>
-                {generatedTool.test_task.description && (
-                  <p className="text-zinc-400 text-sm mt-2 leading-relaxed">{generatedTool.test_task.description}</p>
-                )}
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                  <span className="text-xs font-bold text-gold uppercase tracking-widest">Your Test Task — Do This Tomorrow</span>
+                </div>
+                <div className="p-4">
+                  <p className="text-white text-sm font-semibold">{generatedTool.test_task.title}</p>
+                  {generatedTool.test_task.description && (
+                    <p className="text-zinc-400 text-sm mt-2 leading-relaxed">{generatedTool.test_task.description}</p>
+                  )}
+                </div>
               </div>
             )}
 
             {/* Build Guide (Level 4 only) */}
             {generatedTool.build_guide && (
-              <div className="bg-zinc-900 border border-violet-500/20 rounded-2xl p-6">
-                <h3 className="text-xs font-bold text-violet-400 uppercase tracking-[0.2em] mb-4">Build Guide — Claude Code</h3>
-                <div className="space-y-4">
-                  {(generatedTool.build_guide.steps || []).map((step, i) => (
-                    <div key={i} className="flex items-start gap-4 bg-zinc-800/50 rounded-xl p-4">
-                      <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
-                        <span className="text-xs font-black text-violet-400">{i + 1}</span>
+              <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                  <span className="text-xs font-bold text-gold uppercase tracking-widest">Build Guide — Claude Code</span>
+                </div>
+                <div className="p-4">
+                  <div className="space-y-4">
+                    {(generatedTool.build_guide.steps || []).map((step, i) => (
+                      <div key={i} className="flex items-start gap-4 bg-zinc-800/50 rounded-xl p-4">
+                        <div className="w-8 h-8 rounded-lg bg-violet-500/10 border border-violet-500/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-xs font-black text-violet-400">{i + 1}</span>
+                        </div>
+                        <p className="text-sm text-zinc-300 leading-relaxed pt-0.5">{step}</p>
                       </div>
-                      <p className="text-sm text-zinc-300 leading-relaxed pt-0.5">{step}</p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

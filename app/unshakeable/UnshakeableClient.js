@@ -4,6 +4,24 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 
+// ── Constants ───────────────────────────────────────────────────────────────
+
+const FLYWHEEL_STAGES = [
+  { num: 1, label: 'Identity Shift', icon: '🪞' },
+  { num: 2, label: 'Positive Dials', icon: '📈' },
+  { num: 3, label: 'Negative Dials', icon: '📉' },
+  { num: 4, label: 'Negotiator', icon: '🗣️' },
+  { num: 5, label: 'Action Bridge', icon: '🌉' },
+  { num: 6, label: 'Plan', icon: '📋' },
+]
+
+const AI_STATUS_LINES = [
+  'Reading your frameworks...',
+  'Analysing your identity shift...',
+  'Building your action plan...',
+  'Scheduling your tasks...',
+]
+
 // ── Default Data Shapes ─────────────────────────────────────────────────────
 
 const defaultFramework = () => ({
@@ -132,6 +150,47 @@ function ProgressBar({ score, max, label, color = 'bg-gold' }) {
       </div>
       <div className="w-full h-2 bg-zinc-800 rounded-full overflow-hidden">
         <div className={`h-full rounded-full transition-all duration-700 ${color}`} style={{ width: `${pct}%` }} />
+      </div>
+    </div>
+  )
+}
+
+function ProgressIndicator({ current, stages }) {
+  return (
+    <div className="flex items-center gap-1 mb-6">
+      {stages.map((s, i) => (
+        <div key={s.num} className="flex items-center flex-1">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all w-full justify-center ${
+            s.num === current ? 'bg-gold/20 text-gold border border-gold/30' :
+            s.num < current ? 'bg-zinc-800 text-gold/60' : 'bg-zinc-900 text-zinc-600'
+          }`}>
+            <span>{s.icon}</span>
+            <span className="hidden sm:inline">{s.label}</span>
+            <span className="sm:hidden">{s.num}</span>
+          </div>
+          {i < stages.length - 1 && (
+            <div className={`h-px w-2 flex-shrink-0 ${s.num < current ? 'bg-gold/40' : 'bg-zinc-800'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LoadingOverlay({ lines }) {
+  const [lineIndex, setLineIndex] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLineIndex(prev => (prev + 1) % lines.length)
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [lines])
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
       </div>
     </div>
   )
@@ -732,7 +791,11 @@ export default function UnshakeablePage() {
 
               {/* Structured Tasks View */}
               {generatedTasks.length > 0 && (
-                <div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                    <span className="text-xs font-bold text-gold uppercase tracking-widest">Your Action Plan</span>
+                  </div>
+                  <div className="p-4">
                   {planSummary && (
                     <div className="bg-zinc-900 border border-gold/20 rounded-xl p-5 mb-5">
                       <p className="text-sm text-zinc-300 leading-relaxed">{planSummary}</p>
@@ -818,14 +881,19 @@ export default function UnshakeablePage() {
                     )}
                     {!deployedToCalendar && <p className="text-zinc-600 text-xs mt-2">This will create a project with all these tasks on your calendar and update your Identity Chamber.</p>}
                   </div>
+                  </div>
                 </div>
               )}
 
               {/* Fallback text plan */}
               {generatedTasks.length === 0 && generatedPlan && (
-                <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
-                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your Performance Flywheel™ Action Plan</h3>
-                  <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedPlan}</div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                    <span className="text-xs font-bold text-gold uppercase tracking-widest">Your Action Plan</span>
+                  </div>
+                  <div className="p-4">
+                    <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedPlan}</div>
+                  </div>
                 </div>
               )}
             </>
@@ -1095,10 +1163,13 @@ export default function UnshakeablePage() {
         </header>
 
         <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7" onBlur={saveAll}>
+          <ProgressIndicator current={currentFramework} stages={FLYWHEEL_STAGES} />
           {currentFramework >= 1 && currentFramework <= 5 && renderFramework(currentFramework)}
           {currentFramework === 6 && renderPlanStage()}
         </div>
       </div>
+
+      {planLoading && <LoadingOverlay lines={AI_STATUS_LINES} />}
 
       {/* Toast (DOM ref, no setState) */}
       <div

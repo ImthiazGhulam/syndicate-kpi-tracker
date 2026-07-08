@@ -45,6 +45,21 @@ const STAGES = [
   { num: 5, label: 'Your Engine', icon: '5' },
 ]
 
+const DE_STAGES = [
+  { num: 1, label: 'Problems', icon: '🎯' },
+  { num: 2, label: 'Pillars', icon: '🏛️' },
+  { num: 3, label: 'Solutions', icon: '🔧' },
+  { num: 4, label: 'Mechanisms', icon: '⚙️' },
+  { num: 5, label: 'Engine', icon: '🚀' },
+]
+
+const AI_STATUS_LINES = [
+  'Reading your framework...',
+  'Analysing your pillars...',
+  'Building your engine output...',
+  'Polishing the details...',
+]
+
 // ── Sub-components (outside main for mobile perf) ───────────────────────────
 
 function TextInput({ value, onChange, onBlur, placeholder }) {
@@ -95,6 +110,47 @@ function SuggestionPills({ suggestions, onSelect, current }) {
           {s}
         </button>
       ))}
+    </div>
+  )
+}
+
+function ProgressIndicator({ current, stages }) {
+  return (
+    <div className="flex items-center gap-1 mb-6">
+      {stages.map((s, i) => (
+        <div key={s.num} className="flex items-center flex-1">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all w-full justify-center ${
+            s.num === current ? 'bg-gold/20 text-gold border border-gold/30' :
+            s.num < current ? 'bg-zinc-800 text-gold/60' : 'bg-zinc-900 text-zinc-600'
+          }`}>
+            <span>{s.icon}</span>
+            <span className="hidden sm:inline">{s.label}</span>
+            <span className="sm:hidden">{s.num}</span>
+          </div>
+          {i < stages.length - 1 && (
+            <div className={`h-px w-2 flex-shrink-0 ${s.num < current ? 'bg-gold/40' : 'bg-zinc-800'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LoadingOverlay({ lines }) {
+  const [lineIndex, setLineIndex] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLineIndex(prev => (prev + 1) % lines.length)
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [lines])
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
+      </div>
     </div>
   )
 }
@@ -605,9 +661,11 @@ export default function DistinctionEnginePage() {
                 {generatedOutput && <p className="text-zinc-600 text-xs mt-2">Updated your pillars or mechanisms? Hit regenerate to refresh.</p>}
               </div>
               {generatedOutput && (
-                <div className="bg-zinc-900 border border-gold/30 rounded-xl p-6">
-                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Your Distinction Engine&trade;</h3>
-                  <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedOutput}</div>
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+                  <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                    <span className="text-xs font-bold text-gold uppercase tracking-widest">Your Distinction Engine</span>
+                  </div>
+                  <div className="p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{generatedOutput}</div>
                 </div>
               )}
             </>
@@ -745,7 +803,10 @@ export default function DistinctionEnginePage() {
           <div className="w-6" />
         </header>
 
+        {(suggestingPillars || suggestingMechanisms || suggestingName || generating) && <LoadingOverlay lines={AI_STATUS_LINES} />}
+
         <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7" onBlur={saveAll}>
+          <ProgressIndicator current={currentStage} stages={DE_STAGES} />
           {currentStage === 1 && renderStage1()}
           {currentStage === 2 && renderStage2()}
           {currentStage === 3 && renderStage3()}

@@ -131,6 +131,22 @@ const CONTINUITY_FORMAT_OPTIONS = ['Monthly membership', 'Quarterly retainer', '
 const DAILY_COMMS_OPTIONS = ['WhatsApp messages', 'Slack', 'Telegram', 'Email', 'Voxer']
 const ASYNC_FEEDBACK_OPTIONS = ['Loom as needed', 'Written feedback', 'Voice notes', 'Video review']
 
+const AI_STATUS_LINES = [
+  'Reading your playbook...',
+  'Analysing your offer structure...',
+  'Building your action plan...',
+  'Polishing the details...',
+]
+
+const PLAYBOOK_STAGES = [
+  { num: 1, label: 'ICP Sniper', icon: '🎯' },
+  { num: 2, label: 'Path Planner', icon: '🗺️' },
+  { num: 3, label: 'Bang Bang', icon: '💥' },
+  { num: 4, label: 'The Dip', icon: '🎣' },
+  { num: 5, label: 'Comms', icon: '📡' },
+  { num: 6, label: 'Blueprint', icon: '📋' },
+]
+
 // ── Reusable Sub-components (outside main component for mobile perf) ────────
 
 function TextInput({ value, onChange, placeholder, type = 'text', step, onBlur }) {
@@ -289,9 +305,11 @@ function AIButton({ loading, onClick, label = 'AI Research & Suggest', regenerat
 function AIOutput({ content, title = 'AI Suggestions' }) {
   if (!content) return null
   return (
-    <div className="bg-zinc-900 border border-gold/20 rounded-xl p-5 mt-4">
-      <h4 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">{title}</h4>
-      <div className="text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{content}</div>
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden mt-4">
+      <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{title}</span>
+      </div>
+      <div className="p-4 text-sm text-zinc-300 leading-relaxed whitespace-pre-wrap">{content}</div>
     </div>
   )
 }
@@ -304,6 +322,47 @@ function AutoPopBanner({ source, onDismiss }) {
         <span className="text-xs text-emerald-300 font-semibold">Auto-populated from your {source}</span>
       </div>
       {onDismiss && <button onClick={onDismiss} className="text-zinc-500 hover:text-white text-xs">Dismiss</button>}
+    </div>
+  )
+}
+
+function ProgressIndicator({ current, stages }) {
+  return (
+    <div className="flex items-center gap-1 mb-6">
+      {stages.map((s, i) => (
+        <div key={s.num} className="flex items-center flex-1">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all w-full justify-center ${
+            s.num === current ? 'bg-gold/20 text-gold border border-gold/30' :
+            s.num < current ? 'bg-zinc-800 text-gold/60' : 'bg-zinc-900 text-zinc-600'
+          }`}>
+            <span>{s.icon}</span>
+            <span className="hidden sm:inline">{s.label}</span>
+            <span className="sm:hidden">{s.num}</span>
+          </div>
+          {i < stages.length - 1 && (
+            <div className={`h-px w-2 flex-shrink-0 ${s.num < current ? 'bg-gold/40' : 'bg-zinc-800'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LoadingOverlay({ lines }) {
+  const [lineIndex, setLineIndex] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLineIndex(prev => (prev + 1) % lines.length)
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [lines])
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
+      </div>
     </div>
   )
 }
@@ -2113,6 +2172,8 @@ export default function PlaybookPage() {
 
   return (
     <div className="min-h-screen bg-zinc-950 flex">
+      {Object.values(aiLoading).some(Boolean) && <LoadingOverlay lines={AI_STATUS_LINES} />}
+
       {/* Save Toast */}
       <div className={`fixed bottom-6 right-6 z-50 transition-all duration-300 ${showToast ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-4 pointer-events-none'}`}>
         <div className="bg-zinc-800 border border-zinc-700 rounded-lg px-4 py-2.5 flex items-center gap-2 shadow-xl">
@@ -2148,6 +2209,7 @@ export default function PlaybookPage() {
       {/* Main content */}
       <div className="flex-1 md:ml-60 min-w-0 overflow-x-hidden">
         <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-7 mt-14 md:mt-0" onBlur={saveAll}>
+          <ProgressIndicator current={currentStage} stages={PLAYBOOK_STAGES} />
           {currentStage === 1 && renderStage1()}
           {currentStage === 2 && renderStage2()}
           {currentStage === 3 && renderStage3()}

@@ -88,6 +88,13 @@ const STAGES = [
   { num: 5, label: 'Edit & Export', icon: '✏️' },
 ]
 
+const AI_STATUS_LINES = [
+  'Reading your content...',
+  'Building the structure...',
+  'Crafting your hooks...',
+  'Assembling the final piece...',
+]
+
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
 function GoldLabel({ children }) {
@@ -121,6 +128,47 @@ function TextInput({ value, onChange, onBlur, placeholder }) {
       placeholder={placeholder}
       className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm"
     />
+  )
+}
+
+function ProgressIndicator({ current, stages }) {
+  return (
+    <div className="flex items-center gap-1 mb-6">
+      {stages.map((s, i) => (
+        <div key={s.num} className="flex items-center flex-1">
+          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition-all w-full justify-center ${
+            s.num === current ? 'bg-gold/20 text-gold border border-gold/30' :
+            s.num < current ? 'bg-zinc-800 text-gold/60' : 'bg-zinc-900 text-zinc-600'
+          }`}>
+            <span>{s.icon}</span>
+            <span className="hidden sm:inline">{s.label}</span>
+            <span className="sm:hidden">{s.num}</span>
+          </div>
+          {i < stages.length - 1 && (
+            <div className={`h-px w-2 flex-shrink-0 ${s.num < current ? 'bg-gold/40' : 'bg-zinc-800'}`} />
+          )}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function LoadingOverlay({ lines }) {
+  const [lineIndex, setLineIndex] = useState(0)
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setLineIndex(prev => (prev + 1) % lines.length)
+    }, 2500)
+    return () => clearInterval(timer)
+  }, [lines])
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
+      </div>
+    </div>
   )
 }
 
@@ -746,14 +794,19 @@ export default function ContentCaptureClient() {
           </button>
         ) : (
           <>
-            <div className="bg-zinc-800 rounded border border-zinc-700 p-1">
-              <textarea
-                value={generatedStructure}
-                onChange={e => setGeneratedStructure(e.target.value)}
-                onBlur={() => debouncedSave({ generated_structure: generatedStructure })}
-                rows={14}
-                className="w-full px-4 py-3 bg-transparent text-white text-sm focus:outline-none resize-none leading-relaxed"
-              />
+            <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+              <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+                <span className="text-xs font-bold text-gold uppercase tracking-widest">Generated Structure</span>
+              </div>
+              <div className="p-4">
+                <textarea
+                  value={generatedStructure}
+                  onChange={e => setGeneratedStructure(e.target.value)}
+                  onBlur={() => debouncedSave({ generated_structure: generatedStructure })}
+                  rows={14}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none leading-relaxed"
+                />
+              </div>
             </div>
             <button
               onClick={generateStructure}
@@ -894,14 +947,19 @@ export default function ContentCaptureClient() {
           + New Piece
         </button>
       </div>
-      <div className="bg-zinc-800 rounded border border-zinc-700 p-1">
-        <textarea
-          value={generatedContent}
-          onChange={e => setGeneratedContent(e.target.value)}
-          onBlur={() => debouncedSave({ generated_content: generatedContent })}
-          rows={20}
-          className="w-full px-4 py-3 bg-transparent text-white text-sm focus:outline-none resize-none leading-relaxed"
-        />
+      <div className="bg-zinc-900 border border-zinc-800 rounded-lg overflow-hidden">
+        <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50">
+          <span className="text-xs font-bold text-gold uppercase tracking-widest">Final Content</span>
+        </div>
+        <div className="p-4">
+          <textarea
+            value={generatedContent}
+            onChange={e => setGeneratedContent(e.target.value)}
+            onBlur={() => debouncedSave({ generated_content: generatedContent })}
+            rows={20}
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none leading-relaxed"
+          />
+        </div>
       </div>
       <div className="flex gap-3">
         <button
@@ -987,15 +1045,14 @@ export default function ContentCaptureClient() {
       {/* Main content */}
       <main className="flex-1 lg:ml-0 pt-16 lg:pt-0">
         <div className="max-w-2xl mx-auto p-6 lg:p-10">
+          {(generatingStructure || suggestingHooks || generating) && <LoadingOverlay lines={AI_STATUS_LINES} />}
+
+          <ProgressIndicator current={currentStage} stages={STAGES} />
+
           <div className="mb-8">
             <div className="flex items-center gap-3 mb-2">
               <span className="text-2xl">{STAGES[currentStage - 1]?.icon}</span>
               <h1 className="text-2xl font-bold text-white">{STAGES[currentStage - 1]?.label}</h1>
-            </div>
-            <div className="flex gap-1 mt-4">
-              {STAGES.map(s => (
-                <div key={s.num} className={`h-1 flex-1 rounded-full ${s.num <= currentStage ? 'bg-gold' : 'bg-zinc-800'}`} />
-              ))}
             </div>
           </div>
 
