@@ -710,7 +710,6 @@ export default function ClientPage() {
 
   // Hot List
   const LEAD_STAGES = [
-    { id: 'new_lead', label: 'New Lead', color: 'border-sky-500/40 bg-sky-500/5' },
     { id: 'dm_sent', label: 'Initial DM Sent', color: 'border-violet-500/40 bg-violet-500/5' },
     { id: 'lead_magnet_sent', label: 'Lead Magnet Sent', color: 'border-pink-500/40 bg-pink-500/5' },
     { id: 'follow_up', label: 'Follow-up Friday DM', color: 'border-amber-500/40 bg-amber-500/5' },
