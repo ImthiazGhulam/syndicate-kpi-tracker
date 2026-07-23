@@ -4036,10 +4036,15 @@ export default function ClientPage() {
                       <div className="text-center py-6">
                         <p className="text-zinc-500 text-xs mb-3">Click the chat icon on any lead card, or type below.</p>
                         <div className="flex flex-wrap gap-1.5 justify-center">
-                          {['Who needs a message today?', 'Who has gone stale?'].map((p, i) => (
-                            <button key={i} onClick={() => sendCoachMessage(p)}
+                          {[
+                            { label: 'Who needs a message today?', icon: '📋' },
+                            { label: 'Who has gone stale?', icon: '⏰' },
+                            { label: 'Help me open a DM with a new follower', icon: '💬' },
+                            { label: 'I got a reply, what do I send next?', icon: '↩️' },
+                          ].map((p, i) => (
+                            <button key={i} onClick={() => sendCoachMessage(p.label)}
                               className="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-zinc-800 text-zinc-400 border border-zinc-700 hover:text-gold hover:border-gold/30 transition">
-                              {p}
+                              <span className="mr-1">{p.icon}</span>{p.label}
                             </button>
                           ))}
                         </div>
