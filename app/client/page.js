@@ -2039,7 +2039,7 @@ export default function ClientPage() {
           <div className="w-9" />
         </header>
 
-        <div className="max-w-4xl mx-auto p-4 md:px-8 md:py-8">
+        <div className={`mx-auto p-4 md:px-8 md:py-8 ${activeTab === 'hot-list' ? 'max-w-7xl' : 'max-w-4xl'}`}>
 
           {/* Page title */}
           <div className="mb-8 animate-fade-in">
@@ -3903,16 +3903,15 @@ export default function ClientPage() {
               })}
             </div>
 
-            <div className="overflow-x-auto -mx-4 sm:mx-0 pb-4 scrollbar-thin"
-              style={{ scrollbarGutter: 'stable' }}>
-              <div className="flex gap-3 px-4 sm:px-0" style={{ minWidth: '900px' }}>
+            <div className="pb-4">
+              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${LEAD_STAGES.length}, minmax(0, 1fr))` }}>
                 {LEAD_STAGES.map((stage, stageIdx) => {
                   const stageLeads = leads.filter(l => l.status === stage.id)
                   const prevStageId = stageIdx > 0 ? LEAD_STAGES[stageIdx - 1].id : null
                   const nextStageId = stageIdx < LEAD_STAGES.length - 1 ? LEAD_STAGES[stageIdx + 1].id : null
                   const isDragOver = dragOverCol === stage.id && dragLead?.status !== stage.id
                   return (
-                    <div key={stage.id} className="flex-1 min-w-[150px]" data-stage={stage.id}>
+                    <div key={stage.id} className="min-w-0" data-stage={stage.id}>
                       {/* Column header */}
                       <div className={`rounded-t-lg border-t-2 ${stage.color} px-3 py-2.5 bg-zinc-900`}>
                         <div className="flex items-center justify-between">
