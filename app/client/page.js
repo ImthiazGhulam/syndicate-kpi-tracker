@@ -3881,12 +3881,30 @@ export default function ClientPage() {
         {/* ── HOT LIST — Lead Pipeline ─────────────────────────────────────── */}
         {activeTab === 'hot-list' && (
           <div className="fade-in stagger-in">
-            <div className="mb-6">
+            <div className="mb-4">
               <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
-              <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client. Drag cards between columns.</p>
+              <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
             </div>
 
-            <div className="overflow-x-auto -mx-4 sm:mx-0 pb-4">
+            {/* Stage jump pills */}
+            <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-none pb-1">
+              {LEAD_STAGES.map(stage => {
+                const count = leads.filter(l => l.status === stage.id).length
+                return (
+                  <button key={stage.id} onClick={() => {
+                    const el = document.querySelector(`[data-stage="${stage.id}"]`)
+                    if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
+                  }}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex-shrink-0 transition border ${count > 0 ? 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-gold/30 hover:text-gold' : 'bg-zinc-900 text-zinc-600 border-zinc-800'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full ${stage.color.split(' ')[0].replace('border-', 'bg-').replace('/40', '')}`} />
+                    {stage.label} <span className="text-zinc-500">{count}</span>
+                  </button>
+                )
+              })}
+            </div>
+
+            <div className="overflow-x-auto -mx-4 sm:mx-0 pb-4 scrollbar-thin"
+              style={{ scrollbarGutter: 'stable' }}>
               <div className="flex gap-3 px-4 sm:px-0" style={{ minWidth: '900px' }}>
                 {LEAD_STAGES.map((stage, stageIdx) => {
                   const stageLeads = leads.filter(l => l.status === stage.id)
