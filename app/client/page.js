@@ -1909,6 +1909,7 @@ export default function ClientPage() {
       { id: 'ai-accel',    label: 'AI Accelerator™',      icon: '⚡', href: '/ai-accelerator' },
       { id: 'content-cap', label: 'Content Capture™',     icon: '🎬', href: '/content-capture' },
       { id: 'comeback',    label: 'Comeback Story™',      icon: '🔥', href: '/build/comeback-story' },
+      { id: 'show-up',    label: 'Show Up Page Builder™', icon: '📄', href: '/build/show-up-page' },
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™',       icon: '🧠', href: '/wealth-wired' },

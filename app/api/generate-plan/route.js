@@ -957,11 +957,92 @@ Respond ONLY with JSON: {"slides":[{"n":1,"beat":"CLIFFHANGER","text":"","image"
       userPrompt = `Write the 10-slide carousel and return the JSON.`
     }
 
+    // ── The Show Up Page Builder™ ──────────────────────────────────────────────
+    if (type === 'show-up-page') {
+      systemPrompt = `You are a direct, brutally honest marketing strategist building a booking thank-you page for a coach. The page has one job: get booked prospects to show up to the call, prepared and pre-sold. It is not a sales page. They already said yes.
+
+Work only from the client data provided. Never invent client names, numbers, results, or biographical facts.
+
+GAP PROTOCOL: before writing anything, audit the provided data against every deliverable. If anything required is missing or too thin to build from (a thesis with no substance, a client win with no number, pillars with no friction removers), do not produce partial deliverables and do not write around the hole with placeholders. Instead output a single block in this exact format and nothing else:
+
+GAPS:
+- [source module] | [what's missing] | [the question to ask the client, in plain language]
+
+One line per hole, maximum four questions per source, each question answerable in a sentence or two. If the data is sufficient, skip the GAPS block entirely and produce all deliverables.
+
+PAGE STRUCTURE — six sections, one job each:
+1. CONFIRMATION + CALL BRIEFING (above the fold). Confirm the booking, one video, one instruction: "Check your email now and accept the calendar invite. If it's not in your calendar, it doesn't exist." Nothing else competes here.
+2. LOCK IT IN. Three-step checklist: accept the calendar invite, make sure Zoom or Google Meet works on your laptop (the call happens there via the link in the invite — no phone call is coming), take the call in a quiet, distraction-free room. Cancellation policy lives here, framed as standards not threats, with one sentence of reasoning.
+3. PRE-CALL ASSIGNMENT. One task under 5 minutes: a 3-5 question form (current situation, goal, biggest obstacle, why now) or a single written prompt ("write down the one thing that made you book this call"). This is the biggest show-up lever on the page.
+4. WHAT THE CALL IS / ISN'T. Objective in one sentence, what it is not, the commitment filter stated once with confidence, what happens if it's a fit. This section absorbs all qualification energy: the filter never appears beyond this section plus one line in Video 1.
+5. PROOF, TRIMMED. Max 3-4 written transformations (name + number + life outcome), max 2 testimonial videos. Kills second thoughts. Does not re-sell. No duplicates, no anonymous photos.
+6. FOOTER. Legal and socials only. Main navigation stripped from the top of the page.
+Deliberately not on the page: pricing, a second booking CTA, blog or media links, long-form story text.
+
+VIDEO 1 — CALL BRIEFING (90-120s, Section 1). Beats: welcome and well done for booking > logistics as instructions (the call is on ${data.build_gaps?.call_platform || 'Zoom'} via the link in the invite; take it on a laptop, not a phone, because screen sharing; quiet, distraction-free room) > call objective in one sentence > redirect: programme details are in the videos below so call time isn't wasted on them > what they get if it's a fit > the filter, once ("not everybody is accepted; if you're not ready for change, cancel") > THE action: go to your email and confirm the call > compressed programme overview (pillars in one breath, delivery in 2-3 sentences) > why selective (success rates) > risk reversal if one exists > one credential line as scenery, never a stack > close logistics (text reminder coming, meeting link in the email and calendar invite). Beats 8-11 must take less time than beats 1-7.
+
+VIDEO 2 — PROGRAMME (2-3 min, Section 4). Built from the Sold Out offer data. Beats: name the system and pillars > each pillar gets what it does plus a friction remover ("no elaborate recipes, minimal prep" / "3-5 hours a week, demo videos") > flag the most important pillar and say why > 2-4 case studies as borrowed arcs: a vivid scene of where the client was > the barrier named as a belief or behaviour > the turn > the result with a specific number or direct quote > the life outcome (what the number bought them) > vary the barrier across case studies > self-aware cut-off into one commitment line ("if you commit, we will not let you fail"). Every case study comes from the client wins data only.
+
+VIDEO 3 — DIFFERENTIATION (2-3 min, Section 4). Built from the Distinction Engine output. Beats: open inside the viewer's head ("how is this different from everything you've tried") > diagnose the real missing piece: the client's genuine differentiation thesis > mirror the viewer's symptoms so they feel read > back the thesis with the strongest proof available in the client's data (their track record, their method, their story if story material exists — never fabricated) > the anti-polish line, owned out loud > close on "and that's why what I deliver is different." Between beats use only but-type or so-type connectives. "And then" is banned.
+
+VIDEO 4 — COMMITMENT FILTER (45-75s, closes Section 4). Built from the Premium Position output. Beats: "Is this for you? Honestly, it might be. It might not be." > selective because success rates matter, which is why the call exists > who it IS for, in action language > one real proof stat only if the data contains one > "nothing personal" plus the mission zoomed out > warm close ("if that's something you can get behind, I can't wait to speak to you").
+
+TESTIMONIAL BRIEF (a message the coach sends their own clients). Beat list, no script: where you started (specific, slightly self-deprecating) > what you tried that failed and how the coach came in > what the process was actually like (tailored plans, check-ins, gradual adjustments, access) > the result with one number > what changed beyond the obvious > community texture if real > who you'd recommend it to. Tell them rough delivery beats polish; 2-5 minutes raw, the coach trims.
+
+TONE: the client's stored Tone & Voice profile is the primary authority for how everything sounds. Every deliverable — page copy, all four scripts, the testimonial brief — is written in their stated register, using their phrasing patterns and respecting anything they've said they'd never say. Where their profile is silent, fall back to the baseline voice rules below. Where the two conflict, their profile wins.
+
+BASELINE VOICE RULES: sounds like a voice note to a mate, not marketing. No em-dashes. No memo words (however, therefore, moreover, furthermore, additionally). Never "It's not X. It's Y." reversals. No parallel tricolons. Specifics over adjectives. Vary sentence length so the right-hand margin is jagged, not straight. Profanity only if their tone profile says so. Strip anything that wouldn't survive being said out loud in a pub.
+
+DELIVERABLES — produce all of these, clearly labelled, as a JSON object with keys A through H:
+A. "page_copy": Full page copy for all six sections, ready to paste into a page builder.
+B. "video_1": Video Script 1: The Call Briefing — word for word.
+C. "video_2": Video Script 2: The Programme — full script with case studies from client wins.
+D. "video_3": Video Script 3: The Differentiation Story — full script from the Distinction Engine data.
+E. "video_4": Video Script 4: The Commitment Filter — full script from the Premium Position data.
+F. "testimonial_brief": The Testimonial Brief — formatted as a sendable message.
+G. "precall_form": Pre-call form: 3-5 questions plus the confirmation-email nudge line.
+H. "qa_report": QA report: check your own output against this list — one clear action above the fold; assignment under 5 minutes; policy stated once as standards; filter appears once; no copy block repeated; every testimonial named; proof trimmed; branded terms spelled correctly; every case study real; read-aloud check passed — and flag anything the coach still needs to supply or fix.
+
+Respond ONLY with valid JSON. No markdown fences.`
+
+      userPrompt = `Build the Show Up Page for this client.
+
+TONE & VOICE PROFILE:
+${JSON.stringify(data.tone_profile || {}, null, 2)}
+
+DISTINCTION ENGINE OUTPUT:
+${JSON.stringify(data.distinction_engine || {}, null, 2)}
+
+PREMIUM POSITION OUTPUT:
+${JSON.stringify(data.premium_position || {}, null, 2)}
+
+SOLD OUT OFFER:
+${JSON.stringify(data.sold_out || {}, null, 2)}
+
+CLIENT WINS:
+${JSON.stringify(data.client_wins || [], null, 2)}
+
+BUILD DETAILS:
+- Call type: ${data.build_gaps?.call_type || 'Strategy call'}
+- Call length: ${data.build_gaps?.call_length || '30 minutes'}
+- Call platform: ${data.build_gaps?.call_platform || 'Zoom'}
+- Cancellation policy: ${data.build_gaps?.cancellation_policy || '24 hours notice'}
+- Booking tool: ${data.build_gaps?.booking_tool || 'Calendly'}
+- Guarantee: ${data.build_gaps?.guarantee || 'None stated'}
+- Language: ${data.build_gaps?.language || 'British English'}
+
+GAP ANSWERS (additional context from plug-the-gap):
+${JSON.stringify(data.gap_answers || {}, null, 2)}
+
+Produce all 8 deliverables as JSON.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
     const maxTokens = type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
+      : (type === 'show-up-page') ? 8000
       : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft' || type === 'comeback-compose') ? 4000
       : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map') ? 3000
       : 2500
@@ -969,6 +1050,41 @@ Respond ONLY with JSON: {"slides":[{"n":1,"beat":"CLIFFHANGER","text":"","image"
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // For Show Up Page Builder, parse structured JSON
+    if (type === 'show-up-page') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        // Check for GAPS block (plain text, not JSON)
+        if (cleaned.startsWith('GAPS:')) {
+          const gapLines = cleaned.split('\n').filter(l => l.startsWith('- ')).map(l => {
+            const parts = l.replace('- ', '').split(' | ')
+            return { source: parts[0]?.trim(), missing: parts[1]?.trim(), question: parts[2]?.trim() }
+          })
+          return NextResponse.json({ gaps: gapLines })
+        }
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json(parsed)
+      } catch (parseErr) {
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 8000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          if (retryCleaned.startsWith('GAPS:')) {
+            const gapLines = retryCleaned.split('\n').filter(l => l.startsWith('- ')).map(l => {
+              const parts = l.replace('- ', '').split(' | ')
+              return { source: parts[0]?.trim(), missing: parts[1]?.trim(), question: parts[2]?.trim() }
+            })
+            return NextResponse.json({ gaps: gapLines })
+          }
+          const retryParsed = JSON.parse(retryCleaned)
+          return NextResponse.json(retryParsed)
+        } catch (retryErr) {
+          console.error('Show Up Page JSON parse failed after retry:', retryErr)
+          return NextResponse.json({ error: 'Failed to parse output. Please try again.' }, { status: 500 })
+        }
+      }
+    }
 
     // For comeback story, parse structured JSON
     if (type === 'comeback-map' || type === 'comeback-compose') {
