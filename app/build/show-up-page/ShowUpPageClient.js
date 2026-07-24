@@ -715,16 +715,17 @@ export default function ShowUpPageClient() {
                 )
               }
               const tab = DELIVERABLE_TABS.find(t => t.key === activeTab)
+              const displayContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2)
               return (
                 <div className="glass-card overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
                     <span className="text-xs font-bold text-gold uppercase tracking-widest">{tab?.icon} {tab?.label}</span>
-                    <button onClick={() => copyDeliverable(activeTab)}
+                    <button onClick={() => { navigator.clipboard.writeText(displayContent); flash('Copied!') }}
                       className="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold border border-gold/30 hover:bg-gold/20 transition">
                       Copy
                     </button>
                   </div>
-                  <div className="p-5 text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">{content}</div>
+                  <div className="p-5 text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">{displayContent}</div>
                 </div>
               )
             })()}
