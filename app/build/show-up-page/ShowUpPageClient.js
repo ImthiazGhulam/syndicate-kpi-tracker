@@ -293,15 +293,50 @@ export default function ShowUpPageClient() {
       })
 
       const result = await res.json()
+      console.log('Show Up Page result:', JSON.stringify(result).slice(0, 500))
 
       if (result.error) {
         setApiError(result.error)
       } else if (result.gaps) {
         setAiGaps(result.gaps)
-      } else {
-        setGeneratedOutput(result)
+      } else if (result.plan) {
+        // Came back as plain text (fell through to default handler) — wrap it
+        const output = { page_copy: result.plan }
+        setGeneratedOutput(output)
         setActiveTab('page_copy')
-        await saveToSupabase({ generated_output: result, status: 'complete' })
+        await saveToSupabase({ generated_output: output, status: 'complete' })
+      } else if (result.page_copy || result.A || result.video_1 || result.B) {
+        // Direct keys or lettered keys
+        const output = result.page_copy ? result : {
+          page_copy: result.A || '', video_1: result.B || '', video_2: result.C || '',
+          video_3: result.D || '', video_4: result.E || '', testimonial_brief: result.F || '',
+          precall_form: result.G || '', qa_report: result.H || '',
+        }
+        setGeneratedOutput(output)
+        setActiveTab('page_copy')
+        await saveToSupabase({ generated_output: output, status: 'complete' })
+      } else {
+        // Unknown structure — try to show whatever came back
+        const keys = Object.keys(result)
+        if (keys.length > 0) {
+          // Map whatever keys exist to our tab keys
+          const output = {}
+          const tabKeys = DELIVERABLE_TABS.map(t => t.key)
+          keys.forEach((k, i) => {
+            if (tabKeys.includes(k)) output[k] = result[k]
+            else if (i < tabKeys.length) output[tabKeys[i]] = result[k]
+          })
+          if (Object.keys(output).length > 0) {
+            setGeneratedOutput(output)
+            setActiveTab(Object.keys(output)[0])
+            await saveToSupabase({ generated_output: output, status: 'complete' })
+          } else {
+            setApiError('Unexpected response format. Check console and try again.')
+            console.error('Full result:', result)
+          }
+        } else {
+          setApiError('Empty response from AI. Please try again.')
+        }
       }
     } catch (err) {
       setApiError('Failed to connect. Please try again.')
@@ -670,20 +705,29 @@ export default function ShowUpPageClient() {
             </div>
 
             {/* Active deliverable */}
-            {DELIVERABLE_TABS.map(tab => (
-              activeTab === tab.key && generatedOutput[tab.key] && (
-                <div key={tab.key} className="glass-card overflow-hidden">
+            {(() => {
+              const content = generatedOutput[activeTab]
+              if (!content) {
+                return (
+                  <div className="glass-card p-8 text-center">
+                    <p className="text-zinc-500 text-sm">This deliverable wasn't generated. Try rebuilding.</p>
+                  </div>
+                )
+              }
+              const tab = DELIVERABLE_TABS.find(t => t.key === activeTab)
+              return (
+                <div className="glass-card overflow-hidden">
                   <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
-                    <span className="text-xs font-bold text-gold uppercase tracking-widest">{tab.icon} {tab.label}</span>
-                    <button onClick={() => copyDeliverable(tab.key)}
+                    <span className="text-xs font-bold text-gold uppercase tracking-widest">{tab?.icon} {tab?.label}</span>
+                    <button onClick={() => copyDeliverable(activeTab)}
                       className="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold border border-gold/30 hover:bg-gold/20 transition">
                       Copy
                     </button>
                   </div>
-                  <div className="p-5 text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">{generatedOutput[tab.key]}</div>
+                  <div className="p-5 text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">{content}</div>
                 </div>
               )
-            ))}
+            })()}
 
             {/* Actions */}
             <div className="grid grid-cols-2 gap-3">
