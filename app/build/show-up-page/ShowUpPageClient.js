@@ -170,6 +170,12 @@ export default function ShowUpPageClient() {
         supabase.from('show_up_pages').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(1).maybeSingle(),
       ])
 
+      console.log('Show Up sources:', {
+        de: deRes.data ? 'found' : 'missing', deEngine: deRes.data?.engine_data ? Object.keys(deRes.data.engine_data) : 'none',
+        pp: ppRes.data ? 'found' : 'missing',
+        offer: offerRes.data ? 'found' : 'missing', offerBB: offerRes.data?.bang_bang?.name || 'none',
+        record: recordRes.data ? 'found' : 'missing',
+      })
       if (deRes.data) setDeData(deRes.data)
       if (ppRes.data) setPpData(ppRes.data)
       if (offerRes.data) setOfferData(offerRes.data)
