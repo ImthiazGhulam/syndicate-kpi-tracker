@@ -17,6 +17,8 @@ const BUILD_STATUS_LINES = [
 ]
 
 const DELIVERABLE_TABS = [
+  { key: 'preview', label: 'Preview', icon: '👁️' },
+  { key: 'code', label: 'HTML Code', icon: '< >' },
   { key: 'page_copy', label: 'Page Copy', icon: '📄' },
   { key: 'video_1', label: 'Video 1: Call Briefing', icon: '🎬' },
   { key: 'video_2', label: 'Video 2: Programme', icon: '🎥' },
@@ -96,6 +98,91 @@ function SourceCard({ title, icon, status, children, defaultOpen = false }) {
   )
 }
 
+// ── HTML Builder ──────────────────────────────────────────────────────────────
+
+function buildPageHTML(pageCopy, clientName) {
+  const raw = typeof pageCopy === 'string' ? pageCopy : JSON.stringify(pageCopy, null, 2)
+
+  // Split the page copy into sections by looking for section headers
+  // The AI outputs sections with headers like "SECTION 1:", "1.", "CONFIRMATION", etc.
+  const sections = raw.split(/\n(?=(?:SECTION \d|#{1,3} |\d+\.\s+[A-Z]))/i).filter(Boolean)
+
+  const sectionHTML = sections.map(section => {
+    const lines = section.trim().split('\n')
+    const title = lines[0].replace(/^#+\s*/, '').replace(/^\d+\.\s*/, '').replace(/^SECTION \d+[:\s]*/i, '').trim()
+    const body = lines.slice(1).join('\n').trim()
+
+    const bodyHTML = body
+      .split('\n\n')
+      .map(para => {
+        const trimmed = para.trim()
+        if (!trimmed) return ''
+        if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) {
+          const items = trimmed.split('\n').map(li => `<li style="margin-bottom:8px;color:#d4d4d8;">${li.replace(/^[-*]\s*/, '')}</li>`).join('')
+          return `<ul style="padding-left:20px;margin:16px 0;">${items}</ul>`
+        }
+        if (trimmed.match(/^\d+\.\s/)) {
+          const items = trimmed.split('\n').map(li => `<li style="margin-bottom:8px;color:#d4d4d8;">${li.replace(/^\d+\.\s*/, '')}</li>`).join('')
+          return `<ol style="padding-left:20px;margin:16px 0;">${items}</ol>`
+        }
+        // Bold text
+        const formatted = trimmed
+          .replace(/\*\*([^*]+)\*\*/g, '<strong style="color:#C9A84C;">$1</strong>')
+          .replace(/\n/g, '<br>')
+        return `<p style="color:#d4d4d8;line-height:1.7;margin:12px 0;">${formatted}</p>`
+      })
+      .join('')
+
+    return `
+    <section style="padding:48px 24px;max-width:720px;margin:0 auto;">
+      <h2 style="font-family:'Inter',sans-serif;font-size:14px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;color:#C9A84C;margin-bottom:24px;">${title}</h2>
+      ${bodyHTML}
+    </section>
+    <div style="max-width:720px;margin:0 auto;height:1px;background:rgba(201,168,76,0.15);"></div>`
+  }).join('')
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${clientName || 'Thank You'} - Your Call is Booked</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', -apple-system, sans-serif;
+    background: #09090b;
+    color: #d4d4d8;
+    -webkit-font-smoothing: antialiased;
+  }
+  ::selection { background: rgba(201,168,76,0.3); }
+  a { color: #C9A84C; text-decoration: none; }
+  a:hover { color: #D4B96A; }
+</style>
+</head>
+<body>
+  <!-- Hero / Confirmation -->
+  <header style="padding:64px 24px 32px;text-align:center;background:linear-gradient(180deg,rgba(201,168,76,0.06) 0%,transparent 100%);">
+    <div style="max-width:720px;margin:0 auto;">
+      <p style="font-size:12px;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:#C9A84C;margin-bottom:16px;">Booking Confirmed</p>
+      <h1 style="font-size:28px;font-weight:800;color:#ffffff;line-height:1.3;margin-bottom:16px;">You're In. Here's What Happens Next.</h1>
+      <p style="font-size:15px;color:#71717a;max-width:500px;margin:0 auto;">Check your email now and accept the calendar invite. If it's not in your calendar, it doesn't exist.</p>
+    </div>
+  </header>
+
+  <div style="max-width:720px;margin:0 auto;height:1px;background:rgba(201,168,76,0.15);"></div>
+
+  ${sectionHTML}
+
+  <!-- Footer -->
+  <footer style="padding:48px 24px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
+    <p style="font-size:11px;color:#52525b;letter-spacing:0.1em;text-transform:uppercase;">&copy; ${new Date().getFullYear()} ${clientName || 'All Rights Reserved'}</p>
+  </footer>
+</body>
+</html>`
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ShowUpPageClient() {
@@ -129,7 +216,7 @@ export default function ShowUpPageClient() {
 
   // Output
   const [generatedOutput, setGeneratedOutput] = useState(null)
-  const [activeTab, setActiveTab] = useState('page_copy')
+  const [activeTab, setActiveTab] = useState('preview')
   const [generating, setGenerating] = useState(false)
   const [apiError, setApiError] = useState('')
   const [aiGaps, setAiGaps] = useState(null)
@@ -309,7 +396,7 @@ export default function ShowUpPageClient() {
         // Came back as plain text (fell through to default handler) — wrap it
         const output = { page_copy: result.plan }
         setGeneratedOutput(output)
-        setActiveTab('page_copy')
+        setActiveTab('preview')
         await saveToSupabase({ generated_output: output, status: 'complete' })
       } else if (result.page_copy || result.A || result.video_1 || result.B) {
         // Direct keys or lettered keys
@@ -319,7 +406,7 @@ export default function ShowUpPageClient() {
           precall_form: result.G || '', qa_report: result.H || '',
         }
         setGeneratedOutput(output)
-        setActiveTab('page_copy')
+        setActiveTab('preview')
         await saveToSupabase({ generated_output: output, status: 'complete' })
       } else {
         // Unknown structure — try to show whatever came back
@@ -712,6 +799,62 @@ export default function ShowUpPageClient() {
 
             {/* Active deliverable */}
             {(() => {
+              const tab = DELIVERABLE_TABS.find(t => t.key === activeTab)
+              const pageCopyRaw = generatedOutput.page_copy
+              const htmlCode = pageCopyRaw ? buildPageHTML(pageCopyRaw, ppStar.name || clientData?.name || '') : ''
+
+              // Preview tab
+              if (activeTab === 'preview') {
+                if (!pageCopyRaw) return (
+                  <div className="glass-card p-8 text-center">
+                    <p className="text-zinc-500 text-sm">No page copy generated yet. Rebuild to see the preview.</p>
+                  </div>
+                )
+                return (
+                  <div className="glass-card overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+                      <span className="text-xs font-bold text-gold uppercase tracking-widest">👁️ Live Preview</span>
+                      <p className="text-[10px] text-zinc-500">Scroll to see the full page</p>
+                    </div>
+                    <div className="bg-zinc-900 rounded-b-lg overflow-hidden" style={{ height: '600px' }}>
+                      <iframe
+                        srcDoc={htmlCode}
+                        title="Show Up Page Preview"
+                        className="w-full h-full border-0"
+                        sandbox="allow-same-origin"
+                      />
+                    </div>
+                  </div>
+                )
+              }
+
+              // Code tab
+              if (activeTab === 'code') {
+                if (!pageCopyRaw) return (
+                  <div className="glass-card p-8 text-center">
+                    <p className="text-zinc-500 text-sm">No page copy generated yet. Rebuild to see the code.</p>
+                  </div>
+                )
+                return (
+                  <div className="glass-card overflow-hidden">
+                    <div className="flex items-center justify-between px-5 py-3 border-b border-white/[0.06]">
+                      <span className="text-xs font-bold text-gold uppercase tracking-widest">{'< >'} HTML Code</span>
+                      <button onClick={() => { navigator.clipboard.writeText(htmlCode); flash('HTML Copied!') }}
+                        className="px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold border border-gold/30 hover:bg-gold/20 transition">
+                        Copy HTML
+                      </button>
+                    </div>
+                    <div className="p-4 max-h-[600px] overflow-y-auto scrollbar-thin">
+                      <pre className="text-xs text-zinc-300 leading-relaxed font-mono whitespace-pre-wrap break-all">{htmlCode}</pre>
+                    </div>
+                    <div className="px-5 py-3 border-t border-white/[0.06] bg-zinc-900/50">
+                      <p className="text-[10px] text-zinc-500">Self-contained HTML with inline styles. Paste into any website builder: WordPress, Carrd, Framer, Squarespace, Webflow, or any custom page.</p>
+                    </div>
+                  </div>
+                )
+              }
+
+              // All other deliverable tabs
               const content = generatedOutput[activeTab]
               if (!content) {
                 return (
@@ -720,7 +863,6 @@ export default function ShowUpPageClient() {
                   </div>
                 )
               }
-              const tab = DELIVERABLE_TABS.find(t => t.key === activeTab)
               const displayContent = typeof content === 'string' ? content : JSON.stringify(content, null, 2)
               return (
                 <div className="glass-card overflow-hidden">
