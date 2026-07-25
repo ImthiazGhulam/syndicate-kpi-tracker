@@ -160,8 +160,8 @@ function buildPageHTML(output, styles, videoUrls, clientName) {
 
   const transformations = Array.isArray(output?.section_4_transformations) ? output.section_4_transformations : []
   const caseStudies = Array.isArray(output?.section_5_casestudies) ? output.section_5_casestudies : []
-  const s6 = str(output?.section_6_video_testimonials)
-  const writtenTestimonials = Array.isArray(output?.section_7_written_testimonials) ? output.section_7_written_testimonials : []
+  const s6 = str(output?.section_6_testimonials_header)
+  const writtenTestimonials = Array.isArray(output?.section_7_testimonials) ? output.section_7_testimonials : []
 
   const transformGrid = transformations.map(t => `
     <div style="text-align:center;">
@@ -226,6 +226,7 @@ p,li{font-family:var(--body-font);color:var(--body);font-size:16px;line-height:1
 .label{font-family:var(--subheading-font);color:var(--subheading);font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px;}
 .hero{padding:100px 0 80px;text-align:center;}
 .grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:20px;}
 .grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
 .video-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:16px;margin:32px 0;box-shadow:0 20px 60px ${s.headingColor}10;}
 .video-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
@@ -237,7 +238,7 @@ p,li{font-family:var(--body-font);color:var(--body);font-size:16px;line-height:1
 .reminder-box li:last-child{border-bottom:none;}
 .reminder-box li::before{content:'\\2713';color:${s.accent};font-weight:700;font-size:16px;flex-shrink:0;margin-top:2px;}
 .subsection{margin-top:56px;padding-top:56px;border-top:1px solid ${s.headingColor}08;}
-@media(max-width:768px){.container{padding:0 20px;}.section{padding:56px 0;}.hero{padding:64px 0 48px;}.grid-2{grid-template-columns:1fr;}.grid-4{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:768px){.container{padding:0 20px;}.section{padding:56px 0;}.hero{padding:64px 0 48px;}.grid-2{grid-template-columns:1fr;}.grid-3{grid-template-columns:1fr;}.grid-4{grid-template-columns:repeat(2,1fr);}}
 @media(max-width:480px){.grid-4{grid-template-columns:1fr;}}
 </style>
 </head>
@@ -246,9 +247,7 @@ p,li{font-family:var(--body-font);color:var(--body);font-size:16px;line-height:1
 <!-- SECTION 1: HERO / CONFIRMATION -->
 <div class="hero">
 <div class="container">
-<p class="label">Booking Confirmed</p>
 ${s1.split('\n').map(l => l.trim()).filter(Boolean).map((l, i) => i === 0 ? `<h1>${l}</h1>` : `<p style="margin-top:20px;font-size:18px;max-width:620px;margin-left:auto;margin-right:auto;color:${s.bodyColor};">${l}</p>`).join('')}
-${embedVideo(vids.video_1, 'Video 1: Call Briefing')}
 </div>
 </div>
 
@@ -265,20 +264,12 @@ ${s2.split('\n').filter(l => l.trim().startsWith('- ') || l.trim().startsWith('*
 
 <!-- SECTION 3: WHAT TO EXPECT -->
 <div class="section"><div class="container">
-<p class="label">Your Journey Starts Here</p>
 <h2>What to Expect</h2>
-${s3.split('\n').filter(Boolean).map(l => `<p style="margin-bottom:16px;font-size:16px;line-height:1.8;">${l.trim()}</p>`).join('')}
-${embedVideo(vids.video_2, 'Video 2: The Programme')}
-<div class="subsection">
-<p class="label">Our Story</p>
-<h3>How is this different from everything you've tried?</h3>
-${embedVideo(vids.video_3, 'Video 3: The Differentiation Story')}
-</div>
-<div class="subsection">
-<p class="label">Commitment</p>
-<h3>Is This For You?</h3>
-${embedVideo(vids.video_4, 'Video 4: The Commitment Filter')}
-</div>
+${s3.split('\n').filter(Boolean).map(l => {
+    const trimmed = l.trim()
+    if (trimmed.startsWith('##') || trimmed.startsWith('**')) return `<h3 style="margin-top:32px;margin-bottom:12px;">${trimmed.replace(/^#+\s*/, '').replace(/\*\*/g, '')}</h3>`
+    return `<p style="margin-bottom:16px;font-size:16px;line-height:1.8;">${trimmed}</p>`
+  }).join('')}
 </div></div>
 
 <!-- SECTION 4: TRANSFORMATIONS -->
@@ -299,26 +290,12 @@ ${embedVideo(vids.video_4, 'Video 4: The Commitment Filter')}
 ${caseStudyBlocks || `<div style="text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Case studies will appear here</span></div>`}
 </div></div>
 
-<!-- SECTION 6: VIDEO TESTIMONIALS -->
+<!-- SECTION 6-7: TESTIMONIALS -->
 <div class="section"><div class="container">
-<div style="text-align:center;margin-bottom:40px;">
-<p class="label">From Our Members</p>
-<h2>Hear It From Them</h2>
-<p style="max-width:560px;margin:0 auto;font-size:16px;">${str(output?.section_6_video_testimonials)}</p>
+<div style="text-align:center;margin-bottom:48px;">
+<h2>${str(output?.section_6_testimonials_header) || "Here's What Our Members Think"}</h2>
 </div>
-<div class="grid-2">
-${embedVideo(vids.testimonial_1, 'Testimonial Video 1')}
-${embedVideo(vids.testimonial_2, 'Testimonial Video 2')}
-</div>
-</div></div>
-
-<!-- SECTION 7: WRITTEN TESTIMONIALS -->
-<div class="section"><div class="container">
-<div style="text-align:center;margin-bottom:40px;">
-<p class="label">Success Stories</p>
-<h2>What Our Members Say</h2>
-</div>
-<div class="grid-2">${testimonialCards || `<div style="grid-column:1/-1;text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Written testimonials will appear here</span></div>`}</div>
+<div class="grid-3">${testimonialCards || `<div style="grid-column:1/-1;text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Testimonials will appear here</span></div>`}</div>
 </div></div>
 
 <!-- SECTION 8: FOOTER -->
@@ -759,8 +736,8 @@ export default function ShowUpPageClient() {
                     { key: 'section_3_expect', label: 'Section 3: What to Expect', icon: '📺' },
                     { key: 'section_4_transformations', label: 'Section 4: Transformations', icon: '🔄' },
                     { key: 'section_5_casestudies', label: 'Section 5: How Does It Work?', icon: '📖' },
-                    { key: 'section_6_video_testimonials', label: 'Section 6: Video Testimonials', icon: '🎥' },
-                    { key: 'section_7_written_testimonials', label: 'Section 7: Written Testimonials', icon: '💬' },
+                    { key: 'section_6_testimonials_header', label: 'Section 6: Testimonials Header', icon: '🎤' },
+                    { key: 'section_7_testimonials', label: 'Section 7: Testimonial Cards', icon: '💬' },
                     { key: 'section_8_footer', label: 'Section 8: Footer', icon: '📎' },
                   ].map(sec => {
                     const raw = generatedOutput?.[sec.key]
@@ -781,7 +758,7 @@ export default function ShowUpPageClient() {
                   })}
                   {/* Copy all sections at once */}
                   <button onClick={() => {
-                    const allCopy = ['section_1_hero', 'section_2_reminder', 'section_3_expect', 'section_4_transformations', 'section_5_casestudies', 'section_6_video_testimonials', 'section_7_written_testimonials', 'section_8_footer']
+                    const allCopy = ['section_1_hero', 'section_2_reminder', 'section_3_expect', 'section_4_transformations', 'section_5_casestudies', 'section_6_testimonials_header', 'section_7_testimonials', 'section_8_footer']
                       .map(k => {
                         const v = generatedOutput?.[k]
                         const label = k.replace('section_', 'SECTION ').replace(/_/g, ' ').toUpperCase()

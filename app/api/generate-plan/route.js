@@ -972,15 +972,24 @@ TONE: the client's stored Tone & Voice profile is the primary authority for how 
 
 BASELINE VOICE RULES: sounds like a voice note to a mate, not marketing. No em-dashes. No memo words (however, therefore, moreover, furthermore, additionally). Never "It's not X. It's Y." reversals. No parallel tricolons. Specifics over adjectives. Vary sentence length so the right-hand margin is jagged, not straight. Profanity only if their tone profile says so. Strip anything that wouldn't survive being said out loud in a pub.
 
-PAGE STRUCTURE — eight sections, in this order:
-1. HERO / CONFIRMATION. Thank-you headline confirming the booking + a short, high-energy paragraph that sets the tone of the journey they've just stepped into. Video 1 (the Call Briefing) sits directly beneath it.
-2. IMPORTANT REMINDER. The cancellation/reschedule policy and the environment instructions: quiet place, laptop, distraction-free. The call happens on ${data.build_gaps?.call_platform || 'Zoom'} via the link in the calendar invite — no phone call is coming; say so, because prospects waiting for a ringing phone is a real no-show cause.
-3. WHAT TO EXPECT. The heart of the page. An intro paragraph, then Video 2 (the Programme), followed by sub-sections carrying the remaining videos: the programme breakdown in text; the story sub-section with Video 3 (the Differentiation Story); and the commitment sub-section with Video 4 (the Commitment Filter).
-4. TRANSFORMATIONS. Before/after grid. Provide caption copy: name (or initials) plus one line of context per image wherever the client wins data supplies it.
-5. HOW DOES IT WORK? Case-study blocks, each a photo + story mapped to one component of the client's system, so every part of the method has a face and a result. Each block follows the borrowed-arc shape: situation > barrier (named as a belief or behaviour) > intervention > number > life outcome. Built from the client wins data only.
-6. VIDEO TESTIMONIALS. Member-filmed testimonial videos. Provide a short intro line for the section.
-7. WRITTEN TESTIMONIALS. Quote cards with names and photos. The strongest pair a number with a life change. Select and lightly edit from the client wins data; never compose quotes the clients didn't say.
-8. FOOTER. Nav, socials, legal, logo. No copy needed beyond standard labels.
+PAGE STRUCTURE — eight sections, in this exact order. This structure matches a proven high-converting thank-you page format:
+
+1. HERO / CONFIRMATION. Centred on the page. A bold thank-you headline (e.g. "Thank You for Booking a Call") followed by a short, high-energy motivational paragraph setting the tone. No video in this section. No label or badge. Just the headline and one paragraph, centred, clean, spacious.
+
+2. IMPORTANT REMINDER. Two to three short paragraphs covering: cancellation policy (framed as standards, not threats), and environment instructions (quiet place, laptop not phone, distraction-free). The call happens on ${data.build_gaps?.call_platform || 'Zoom'} via the link in the calendar invite — no phone call is coming; say so explicitly. Simple left-aligned text. No bullet lists, no boxes.
+
+3. WHAT TO EXPECT. The heart of the page. An intro paragraph, then sub-sections for each pillar/component of the programme — each with its own subheading, a description of what it covers, and why it matters. End with an "I'll have your back" paragraph (coach's commitment) and a "You have to be committed" paragraph (the client's commitment). This is text-only. Videos are separate deliverables, not embedded here.
+
+4. LIFE-CHANGING TRANSFORMATIONS. A grid of transformation images (photo placeholders). 4 to 8 slots in a responsive grid. Each slot has a name/initials and a one-line caption underneath.
+
+5. HOW DOES IT WORK? One case-study block per pillar/component of the system. Each block has an image placeholder on one side and a narrative on the other, alternating left-right. Each narrative follows: situation (where they were) > what changed (the intervention) > the result with a specific number > the life outcome. Map each case study to a specific pillar of the programme so every part of the method has a face and a result. Built from client wins data only.
+
+6. TESTIMONIALS HEADER. A centred intro: a heading like "Here's What Our Members Think" with a short line underneath like "Here's what success looks like."
+
+7. TESTIMONIAL GRID. Quote cards in a 3-column responsive grid. Each card has: the quote text, client name, and a photo placeholder. The strongest testimonials pair a number with a life change. Select and lightly edit from client wins data. Never compose quotes the clients didn't say. Aim for 6 to 9 cards.
+
+8. FOOTER. Logo placeholder, social media icons (YouTube, Instagram, Facebook), navigation links, legal links (Terms, Privacy), copyright line. Standard footer structure.
+
 Not on the page: pricing.
 
 VIDEO 1 — CALL BRIEFING (90-120s, Section 1). Beats: welcome and well done for booking > logistics as instructions (the call is on ${data.build_gaps?.call_platform || 'Zoom'} via the link in the invite; take it on a laptop, not a phone, because screen sharing; quiet, distraction-free room) > call objective in one sentence > redirect: programme details are in the videos below so call time isn't wasted on them > what they get if it's a fit > the filter, once ("not everybody is accepted; if you're not ready for change, cancel") > THE action: go to your email and confirm the call > compressed programme overview (pillars in one breath, delivery in 2-3 sentences) > why selective (success rates) > risk reversal if one exists > one credential line as scenery, never a stack > close logistics (text reminder coming, meeting link in the email and calendar invite). Beats 8-11 must take less time than beats 1-7.
@@ -994,13 +1003,13 @@ VIDEO 4 — COMMITMENT FILTER (45-75s, Section 3). Built from the Premium Positi
 TESTIMONIAL BRIEF (a message the coach sends their own clients). Beat list, no script: where you started (specific, slightly self-deprecating) > what you tried that failed and how the coach came in > what the process was actually like (tailored plans, check-ins, gradual adjustments, access) > the result with one number > what changed beyond the obvious > community texture if real > who you'd recommend it to. Tell them rough delivery beats polish; 2-5 minutes raw, the coach trims.
 
 DELIVERABLES — produce all of these as a JSON object with these exact keys:
-"section_1_hero": headline + paragraph for Section 1,
-"section_2_reminder": full Section 2 copy (policy + environment),
-"section_3_expect": full Section 3 copy (intro + programme breakdown text + story sub-section text + commitment sub-section text),
-"section_4_transformations": array of objects [{name, context_line}] for the before/after grid captions,
-"section_5_casestudies": array of objects [{name, situation, barrier, intervention, result_number, life_outcome}] for case-study blocks,
-"section_6_video_testimonials": intro line for the video testimonials section,
-"section_7_written_testimonials": array of objects [{name, quote, number, life_change}] selected from client wins,
+"section_1_hero": the thank-you headline on its own line, then the motivational paragraph on the next line (separated by a newline),
+"section_2_reminder": full Section 2 copy — cancellation policy paragraph, then environment instructions paragraph,
+"section_3_expect": full Section 3 copy — intro paragraph, then each pillar/component as a subheading followed by its description paragraph, then the "I'll have your back" paragraph, then the "You have to be committed" paragraph. Use the programme name and pillar names from the Sold Out data,
+"section_4_transformations": array of objects [{name, context_line}] for photo captions in the transformation grid (4 to 8 entries),
+"section_5_casestudies": array of objects [{pillar_name, name, situation, intervention, result_number, life_outcome}] — one per programme pillar, mapped to a specific client win. Include the pillar_name so the page can label each case study with the system component it demonstrates,
+"section_6_testimonials_header": heading text + intro line for the testimonials section,
+"section_7_testimonials": array of objects [{name, quote, number, life_change}] — 6 to 9 testimonial cards selected and lightly edited from client wins. Never compose quotes the clients didn't say,
 "section_8_footer": any specific footer copy if needed (can be empty string),
 "video_1": Video Script 1 The Call Briefing word for word,
 "video_2": Video Script 2 The Programme full script,
@@ -1055,9 +1064,17 @@ REQUIREMENTS:
 - Use CSS custom properties (variables) for all colours so the client can tweak them later.
 - Fully responsive: desktop (max-width 880px container), tablet, mobile (single column, adjusted font sizes).
 - Semantic HTML5: header, main, section, footer.
-- 8 sections in this order: Hero/Confirmation, Important Reminder, What to Expect (with 3 video slots), Transformations (image grid), How Does It Work (alternating left/right case studies with image placeholders), Video Testimonials (2 video slots), Written Testimonials (quote cards), Footer.
-- Video slots: render as styled placeholder divs with a label. If a video URL is provided, render it as a responsive iframe embed (YouTube, Vimeo, or Loom — detect and convert the URL to the embed format).
-- Image/photo slots: render as styled placeholder divs with dimensions and a label like "Photo" — the client will replace these with real images.
+- 8 sections in this exact order, matching the structure of basealpha.uk/thank-you:
+  1. HERO: Centred thank-you headline + motivational paragraph. No video here. Clean and spacious.
+  2. IMPORTANT REMINDER: Left-aligned paragraphs with cancellation policy and call environment instructions. Simple text, no boxes or cards.
+  3. WHAT TO EXPECT: Programme breakdown with subheadings per pillar/component, each with a description paragraph. Ends with coach commitment paragraph and client commitment paragraph. Text only, no videos embedded.
+  4. LIFE-CHANGING TRANSFORMATIONS: Image grid (4-8 photo placeholders with captions underneath each).
+  5. HOW DOES IT WORK: Alternating left-right case study blocks. Each has an image placeholder on one side and a narrative on the other. Alternate the image side with each block.
+  6. TESTIMONIALS HEADER: Centred heading + short intro line.
+  7. TESTIMONIAL GRID: 3-column responsive grid of quote cards. Each card has the quote, client name, and a circular photo placeholder.
+  8. FOOTER: Logo placeholder, social media icon placeholders, nav links, legal links, copyright.
+- Video slots: NOT embedded on the page. Videos are separate deliverables (scripts). The page is text + images + testimonials only.
+- Image/photo slots: render as styled placeholder divs (light grey background, rounded corners) with a "Photo" label centred inside. The client replaces these with real images.
 - Typography hierarchy: large bold headings (clamp for responsiveness), accent-coloured section labels, readable body text with generous line-height (1.7-1.8).
 - Spacing: generous — 80-100px between sections, 32px container padding, 48px+ between sub-sections.
 - The design should feel premium and spacious, like the reference page basealpha.uk/thank-you — clean backgrounds, strong typography, alternating layouts for case studies, well-spaced testimonial cards.
@@ -1076,13 +1093,7 @@ STYLE PREFERENCES (use these as CSS variables):
 - Subheading font: ${data.styles?.subheadingFont || 'Manrope'}
 - Body font: ${data.styles?.bodyFont || 'Manrope'}
 
-VIDEO URLS (embed these where they belong):
-- Video 1 (Hero/Call Briefing): ${data.video_urls?.video_1 || 'none — use placeholder'}
-- Video 2 (Programme, in What to Expect): ${data.video_urls?.video_2 || 'none — use placeholder'}
-- Video 3 (Differentiation Story, in What to Expect): ${data.video_urls?.video_3 || 'none — use placeholder'}
-- Video 4 (Commitment Filter, in What to Expect): ${data.video_urls?.video_4 || 'none — use placeholder'}
-- Testimonial Video 1: ${data.video_urls?.testimonial_1 || 'none — use placeholder'}
-- Testimonial Video 2: ${data.video_urls?.testimonial_2 || 'none — use placeholder'}
+NOTE: Videos are NOT embedded on this page. The page contains text, images, and testimonials only. Video scripts are separate deliverables the client records themselves.
 
 CLIENT NAME: ${data.client_name || ''}`
 
