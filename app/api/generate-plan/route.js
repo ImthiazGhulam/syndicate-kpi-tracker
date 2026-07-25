@@ -1043,12 +1043,63 @@ ${JSON.stringify(data.gap_answers || {}, null, 2)}
 Produce all deliverables as JSON.`
     }
 
+    // ── Show Up Page Builder™ — HTML Page Generation ────────────────────────
+    if (type === 'show-up-page-html') {
+      systemPrompt = `You are an elite web designer and developer. Your job is to take the provided page copy, video scripts, and style preferences and produce a single, complete, production-grade HTML page.
+
+This is a booking thank-you page for a coach. It must look like a page a design agency shipped — premium, clean, spacious, fully responsive, fast-loading.
+
+REQUIREMENTS:
+- One self-contained HTML file. All CSS inline in a <style> block. No external CSS frameworks.
+- Load Google Fonts via a single <link> tag for the specified fonts.
+- Use CSS custom properties (variables) for all colours so the client can tweak them later.
+- Fully responsive: desktop (max-width 880px container), tablet, mobile (single column, adjusted font sizes).
+- Semantic HTML5: header, main, section, footer.
+- 8 sections in this order: Hero/Confirmation, Important Reminder, What to Expect (with 3 video slots), Transformations (image grid), How Does It Work (alternating left/right case studies with image placeholders), Video Testimonials (2 video slots), Written Testimonials (quote cards), Footer.
+- Video slots: render as styled placeholder divs with a label. If a video URL is provided, render it as a responsive iframe embed (YouTube, Vimeo, or Loom — detect and convert the URL to the embed format).
+- Image/photo slots: render as styled placeholder divs with dimensions and a label like "Photo" — the client will replace these with real images.
+- Typography hierarchy: large bold headings (clamp for responsiveness), accent-coloured section labels, readable body text with generous line-height (1.7-1.8).
+- Spacing: generous — 80-100px between sections, 32px container padding, 48px+ between sub-sections.
+- The design should feel premium and spacious, like the reference page basealpha.uk/thank-you — clean backgrounds, strong typography, alternating layouts for case studies, well-spaced testimonial cards.
+- No JavaScript needed unless for a simple mobile menu.
+- The page must render perfectly when opened as a standalone .html file in any browser.
+- Do NOT wrap the output in markdown code fences. Return ONLY the raw HTML starting with <!DOCTYPE html>.
+
+STYLE PREFERENCES (use these as CSS variables):
+- Page background: ${data.styles?.bg || '#ffffff'}
+- Panel/card background: ${data.styles?.panelBg || '#f8f8f8'}
+- Accent colour: ${data.styles?.accent || '#C9A84C'}
+- Heading colour: ${data.styles?.headingColor || '#1a1a1a'}
+- Subheading colour: ${data.styles?.subheadingColor || '#C9A84C'}
+- Body text colour: ${data.styles?.bodyColor || '#444444'}
+- Heading font: ${data.styles?.headingFont || 'Manrope'}
+- Subheading font: ${data.styles?.subheadingFont || 'Manrope'}
+- Body font: ${data.styles?.bodyFont || 'Manrope'}
+
+VIDEO URLS (embed these where they belong):
+- Video 1 (Hero/Call Briefing): ${data.video_urls?.video_1 || 'none — use placeholder'}
+- Video 2 (Programme, in What to Expect): ${data.video_urls?.video_2 || 'none — use placeholder'}
+- Video 3 (Differentiation Story, in What to Expect): ${data.video_urls?.video_3 || 'none — use placeholder'}
+- Video 4 (Commitment Filter, in What to Expect): ${data.video_urls?.video_4 || 'none — use placeholder'}
+- Testimonial Video 1: ${data.video_urls?.testimonial_1 || 'none — use placeholder'}
+- Testimonial Video 2: ${data.video_urls?.testimonial_2 || 'none — use placeholder'}
+
+CLIENT NAME: ${data.client_name || ''}`
+
+      userPrompt = `Build the complete HTML page using this content:
+
+PAGE COPY (inject into the 8 sections):
+${JSON.stringify(data.generated_output || {}, null, 2)}
+
+Return ONLY the complete HTML. No markdown, no explanation, no code fences. Start with <!DOCTYPE html>.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
     const maxTokens = type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
-      : (type === 'show-up-page') ? 16000
+      : (type === 'show-up-page' || type === 'show-up-page-html') ? 16000
       : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft' || type === 'comeback-compose') ? 4000
       : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map') ? 3000
       : 2500
@@ -1056,6 +1107,12 @@ Produce all deliverables as JSON.`
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // For Show Up Page HTML — return raw HTML string
+    if (type === 'show-up-page-html') {
+      const html = text.replace(/^```html\s*/i, '').replace(/```\s*$/i, '').trim()
+      return NextResponse.json({ html })
+    }
 
     // For Show Up Page Builder, parse structured JSON
     if (type === 'show-up-page') {

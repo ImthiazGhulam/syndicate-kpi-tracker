@@ -372,6 +372,8 @@ export default function ShowUpPageClient() {
   const [videoUrls, setVideoUrls] = useState({ video_1: '', video_2: '', video_3: '', video_4: '', testimonial_1: '', testimonial_2: '' })
   const [viewportMode, setViewportMode] = useState('desktop')
   const [showStylePanel, setShowStylePanel] = useState(false)
+  const [pageHTML, setPageHTML] = useState('')
+  const [generatingHTML, setGeneratingHTML] = useState(false)
 
   const saveTimerRef = useRef(null)
   const toastRef = useRef(null)
@@ -422,6 +424,7 @@ export default function ShowUpPageClient() {
         }
         if (recordRes.data.style_config) setStyles(prev => ({ ...prev, ...recordRes.data.style_config }))
         if (recordRes.data.video_urls) setVideoUrls(prev => ({ ...prev, ...recordRes.data.video_urls }))
+        if (recordRes.data.page_html) setPageHTML(recordRes.data.page_html)
       }
 
       if (ppRes.data?.brand_star?.tone) setToneProfile(prev => ({ ...prev, ...ppRes.data.brand_star.tone }))
@@ -437,7 +440,7 @@ export default function ShowUpPageClient() {
     const payload = {
       client_id: clientData.id, tone_profile: toneProfile, client_wins: clientWins,
       build_gaps: buildGaps, gap_answers: { de: deGaps, offer: offerGaps },
-      generated_output: generatedOutput || {}, style_config: styles, video_urls: videoUrls,
+      generated_output: generatedOutput || {}, style_config: styles, video_urls: videoUrls, page_html: pageHTML || '',
       status: generatedOutput ? 'complete' : 'draft', updated_at: new Date().toISOString(), ...fields,
     }
     if (record) { await supabase.from('show_up_pages').update(payload).eq('id', record.id) }
@@ -500,12 +503,14 @@ export default function ShowUpPageClient() {
           setGeneratedOutput(parsed)
           setCurrentState(4)
           await saveToSupabase({ generated_output: parsed, status: 'complete' })
+          generatePageHTML(parsed)
         } catch (e) {
           // Plain text — put it all in section_1_hero
           const output = { section_1_hero: result.plan, video_1: '', video_2: '', video_3: '', video_4: '', testimonial_brief: '', qa_report: '' }
           setGeneratedOutput(output)
           setCurrentState(4)
           await saveToSupabase({ generated_output: output, status: 'complete' })
+          generatePageHTML(output)
         }
       } else {
         // Direct JSON response — normalise if needed
@@ -514,14 +519,46 @@ export default function ShowUpPageClient() {
         setGeneratedOutput(output)
         setCurrentState(4)
         await saveToSupabase({ generated_output: output, status: 'complete' })
+        generatePageHTML(output)
       }
     } catch (err) { setApiError('Failed to connect. Please try again.') }
     setGenerating(false)
   }
 
+  // ── Generate HTML page (second AI call) ───────────────────────────────────
+
+  const generatePageHTML = async (output) => {
+    const contentToUse = output || generatedOutput
+    if (!contentToUse) return
+    setGeneratingHTML(true)
+    try {
+      const res = await fetch('/api/generate-plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'show-up-page-html', data: {
+          generated_output: contentToUse,
+          styles, video_urls: videoUrls,
+          client_name: ppStar.name || clientData?.name || '',
+        }}),
+      })
+      const result = await res.json()
+      if (result.html) {
+        setPageHTML(result.html)
+        await saveToSupabase({ page_html: result.html })
+      } else if (result.plan) {
+        // Fell through — the plan IS the HTML
+        const html = result.plan.replace(/^```html\s*/i, '').replace(/```\s*$/i, '').trim()
+        setPageHTML(html)
+        await saveToSupabase({ page_html: html })
+      } else if (result.error) {
+        setApiError('HTML generation failed: ' + result.error)
+      }
+    } catch (err) { setApiError('Failed to generate page. Try again.') }
+    setGeneratingHTML(false)
+  }
+
   // ── Export ─────────────────────────────────────────────────────────────────
 
-  const getFullHTML = () => buildPageHTML(generatedOutput, styles, videoUrls, ppStar.name || clientData?.name || '')
+  const getFullHTML = () => pageHTML || buildPageHTML(generatedOutput, styles, videoUrls, ppStar.name || clientData?.name || '')
 
   const downloadHTML = () => {
     const html = getFullHTML()
@@ -544,7 +581,7 @@ export default function ShowUpPageClient() {
 
   return (
     <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-      {generating && <LoadingOverlay lines={BUILD_STATUS_LINES} />}
+      {(generating || (generatingHTML && currentState < 4)) && <LoadingOverlay lines={BUILD_STATUS_LINES} />}
       <div ref={toastRef} className="fixed bottom-6 right-6 bg-gold text-zinc-950 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest z-50 transition-all duration-300 opacity-0 translate-y-4 pointer-events-none">Saved</div>
 
       {/* Mobile header */}
@@ -798,10 +835,33 @@ export default function ShowUpPageClient() {
 
             {/* Live preview */}
             {activeTab === 'preview' && (
-              <div className="flex-1 flex items-start justify-center p-4 overflow-y-auto bg-[repeating-conic-gradient(rgba(255,255,255,0.03)_0%_25%,transparent_0%_50%)] bg-[length:20px_20px]">
-                <div className="rounded-lg overflow-hidden shadow-2xl border border-white/[0.06] transition-all duration-300" style={{ width: viewportMode === 'mobile' ? '375px' : '100%', maxWidth: '1280px', height: viewportMode === 'mobile' ? 'calc(100vh - 120px)' : 'calc(100vh - 80px)' }}>
-                  <iframe srcDoc={getFullHTML()} title="Show Up Page Preview" className="w-full h-full border-0" sandbox="allow-same-origin allow-scripts" />
-                </div>
+              <div className="flex-1 flex flex-col items-center p-4 overflow-y-auto bg-[repeating-conic-gradient(rgba(255,255,255,0.03)_0%_25%,transparent_0%_50%)] bg-[length:20px_20px]">
+                {generatingHTML && (
+                  <div className="flex items-center gap-3 mb-4 px-4 py-3 glass-card">
+                    <div className="w-5 h-5 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                    <span className="text-gold text-xs font-bold uppercase tracking-widest animate-pulse">Building your page...</span>
+                  </div>
+                )}
+                {!pageHTML && !generatingHTML && (
+                  <div className="flex flex-col items-center justify-center py-16 gap-4">
+                    <p className="text-zinc-500 text-sm">No page generated yet.</p>
+                    <button onClick={() => generatePageHTML()} disabled={generatingHTML || !generatedOutput}
+                      className="px-5 py-3 rounded-lg bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest transition disabled:opacity-50">
+                      Generate Page
+                    </button>
+                  </div>
+                )}
+                {pageHTML && (
+                  <>
+                    <div className="rounded-lg overflow-hidden shadow-2xl border border-white/[0.06] transition-all duration-300 flex-1" style={{ width: viewportMode === 'mobile' ? '375px' : '100%', maxWidth: '1280px', height: viewportMode === 'mobile' ? 'calc(100vh - 160px)' : 'calc(100vh - 120px)' }}>
+                      <iframe srcDoc={pageHTML} title="Show Up Page Preview" className="w-full h-full border-0" sandbox="allow-same-origin allow-scripts" />
+                    </div>
+                    <button onClick={() => generatePageHTML()} disabled={generatingHTML}
+                      className="mt-3 px-4 py-2 rounded text-[10px] font-bold uppercase tracking-wider text-zinc-400 border border-zinc-700 hover:text-gold hover:border-gold/30 transition disabled:opacity-50">
+                      {generatingHTML ? 'Regenerating...' : 'Regenerate Page with Current Settings'}
+                    </button>
+                  </>
+                )}
               </div>
             )}
           </div>
