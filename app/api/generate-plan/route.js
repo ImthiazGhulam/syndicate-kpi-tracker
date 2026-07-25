@@ -978,7 +978,7 @@ PAGE STRUCTURE — eight sections, in this exact order. This structure matches a
 
 2. IMPORTANT REMINDER. Two to three short paragraphs covering: cancellation policy (framed as standards, not threats), and environment instructions (quiet place, laptop not phone, distraction-free). The call happens on ${data.build_gaps?.call_platform || 'Zoom'} via the link in the calendar invite — no phone call is coming; say so explicitly. Simple left-aligned text. No bullet lists, no boxes.
 
-3. WHAT TO EXPECT. The heart of the page. An intro paragraph, then sub-sections for each pillar/component of the programme — each with its own subheading, a description of what it covers, and why it matters. End with an "I'll have your back" paragraph (coach's commitment) and a "You have to be committed" paragraph (the client's commitment). This is text-only. Videos are separate deliverables, not embedded here.
+3. WHAT TO EXPECT. The heart of the page. This section uses the SAME content as Video Script 2 (the Programme), adapted for on-page reading. An intro paragraph, then sub-sections for each pillar/component of the programme — each with its own subheading, a description of what it covers and a friction remover. Include the case study arcs from the video script as written narratives here too. End with an "I'll have your back" paragraph (coach's commitment) and a "You have to be committed" paragraph (the client's commitment).
 
 4. LIFE-CHANGING TRANSFORMATIONS. A grid of transformation images (photo placeholders). 4 to 8 slots in a responsive grid. Each slot has a name/initials and a one-line caption underneath.
 
@@ -1005,7 +1005,7 @@ TESTIMONIAL BRIEF (a message the coach sends their own clients). Beat list, no s
 DELIVERABLES — produce all of these as a JSON object with these exact keys:
 "section_1_hero": the thank-you headline on its own line, then the motivational paragraph on the next line (separated by a newline),
 "section_2_reminder": full Section 2 copy — cancellation policy paragraph, then environment instructions paragraph,
-"section_3_expect": full Section 3 copy — intro paragraph, then each pillar/component as a subheading followed by its description paragraph, then the "I'll have your back" paragraph, then the "You have to be committed" paragraph. Use the programme name and pillar names from the Sold Out data,
+"section_3_expect": full Section 3 copy — this is the Video 2 Programme script adapted for reading. Intro paragraph, then each pillar/component as a subheading followed by its description and friction remover, then case study arcs as written narratives, then coach commitment paragraph, then client commitment paragraph. Use the programme name and pillar names from the Sold Out data,
 "section_4_transformations": array of objects [{name, context_line}] for photo captions in the transformation grid (4 to 8 entries),
 "section_5_casestudies": array of objects [{pillar_name, name, situation, intervention, result_number, life_outcome}] — one per programme pillar, mapped to a specific client win. Include the pillar_name so the page can label each case study with the system component it demonstrates,
 "section_6_testimonials_header": heading text + intro line for the testimonials section,
