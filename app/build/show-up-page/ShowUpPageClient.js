@@ -772,24 +772,6 @@ export default function ShowUpPageClient() {
               <div className="mt-3">{bb.name ? <div className="text-sm text-zinc-300"><p><span className="text-gold font-bold">Programme:</span> {bb.name}</p><p className="mt-1"><span className="text-gold font-bold">Promise:</span> {bb.promise}</p></div> : <p className="text-amber-400 text-xs">No Sold Out data. Complete the playbook first.</p>}</div>
             </SourceCard>
 
-            <SourceCard title="Client Wins" icon="🏆" status={winsComplete ? 'complete' : 'gaps'} defaultOpen={!winsComplete}>
-              <div className="space-y-4 mt-3">
-                <p className="text-zinc-400 text-xs">At least 2 wins with name, number, and life outcome.</p>
-                {clientWins.map((win, i) => (
-                  <div key={i} className={i > 0 ? 'pt-4 border-t border-zinc-700/50' : ''}>
-                    <span className="text-xs font-bold text-gold uppercase tracking-widest">Win {i + 1}</span>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mt-2">
-                      <div><Label>Name / initials</Label><TextInput value={win.name} onChange={v => { const u = [...clientWins]; u[i] = { ...u[i], name: v }; setClientWins(u); debouncedSave({ client_wins: u }) }} /></div>
-                      <div><Label>Result (a number)</Label><TextInput value={win.result_number} onChange={v => { const u = [...clientWins]; u[i] = { ...u[i], result_number: v }; setClientWins(u); debouncedSave({ client_wins: u }) }} /></div>
-                    </div>
-                    <div className="mt-2"><Label>Before (the scene)</Label><TextArea value={win.before} onChange={v => { const u = [...clientWins]; u[i] = { ...u[i], before: v }; setClientWins(u); debouncedSave({ client_wins: u }) }} rows={2} /></div>
-                    <div className="mt-2"><Label>What failed before</Label><TextArea value={win.tried_failed} onChange={v => { const u = [...clientWins]; u[i] = { ...u[i], tried_failed: v }; setClientWins(u); debouncedSave({ client_wins: u }) }} rows={2} /></div>
-                    <div className="mt-2"><Label>Life outcome</Label><TextArea value={win.life_outcome} onChange={v => { const u = [...clientWins]; u[i] = { ...u[i], life_outcome: v }; setClientWins(u); debouncedSave({ client_wins: u }) }} rows={2} /></div>
-                  </div>
-                ))}
-                <button onClick={() => { const u = [...clientWins, { name: '', before: '', tried_failed: '', process: '', result_number: '', life_outcome: '', recommend_to: '', type: 'written' }]; setClientWins(u); debouncedSave({ client_wins: u }) }} className="w-full px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 transition">+ Add Win</button>
-              </div>
-            </SourceCard>
           </div>
 
           {/* Build gaps */}
@@ -814,7 +796,7 @@ export default function ShowUpPageClient() {
       {currentState === 4 && generatedOutput && (
         <div className="flex flex-col lg:flex-row h-[calc(100vh-56px)] lg:h-screen overflow-hidden">
           {/* Controls sidebar */}
-          <div className={`${showStylePanel ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} fixed lg:static top-0 left-0 z-30 w-80 h-full glass-sidebar flex flex-col overflow-y-auto transition-transform lg:transition-none`}>
+          <div className={`${showStylePanel ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'} fixed lg:static top-0 left-0 z-30 w-[85vw] lg:w-1/2 h-full glass-sidebar flex flex-col overflow-y-auto transition-transform lg:transition-none`}>
             <div className="p-4 border-b border-white/[0.06]">
               <h2 className="text-sm font-display font-bold text-white uppercase tracking-widest">Page Builder</h2>
             </div>
@@ -832,94 +814,144 @@ export default function ShowUpPageClient() {
               ))}
             </div>
 
-            {/* Style controls */}
-            <div className="flex-1 p-4 space-y-4 overflow-y-auto scrollbar-thin">
-              <GoldLabel>Colours</GoldLabel>
-              <ColorPicker label="Page Background" value={styles.bg} onChange={v => { setStyles(p => ({ ...p, bg: v })); debouncedSave() }} />
-              <ColorPicker label="Panel Background" value={styles.panelBg} onChange={v => { setStyles(p => ({ ...p, panelBg: v })); debouncedSave() }} />
-              <ColorPicker label="Accent" value={styles.accent} onChange={v => { setStyles(p => ({ ...p, accent: v })); debouncedSave() }} />
-              <ColorPicker label="Heading" value={styles.headingColor} onChange={v => { setStyles(p => ({ ...p, headingColor: v })); debouncedSave() }} />
-              <ColorPicker label="Subheading" value={styles.subheadingColor} onChange={v => { setStyles(p => ({ ...p, subheadingColor: v })); debouncedSave() }} />
-              <ColorPicker label="Body Text" value={styles.bodyColor} onChange={v => { setStyles(p => ({ ...p, bodyColor: v })); debouncedSave() }} />
+            {/* Sidebar content — organised by section */}
+            <div className="flex-1 p-4 space-y-3 overflow-y-auto scrollbar-thin">
 
-              {/* Contrast warnings */}
-              {headingContrast < 4.5 && <p className="text-red-400 text-[10px] font-bold">Warning: Heading contrast too low ({headingContrast.toFixed(1)}:1)</p>}
-              {bodyContrast < 4.5 && <p className="text-red-400 text-[10px] font-bold">Warning: Body text contrast too low ({bodyContrast.toFixed(1)}:1)</p>}
-              {subContrast < 3 && <p className="text-amber-400 text-[10px] font-bold">Warning: Subheading contrast low ({subContrast.toFixed(1)}:1)</p>}
-
-              <div className="pt-2"><GoldLabel>Fonts</GoldLabel></div>
-              <FontSelect label="Headings" value={styles.headingFont} onChange={v => { setStyles(p => ({ ...p, headingFont: v })); debouncedSave() }} />
-              <FontSelect label="Subheadings" value={styles.subheadingFont} onChange={v => { setStyles(p => ({ ...p, subheadingFont: v })); debouncedSave() }} />
-              <FontSelect label="Body" value={styles.bodyFont} onChange={v => { setStyles(p => ({ ...p, bodyFont: v })); debouncedSave() }} />
-
-              <div className="pt-2"><GoldLabel>Videos</GoldLabel></div>
-              {[['video_1', 'Hero: Call Briefing'], ['video_2', 'Programme Overview'], ['video_3', 'Differentiation Story'], ['video_4', 'Commitment Filter'], ['testimonial_1', 'Testimonial Video 1'], ['testimonial_2', 'Testimonial Video 2']].map(([k, l]) => (
-                <div key={k} className="mb-3">
-                  <Label>{l}</Label>
-                  <TextInput value={videoUrls[k]} onChange={v => { setVideoUrls(p => ({ ...p, [k]: v })); debouncedSave() }} placeholder="YouTube, Vimeo, or Loom URL" />
-                  {videoUrls[k] && <div className="mt-2"><VideoPreview url={videoUrls[k]} label={l} /></div>}
+              {/* ── Page Copy ────────────────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Page Copy</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="space-y-3 pt-2">
+                  <div><Label>Hero Headline + Paragraph</Label><TextArea value={typeof generatedOutput?.section_1_hero === 'string' ? generatedOutput.section_1_hero : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_1_hero: v })); debouncedSave() }} rows={3} /></div>
+                  <div><Label>Important Reminder</Label><TextArea value={typeof generatedOutput?.section_2_reminder === 'string' ? generatedOutput.section_2_reminder : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_reminder: v })); debouncedSave() }} rows={3} /></div>
+                  <div><Label>What to Expect Intro</Label><TextArea value={typeof generatedOutput?.section_2_expect_intro === 'string' ? generatedOutput.section_2_expect_intro : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_expect_intro: v })); debouncedSave() }} rows={2} /></div>
+                  <div><Label>Programme Card Title</Label><TextInput value={typeof generatedOutput?.section_2_card_1_title === 'string' ? generatedOutput.section_2_card_1_title : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_card_1_title: v })); debouncedSave() }} /></div>
+                  <div><Label>Programme Card Text</Label><TextArea value={typeof generatedOutput?.section_2_card_1_text === 'string' ? generatedOutput.section_2_card_1_text : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_card_1_text: v })); debouncedSave() }} rows={2} /></div>
+                  <div><Label>"I'll Have Your Back" Title</Label><TextInput value={typeof generatedOutput?.section_2_card_2_title === 'string' ? generatedOutput.section_2_card_2_title : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_card_2_title: v })); debouncedSave() }} /></div>
+                  <div><Label>"I'll Have Your Back" Text</Label><TextArea value={typeof generatedOutput?.section_2_card_2_text === 'string' ? generatedOutput.section_2_card_2_text : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_card_2_text: v })); debouncedSave() }} rows={2} /></div>
+                  <div><Label>Commitment Title</Label><TextInput value={typeof generatedOutput?.section_2_card_3_title === 'string' ? generatedOutput.section_2_card_3_title : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_card_3_title: v })); debouncedSave() }} /></div>
+                  <div><Label>Commitment Text</Label><TextArea value={typeof generatedOutput?.section_2_card_3_text === 'string' ? generatedOutput.section_2_card_3_text : ''} onChange={v => { setGeneratedOutput(p => ({ ...p, section_2_card_3_text: v })); debouncedSave() }} rows={2} /></div>
                 </div>
-              ))}
+              </details>
 
-              <div className="pt-2"><GoldLabel>Logo</GoldLabel></div>
-              <ImageUpload value={images.logo} clientId={clientData?.id} onChange={v => { setImages(p => ({ ...p, logo: v })); debouncedSave() }} label="Upload Logo" />
+              {/* ── Case Studies ──────────────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Case Studies</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="space-y-3 pt-2">
+                  <p className="text-zinc-600 text-[10px]">Edit each case study. Upload the matching photo.</p>
+                  {(() => {
+                    const cases = Array.isArray(generatedOutput?.section_4_casestudies) ? generatedOutput.section_4_casestudies : []
+                    return cases.length > 0 ? cases.map((cs, i) => (
+                      <div key={i} className="bg-zinc-800/30 rounded-lg p-3 space-y-2">
+                        <div className="flex gap-3">
+                          <div className="w-20 flex-shrink-0">
+                            <ImageUpload value={(images.case_studies || [])[i] || ''} clientId={clientData?.id} label="Photo"
+                              onChange={v => { const u = [...(images.case_studies || [])]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }} />
+                          </div>
+                          <div className="flex-1">
+                            <Label>Pillar Name</Label>
+                            <TextInput value={cs.pillar_name || ''} onChange={v => { const u = [...cases]; u[i] = { ...u[i], pillar_name: v }; setGeneratedOutput(p => ({ ...p, section_4_casestudies: u })); debouncedSave() }} />
+                          </div>
+                        </div>
+                        <div><Label>Story</Label><TextArea value={cs.narrative || ''} onChange={v => { const u = [...cases]; u[i] = { ...u[i], narrative: v }; setGeneratedOutput(p => ({ ...p, section_4_casestudies: u })); debouncedSave() }} rows={4} /></div>
+                      </div>
+                    )) : <p className="text-zinc-600 text-[10px]">Build the page first to edit case studies.</p>
+                  })()}
+                  <button onClick={() => { const cases = Array.isArray(generatedOutput?.section_4_casestudies) ? [...generatedOutput.section_4_casestudies, { pillar_name: '', narrative: '' }] : [{ pillar_name: '', narrative: '' }]; setGeneratedOutput(p => ({ ...p, section_4_casestudies: cases })); const cs = [...(images.case_studies || []), '']; setImages(p => ({ ...p, case_studies: cs })); debouncedSave() }}
+                    className="w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Case Study</button>
+                </div>
+              </details>
 
-              <div className="pt-2"><GoldLabel>Transformation Photos ({images.transformations.length})</GoldLabel></div>
-              <p className="text-zinc-600 text-[10px] mb-2">Before/after or progress photos for the grid.</p>
-              <div className="grid grid-cols-3 gap-1">
-                {images.transformations.map((url, i) => (
-                  <div key={i} className="relative">
-                    <ImageUpload value={url} clientId={clientData?.id} label={`${i + 1}`}
-                      onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }} />
-                    {images.transformations.length > 1 && (
-                      <button onClick={() => { const u = images.transformations.filter((_, j) => j !== i); setImages(p => ({ ...p, transformations: u })); debouncedSave() }}
-                        className="absolute top-0 right-0 w-5 h-5 bg-red-900/80 text-red-300 rounded-full text-[10px] flex items-center justify-center hover:bg-red-800 transition z-10">✕</button>
-                    )}
+              {/* ── Written Testimonials ──────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Written Testimonials</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="space-y-3 pt-2">
+                  <p className="text-zinc-600 text-[10px]">Edit each testimonial. Upload the matching avatar photo.</p>
+                  {(() => {
+                    const testimonials = Array.isArray(generatedOutput?.section_6_testimonials) ? generatedOutput.section_6_testimonials : []
+                    const photos = images.testimonial_photos || []
+                    return testimonials.length > 0 ? testimonials.map((t, i) => (
+                      <div key={i} className="bg-zinc-800/30 rounded-lg p-3 space-y-2">
+                        <div className="flex gap-3">
+                          <div className="w-16 flex-shrink-0">
+                            <ImageUpload value={photos[i] || ''} clientId={clientData?.id} label="Photo"
+                              onChange={v => { const u = [...photos]; while (u.length <= i) u.push(''); u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }} />
+                          </div>
+                          <div className="flex-1">
+                            <Label>Name</Label>
+                            <TextInput value={t.name || ''} onChange={v => { const u = [...testimonials]; u[i] = { ...u[i], name: v }; setGeneratedOutput(p => ({ ...p, section_6_testimonials: u })); debouncedSave() }} />
+                          </div>
+                        </div>
+                        <div><Label>Quote</Label><TextArea value={t.quote || ''} onChange={v => { const u = [...testimonials]; u[i] = { ...u[i], quote: v }; setGeneratedOutput(p => ({ ...p, section_6_testimonials: u })); debouncedSave() }} rows={3} /></div>
+                        <button onClick={() => { const u = testimonials.filter((_, j) => j !== i); const up = photos.filter((_, j) => j !== i); setGeneratedOutput(p => ({ ...p, section_6_testimonials: u })); setImages(p => ({ ...p, testimonial_photos: up })); debouncedSave() }}
+                          className="text-red-400 text-[10px] font-bold uppercase tracking-wider hover:text-red-300 transition">Remove</button>
+                      </div>
+                    )) : <p className="text-zinc-600 text-[10px]">Build the page first to edit testimonials.</p>
+                  })()}
+                  <button onClick={() => { const t = Array.isArray(generatedOutput?.section_6_testimonials) ? [...generatedOutput.section_6_testimonials, { name: '', quote: '' }] : [{ name: '', quote: '' }]; setGeneratedOutput(p => ({ ...p, section_6_testimonials: t })); const ph = [...(images.testimonial_photos || []), '']; setImages(p => ({ ...p, testimonial_photos: ph })); debouncedSave() }}
+                    className="w-full px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Testimonial</button>
+                </div>
+              </details>
+
+              {/* ── Transformation Photos ─────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Transformation Photos ({images.transformations.filter(Boolean).length})</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="pt-2">
+                  <div className="grid grid-cols-3 gap-1">
+                    {images.transformations.map((url, i) => (
+                      <div key={i} className="relative">
+                        <ImageUpload value={url} clientId={clientData?.id} label={`${i + 1}`}
+                          onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }} />
+                        {images.transformations.length > 1 && (
+                          <button onClick={() => { const u = images.transformations.filter((_, j) => j !== i); setImages(p => ({ ...p, transformations: u })); debouncedSave() }}
+                            className="absolute top-0 right-0 w-5 h-5 bg-red-900/80 text-red-300 rounded-full text-[10px] flex items-center justify-center hover:bg-red-800 transition z-10">✕</button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-              <button onClick={() => { setImages(p => ({ ...p, transformations: [...p.transformations, ''] })); debouncedSave() }}
-                className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Photo</button>
-
-              <div className="pt-2"><GoldLabel>Case Study Photos ({images.case_studies.length})</GoldLabel></div>
-              <p className="text-zinc-600 text-[10px] mb-2">One photo per case study / pillar.</p>
-              {images.case_studies.map((url, i) => (
-                <div key={i} className="relative">
-                  <ImageUpload value={url} clientId={clientData?.id} label={`Pillar ${i + 1}`}
-                    onChange={v => { const u = [...images.case_studies]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }} />
-                  {images.case_studies.length > 1 && (
-                    <button onClick={() => { const u = images.case_studies.filter((_, j) => j !== i); setImages(p => ({ ...p, case_studies: u })); debouncedSave() }}
-                      className="absolute top-0 right-0 w-5 h-5 bg-red-900/80 text-red-300 rounded-full text-[10px] flex items-center justify-center hover:bg-red-800 transition z-10">✕</button>
-                  )}
+                  <button onClick={() => { setImages(p => ({ ...p, transformations: [...p.transformations, ''] })); debouncedSave() }}
+                    className="w-full mt-2 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Photo</button>
                 </div>
-              ))}
-              <button onClick={() => { setImages(p => ({ ...p, case_studies: [...p.case_studies, ''] })); debouncedSave() }}
-                className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Photo</button>
+              </details>
 
-              <div className="pt-2"><GoldLabel>Written Testimonials + Photos</GoldLabel></div>
-              <p className="text-zinc-600 text-[10px] mb-2">Upload the photo that matches each testimonial.</p>
-              {(() => {
-                const testimonials = Array.isArray(generatedOutput?.section_6_testimonials) ? generatedOutput.section_6_testimonials : []
-                // Ensure we have enough photo slots for all testimonials
-                const photos = images.testimonial_photos || []
-                while (photos.length < testimonials.length) photos.push('')
-                return testimonials.length > 0 ? testimonials.map((t, i) => (
-                  <div key={i} className="mb-3 bg-zinc-800/30 rounded-lg p-3">
-                    <div className="flex gap-3">
-                      <div className="w-16 flex-shrink-0">
-                        <ImageUpload value={photos[i] || ''} clientId={clientData?.id} label="Photo"
-                          onChange={v => { const u = [...photos]; u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-xs font-bold text-gold">{t.name || `Testimonial ${i + 1}`}</p>
-                        <p className="text-[10px] text-zinc-500 mt-1 line-clamp-3">{typeof t.quote === 'string' ? t.quote.slice(0, 120) + '...' : ''}</p>
-                      </div>
+              {/* ── Videos ────────────────────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Videos</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="space-y-3 pt-2">
+                  {[['video_1', 'Hero: Call Briefing'], ['video_2', 'Programme Overview'], ['video_3', 'Differentiation Story'], ['video_4', 'Commitment Filter'], ['testimonial_1', 'Testimonial Video 1'], ['testimonial_2', 'Testimonial Video 2']].map(([k, l]) => (
+                    <div key={k}>
+                      <Label>{l}</Label>
+                      <TextInput value={videoUrls[k]} onChange={v => { setVideoUrls(p => ({ ...p, [k]: v })); debouncedSave() }} placeholder="YouTube, Vimeo, or Loom URL" />
+                      {videoUrls[k] && <div className="mt-2"><VideoPreview url={videoUrls[k]} label={l} /></div>}
                     </div>
-                  </div>
-                )) : (
-                  <p className="text-zinc-600 text-[10px]">Build the page first to see testimonials here.</p>
-                )
-              })()}
+                  ))}
+                </div>
+              </details>
+
+              {/* ── Styling ───────────────────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Colours & Fonts</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="space-y-3 pt-2">
+                  <ColorPicker label="Page Background" value={styles.bg} onChange={v => { setStyles(p => ({ ...p, bg: v })); debouncedSave() }} />
+                  <ColorPicker label="Panel Background" value={styles.panelBg} onChange={v => { setStyles(p => ({ ...p, panelBg: v })); debouncedSave() }} />
+                  <ColorPicker label="Accent" value={styles.accent} onChange={v => { setStyles(p => ({ ...p, accent: v })); debouncedSave() }} />
+                  <ColorPicker label="Heading" value={styles.headingColor} onChange={v => { setStyles(p => ({ ...p, headingColor: v })); debouncedSave() }} />
+                  <ColorPicker label="Subheading" value={styles.subheadingColor} onChange={v => { setStyles(p => ({ ...p, subheadingColor: v })); debouncedSave() }} />
+                  <ColorPicker label="Body Text" value={styles.bodyColor} onChange={v => { setStyles(p => ({ ...p, bodyColor: v })); debouncedSave() }} />
+                  {headingContrast < 4.5 && <p className="text-red-400 text-[10px] font-bold">Warning: Heading contrast too low ({headingContrast.toFixed(1)}:1)</p>}
+                  {bodyContrast < 4.5 && <p className="text-red-400 text-[10px] font-bold">Warning: Body text contrast too low ({bodyContrast.toFixed(1)}:1)</p>}
+                  <FontSelect label="Headings" value={styles.headingFont} onChange={v => { setStyles(p => ({ ...p, headingFont: v })); debouncedSave() }} />
+                  <FontSelect label="Subheadings" value={styles.subheadingFont} onChange={v => { setStyles(p => ({ ...p, subheadingFont: v })); debouncedSave() }} />
+                  <FontSelect label="Body" value={styles.bodyFont} onChange={v => { setStyles(p => ({ ...p, bodyFont: v })); debouncedSave() }} />
+                </div>
+              </details>
+
+              {/* ── Logo ──────────────────────────────────────── */}
+              <details className="group">
+                <summary className="flex items-center justify-between cursor-pointer py-2"><GoldLabel>Logo</GoldLabel><svg className="w-4 h-4 text-zinc-500 group-open:rotate-180 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg></summary>
+                <div className="pt-2">
+                  <ImageUpload value={images.logo} clientId={clientData?.id} onChange={v => { setImages(p => ({ ...p, logo: v })); debouncedSave() }} label="Upload Logo" />
+                </div>
+              </details>
             </div>
 
             {/* Export */}
