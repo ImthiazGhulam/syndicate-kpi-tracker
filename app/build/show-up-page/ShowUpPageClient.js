@@ -417,9 +417,9 @@ export default function ShowUpPageClient() {
   const [generatingHTML, setGeneratingHTML] = useState(false)
   const [images, setImages] = useState({
     logo: '',
-    transformations: ['', '', '', '', '', '', '', '', ''],
-    case_studies: ['', '', '', ''],
-    testimonial_photos: ['', '', '', '', '', '', '', '', ''],
+    transformations: ['', '', ''],
+    case_studies: ['', '', ''],
+    testimonial_photos: [],
   })
 
   const saveTimerRef = useRef(null)
@@ -824,7 +824,7 @@ export default function ShowUpPageClient() {
             {/* Tabs */}
             <div className="px-4 py-3 border-b border-white/[0.06] flex gap-1 overflow-x-auto scrollbar-none">
               {DELIVERABLE_TABS.map(t => (
-                <button key={t.key} onClick={() => setActiveTab(t.key)} className={`px-2 py-1.5 rounded text-[9px] font-bold uppercase tracking-wider flex-shrink-0 transition border ${activeTab === t.key ? 'bg-gold/20 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}>{t.icon}</button>
+                <button key={t.key} onClick={() => setActiveTab(t.key)} className={`px-2.5 py-1.5 rounded text-[9px] font-bold uppercase tracking-wider flex-shrink-0 transition border flex items-center gap-1 ${activeTab === t.key ? 'bg-gold/20 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700'}`}><span>{t.icon}</span><span>{t.label}</span></button>
               ))}
             </div>
 
@@ -860,32 +860,62 @@ export default function ShowUpPageClient() {
               <div className="pt-2"><GoldLabel>Logo</GoldLabel></div>
               <ImageUpload value={images.logo} clientId={clientData?.id} onChange={v => { setImages(p => ({ ...p, logo: v })); debouncedSave() }} label="Upload Logo" />
 
-              <div className="pt-2"><GoldLabel>Transformation Photos</GoldLabel></div>
+              <div className="pt-2"><GoldLabel>Transformation Photos ({images.transformations.length})</GoldLabel></div>
               <p className="text-zinc-600 text-[10px] mb-2">Before/after or progress photos for the grid.</p>
               <div className="grid grid-cols-3 gap-1">
                 {images.transformations.map((url, i) => (
-                  <ImageUpload key={i} value={url} clientId={clientData?.id} label={`${i + 1}`}
-                    onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }} />
+                  <div key={i} className="relative">
+                    <ImageUpload value={url} clientId={clientData?.id} label={`${i + 1}`}
+                      onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }} />
+                    {images.transformations.length > 1 && (
+                      <button onClick={() => { const u = images.transformations.filter((_, j) => j !== i); setImages(p => ({ ...p, transformations: u })); debouncedSave() }}
+                        className="absolute top-0 right-0 w-5 h-5 bg-red-900/80 text-red-300 rounded-full text-[10px] flex items-center justify-center hover:bg-red-800 transition z-10">✕</button>
+                    )}
+                  </div>
                 ))}
               </div>
+              <button onClick={() => { setImages(p => ({ ...p, transformations: [...p.transformations, ''] })); debouncedSave() }}
+                className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Photo</button>
 
-              <div className="pt-2"><GoldLabel>Case Study Photos</GoldLabel></div>
+              <div className="pt-2"><GoldLabel>Case Study Photos ({images.case_studies.length})</GoldLabel></div>
               <p className="text-zinc-600 text-[10px] mb-2">One photo per case study / pillar.</p>
               {images.case_studies.map((url, i) => (
-                <ImageUpload key={i} value={url} clientId={clientData?.id} label={`Pillar ${i + 1}`}
-                  onChange={v => { const u = [...images.case_studies]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }} />
+                <div key={i} className="relative">
+                  <ImageUpload value={url} clientId={clientData?.id} label={`Pillar ${i + 1}`}
+                    onChange={v => { const u = [...images.case_studies]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }} />
+                  {images.case_studies.length > 1 && (
+                    <button onClick={() => { const u = images.case_studies.filter((_, j) => j !== i); setImages(p => ({ ...p, case_studies: u })); debouncedSave() }}
+                      className="absolute top-0 right-0 w-5 h-5 bg-red-900/80 text-red-300 rounded-full text-[10px] flex items-center justify-center hover:bg-red-800 transition z-10">✕</button>
+                  )}
+                </div>
               ))}
               <button onClick={() => { setImages(p => ({ ...p, case_studies: [...p.case_studies, ''] })); debouncedSave() }}
-                className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Slot</button>
+                className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Photo</button>
 
-              <div className="pt-2"><GoldLabel>Testimonial Photos</GoldLabel></div>
-              <p className="text-zinc-600 text-[10px] mb-2">Avatar photos for written testimonials.</p>
-              <div className="grid grid-cols-3 gap-1">
-                {images.testimonial_photos.map((url, i) => (
-                  <ImageUpload key={i} value={url} clientId={clientData?.id} label={`${i + 1}`}
-                    onChange={v => { const u = [...images.testimonial_photos]; u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }} />
-                ))}
-              </div>
+              <div className="pt-2"><GoldLabel>Written Testimonials + Photos</GoldLabel></div>
+              <p className="text-zinc-600 text-[10px] mb-2">Upload the photo that matches each testimonial.</p>
+              {(() => {
+                const testimonials = Array.isArray(generatedOutput?.section_6_testimonials) ? generatedOutput.section_6_testimonials : []
+                // Ensure we have enough photo slots for all testimonials
+                const photos = images.testimonial_photos || []
+                while (photos.length < testimonials.length) photos.push('')
+                return testimonials.length > 0 ? testimonials.map((t, i) => (
+                  <div key={i} className="mb-3 bg-zinc-800/30 rounded-lg p-3">
+                    <div className="flex gap-3">
+                      <div className="w-16 flex-shrink-0">
+                        <ImageUpload value={photos[i] || ''} clientId={clientData?.id} label="Photo"
+                          onChange={v => { const u = [...photos]; u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-xs font-bold text-gold">{t.name || `Testimonial ${i + 1}`}</p>
+                        <p className="text-[10px] text-zinc-500 mt-1 line-clamp-3">{typeof t.quote === 'string' ? t.quote.slice(0, 120) + '...' : ''}</p>
+                      </div>
+                    </div>
+                  </div>
+                )) : (
+                  <p className="text-zinc-600 text-[10px]">Build the page first to see testimonials here.</p>
+                )
+              })()}
             </div>
 
             {/* Export */}

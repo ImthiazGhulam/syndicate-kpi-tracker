@@ -1087,7 +1087,7 @@ SECTION 1 — HERO
 - Container: widest (container-xl) for heading, slightly narrower (container-lg) for video.
 - h1 centred, large but not enormous (use clamp for responsive sizing, e.g. clamp(28px, 5vw, 42px)). Font weight 800.
 - Below h1: a styled paragraph (slightly larger than body text, ~18px), centred, max-width ~620px.
-- Below paragraph: a 16:9 video embed. If a video URL is provided, embed as iframe. Otherwise render a placeholder div (background: var(--panel-bg), border-radius: 12px, height: 0, padding-top: 56.17%, position: relative) with a centred "Video" label.
+- Below paragraph: a 16:9 video embed. If a video URL is provided, embed as iframe. Otherwise render a placeholder div (background: var(--panel-bg), border-radius: 12px, height: 0, padding-top: 56.17%, position: relative) with a centred label that says exactly "Video 1: Call Briefing" so the client knows what goes here.
 
 SECTION 2 — IMPORTANT REMINDER + WHAT TO EXPECT (combined)
 - Container: container-lg.
@@ -1099,10 +1099,10 @@ SECTION 2 — IMPORTANT REMINDER + WHAT TO EXPECT (combined)
   - h2 with top margin: "What to Expect"
   - p (slightly larger text, ~17px): Motivational paragraph.
 - RIGHT COLUMN: 3 video cards stacked vertically with 24px gap.
-  - Each card: video embed (16:9, same pattern as hero) + h3 (bold, ~18px) + p (regular body text).
-  - Card 1: Programme overview video + programme title + pillars sentence.
-  - Card 2: Differentiation video + "I'll have your back" + coach commitment text.
-  - Card 3: Commitment video + "You have to be committed" + client commitment text.
+  - Each card: video embed (16:9, same pattern as hero — if no video URL, render a placeholder with a SPECIFIC label) + h3 (bold, ~18px) + p (regular body text).
+  - Card 1: Programme overview video (placeholder label: "Video 2: Programme Overview") + programme title + pillars sentence.
+  - Card 2: Differentiation video (placeholder label: "Video 3: Differentiation Story") + "I'll have your back" + coach commitment text.
+  - Card 3: Commitment video (placeholder label: "Video 4: Commitment Filter") + "You have to be committed" + client commitment text.
 
 SECTION 3 — LIFE-CHANGING TRANSFORMATIONS
 - Very generous vertical padding (padding-vertical: 96-120px equivalent).
@@ -1125,7 +1125,7 @@ SECTION 5 — VIDEO TESTIMONIALS
 - Padding: generous vertical (80px).
 - Container: container-md.
 - h2 centred with bottom padding.
-- Two video embeds stacked vertically with 24px gap between them. Same 16:9 embed pattern.
+- Two video embeds stacked vertically with 24px gap between them. Same 16:9 embed pattern. If no video URL, use placeholder with label "Testimonial Video 1" and "Testimonial Video 2" respectively.
 
 SECTION 6 — WRITTEN TESTIMONIALS
 - Generous vertical padding (96-120px).
