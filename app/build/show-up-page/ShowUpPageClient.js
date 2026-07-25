@@ -606,7 +606,81 @@ export default function ShowUpPageClient() {
 
   // ── Export ─────────────────────────────────────────────────────────────────
 
-  const getFullHTML = () => pageHTML || buildPageHTML(generatedOutput, styles, videoUrls, ppStar.name || clientData?.name || '')
+  // Inject live images and videos into the HTML without regenerating
+  const injectMedia = (html) => {
+    if (!html) return html
+    let result = html
+
+    // Inject video embeds — find placeholder divs and replace with iframes
+    const videoMap = {
+      'Video 1': videoUrls.video_1, 'Call Briefing': videoUrls.video_1,
+      'Video 2': videoUrls.video_2, 'Programme': videoUrls.video_2,
+      'Video 3': videoUrls.video_3, 'Differentiation': videoUrls.video_3,
+      'Video 4': videoUrls.video_4, 'Commitment': videoUrls.video_4,
+      'Testimonial Video 1': videoUrls.testimonial_1, 'Testimonial 1': videoUrls.testimonial_1,
+      'Testimonial Video 2': videoUrls.testimonial_2, 'Testimonial 2': videoUrls.testimonial_2,
+    }
+    for (const [label, url] of Object.entries(videoMap)) {
+      if (!url) continue
+      let embedUrl = url
+      if (url.includes('youtube.com/watch')) embedUrl = url.replace('watch?v=', 'embed/')
+      else if (url.includes('youtu.be/')) embedUrl = 'https://www.youtube.com/embed/' + url.split('youtu.be/')[1].split('?')[0]
+      else if (url.includes('vimeo.com/')) embedUrl = 'https://player.vimeo.com/video/' + url.split('vimeo.com/')[1].split('?')[0]
+      else if (url.includes('loom.com/share/')) embedUrl = url.replace('/share/', '/embed/')
+      // Replace placeholder divs that mention this label
+      const placeholderRegex = new RegExp(`<div[^>]*>[^<]*${label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}[^<]*</div>`, 'gi')
+      const iframe = `<div style="position:relative;padding-top:56.25%;border-radius:12px;overflow:hidden;"><iframe src="${embedUrl}" style="position:absolute;top:0;left:0;width:100%;height:100%;border:0;" allowfullscreen allow="autoplay; fullscreen; picture-in-picture"></iframe></div>`
+      result = result.replace(placeholderRegex, iframe)
+    }
+
+    // Inject transformation images
+    const transformUrls = (images.transformations || []).filter(Boolean)
+    if (transformUrls.length > 0) {
+      // Find photo placeholder divs and replace them one by one
+      let tIdx = 0
+      result = result.replace(/<div[^>]*>([^<]*Photo[^<]*)<\/div>/gi, (match) => {
+        // Only replace in the transformations section area (first batch of placeholders)
+        if (tIdx < transformUrls.length) {
+          const url = transformUrls[tIdx++]
+          return `<img src="${url}" alt="Transformation" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />`
+        }
+        return match
+      })
+    }
+
+    // Inject case study images
+    const caseUrls = (images.case_studies || []).filter(Boolean)
+    if (caseUrls.length > 0) {
+      let cIdx = 0
+      // Case study photo placeholders appear after transformation ones
+      result = result.replace(/<div[^>]*>([^<]*Photo[^<]*)<\/div>/gi, (match) => {
+        if (cIdx < caseUrls.length) {
+          const url = caseUrls[cIdx++]
+          return `<img src="${url}" alt="Case study" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />`
+        }
+        return match
+      })
+    }
+
+    // Inject logo
+    if (images.logo) {
+      result = result.replace(/(<footer[\s\S]*?)(<div[^>]*>Logo<\/div>|Logo placeholder)/i, `$1<img src="${images.logo}" alt="Logo" style="max-height:48px;width:auto;" />`)
+    }
+
+    // Update CSS variables for live style changes
+    result = result.replace(/--bg:[^;]+;/, `--bg:${styles.bg};`)
+    result = result.replace(/--panel-bg:[^;]+;/, `--panel-bg:${styles.panelBg};`)
+    result = result.replace(/--accent:[^;]+;/, `--accent:${styles.accent};`)
+    result = result.replace(/--heading-color:[^;]+;/, `--heading-color:${styles.headingColor};`)
+    result = result.replace(/--subheading-color:[^;]+;/, `--subheading-color:${styles.subheadingColor};`)
+    result = result.replace(/--body-color:[^;]+;/, `--body-color:${styles.bodyColor};`)
+    result = result.replace(/--heading-font:[^;]+;/, `--heading-font:'${styles.headingFont}',sans-serif;`)
+    result = result.replace(/--body-font:[^;]+;/, `--body-font:'${styles.bodyFont}',sans-serif;`)
+
+    return result
+  }
+
+  const getFullHTML = () => injectMedia(pageHTML) || buildPageHTML(generatedOutput, styles, videoUrls, ppStar.name || clientData?.name || '')
 
   const downloadHTML = () => {
     const html = getFullHTML()
