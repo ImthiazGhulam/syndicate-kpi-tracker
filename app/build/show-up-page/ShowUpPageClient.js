@@ -172,7 +172,10 @@ function buildPageHTML(output, styles, videoUrls, clientName) {
       <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:14px;margin-top:4px;line-height:1.6;">${t.context_line || ''}</p>
     </div>`).join('')
 
-  const caseStudyBlocks = caseStudies.map((cs, idx) => `
+  const caseStudyBlocks = caseStudies.map((cs, idx) => {
+    const narrative = cs.narrative || [cs.situation, cs.intervention, cs.result_number, cs.life_outcome].filter(Boolean).join(' ')
+    const heading = cs.pillar_name || cs.name || ''
+    return `
     <div style="display:flex;gap:48px;flex-wrap:wrap;margin-bottom:64px;align-items:center;${idx % 2 === 1 ? 'flex-direction:row-reverse;' : ''}">
       <div style="flex:1;min-width:280px;">
         <div style="background:${s.panelBg};border-radius:16px;height:360px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
@@ -180,13 +183,11 @@ function buildPageHTML(output, styles, videoUrls, clientName) {
         </div>
       </div>
       <div style="flex:1;min-width:280px;">
-        <p style="font-family:var(--subheading-font);color:${s.accent};font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px;">${cs.name || ''}</p>
-        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.8;margin-bottom:16px;">${cs.situation || ''}</p>
-        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.8;margin-bottom:16px;">${cs.intervention || ''}</p>
-        <p style="font-family:var(--heading-font);color:${s.headingColor};font-size:28px;font-weight:800;margin:20px 0 8px;">${cs.result_number || ''}</p>
-        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.8;">${cs.life_outcome || ''}</p>
+        <h3 style="font-family:var(--heading-font);color:${s.headingColor};font-size:22px;font-weight:700;margin-bottom:16px;">${heading}</h3>
+        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.9;">${narrative}</p>
       </div>
-    </div>`).join('')
+    </div>`
+  }).join('')
 
   const testimonialCards = writtenTestimonials.map(t => `
     <div style="background:${s.panelBg};border-radius:16px;padding:32px;">
