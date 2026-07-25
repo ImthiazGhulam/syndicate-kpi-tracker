@@ -352,6 +352,12 @@ export default function ShowUpPageClient() {
   const [showStylePanel, setShowStylePanel] = useState(false)
   const [pageHTML, setPageHTML] = useState('')
   const [generatingHTML, setGeneratingHTML] = useState(false)
+  const [images, setImages] = useState({
+    logo: '',
+    transformations: ['', '', '', '', '', '', '', '', ''],
+    case_studies: ['', '', '', ''],
+    testimonial_photos: ['', '', '', '', '', '', '', '', ''],
+  })
 
   const saveTimerRef = useRef(null)
   const toastRef = useRef(null)
@@ -403,6 +409,7 @@ export default function ShowUpPageClient() {
         if (recordRes.data.style_config) setStyles(prev => ({ ...prev, ...recordRes.data.style_config }))
         if (recordRes.data.video_urls) setVideoUrls(prev => ({ ...prev, ...recordRes.data.video_urls }))
         if (recordRes.data.page_html) setPageHTML(recordRes.data.page_html)
+        if (recordRes.data.images) setImages(prev => ({ ...prev, ...recordRes.data.images }))
       }
 
       if (ppRes.data?.brand_star?.tone) setToneProfile(prev => ({ ...prev, ...ppRes.data.brand_star.tone }))
@@ -418,13 +425,13 @@ export default function ShowUpPageClient() {
     const payload = {
       client_id: clientData.id, tone_profile: toneProfile, client_wins: clientWins,
       build_gaps: buildGaps, gap_answers: { de: deGaps, offer: offerGaps },
-      generated_output: generatedOutput || {}, style_config: styles, video_urls: videoUrls, page_html: pageHTML || '',
+      generated_output: generatedOutput || {}, style_config: styles, video_urls: videoUrls, page_html: pageHTML || '', images: images,
       status: generatedOutput ? 'complete' : 'draft', updated_at: new Date().toISOString(), ...fields,
     }
     if (record) { await supabase.from('show_up_pages').update(payload).eq('id', record.id) }
     else { const { data: n } = await supabase.from('show_up_pages').insert(payload).select().single(); if (n) setRecord(n) }
     flash()
-  }, [clientData, record, toneProfile, clientWins, buildGaps, deGaps, offerGaps, generatedOutput, styles, videoUrls])
+  }, [clientData, record, toneProfile, clientWins, buildGaps, deGaps, offerGaps, generatedOutput, styles, videoUrls, images])
 
   const debouncedSave = useCallback((f = {}) => {
     if (saveTimerRef.current) clearTimeout(saveTimerRef.current)
@@ -514,7 +521,7 @@ export default function ShowUpPageClient() {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'show-up-page-html', data: {
           generated_output: contentToUse,
-          styles, video_urls: videoUrls,
+          styles, video_urls: videoUrls, images,
           client_name: ppStar.name || clientData?.name || '',
         }}),
       })
@@ -705,9 +712,47 @@ export default function ShowUpPageClient() {
               <FontSelect label="Body" value={styles.bodyFont} onChange={v => { setStyles(p => ({ ...p, bodyFont: v })); debouncedSave() }} />
 
               <div className="pt-2"><GoldLabel>Video URLs</GoldLabel></div>
-              {[['video_1', 'Video 1: Call Briefing'], ['video_2', 'Video 2: Programme'], ['video_3', 'Video 3: Differentiation'], ['video_4', 'Video 4: Commitment'], ['testimonial_1', 'Testimonial Video 1'], ['testimonial_2', 'Testimonial Video 2']].map(([k, l]) => (
+              {[['video_1', 'Hero: Call Briefing'], ['video_2', 'Programme Overview'], ['video_3', 'Differentiation Story'], ['video_4', 'Commitment Filter'], ['testimonial_1', 'Testimonial Video 1'], ['testimonial_2', 'Testimonial Video 2']].map(([k, l]) => (
                 <div key={k}><Label>{l}</Label><TextInput value={videoUrls[k]} onChange={v => { setVideoUrls(p => ({ ...p, [k]: v })); debouncedSave() }} placeholder="YouTube, Vimeo, or Loom URL" /></div>
               ))}
+
+              <div className="pt-2"><GoldLabel>Photos & Images</GoldLabel></div>
+              <div>
+                <Label>Logo URL</Label>
+                <TextInput value={images.logo} onChange={v => { setImages(p => ({ ...p, logo: v })); debouncedSave() }} placeholder="https://... your logo image URL" />
+              </div>
+              <div>
+                <Label>Transformation Photos (up to 9)</Label>
+                <p className="text-zinc-600 text-[10px] mb-2">Paste image URLs. These appear in the transformation grid.</p>
+                {images.transformations.map((url, i) => (
+                  <div key={i} className="mb-1">
+                    <TextInput value={url} onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }}
+                      placeholder={`Photo ${i + 1} URL`} />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <Label>Case Study Photos (1 per pillar)</Label>
+                <p className="text-zinc-600 text-[10px] mb-2">One photo per case study / pillar.</p>
+                {images.case_studies.map((url, i) => (
+                  <div key={i} className="mb-1">
+                    <TextInput value={url} onChange={v => { const u = [...images.case_studies]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }}
+                      placeholder={`Pillar ${i + 1} photo URL`} />
+                  </div>
+                ))}
+                <button onClick={() => { setImages(p => ({ ...p, case_studies: [...p.case_studies, ''] })); debouncedSave() }}
+                  className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Slot</button>
+              </div>
+              <div>
+                <Label>Testimonial Photos</Label>
+                <p className="text-zinc-600 text-[10px] mb-2">Circular avatar photos for written testimonials.</p>
+                {images.testimonial_photos.map((url, i) => (
+                  <div key={i} className="mb-1">
+                    <TextInput value={url} onChange={v => { const u = [...images.testimonial_photos]; u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }}
+                      placeholder={`Testimonial ${i + 1} photo URL`} />
+                  </div>
+                ))}
+              </div>
             </div>
 
             {/* Export */}

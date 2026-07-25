@@ -1057,51 +1057,116 @@ Produce all deliverables as JSON.`
 
     // ── Show Up Page Builder™ — HTML Page Generation ────────────────────────
     if (type === 'show-up-page-html') {
-      systemPrompt = `You are an elite web designer and developer. Your job is to take the provided page copy, video scripts, and style preferences and produce a single, complete, production-grade HTML page.
+      const imgs = data.images || {}
+      const vids = data.video_urls || {}
+      systemPrompt = `You are an elite web designer. Produce a single, self-contained, production-grade HTML file for a booking thank-you page. It must look like it was shipped by a design agency. Match the exact structural layout described below.
 
-This is a booking thank-you page for a coach. It must look like a page a design agency shipped — premium, clean, spacious, fully responsive, fast-loading.
+TECHNICAL REQUIREMENTS:
+- One HTML file. All CSS in a single <style> block. No external CSS frameworks.
+- Load Google Fonts via <link> tag.
+- CSS custom properties (variables) for all colours and fonts.
+- Fully responsive: 3 container widths (container-xl ~1200px, container-lg ~960px, container-md ~720px). Mobile breakpoint at 768px stacks all multi-column layouts to single column.
+- Semantic HTML5. No JavaScript required.
+- The page must render perfectly as a standalone .html file.
+- Do NOT wrap output in markdown code fences. Return ONLY raw HTML starting with <!DOCTYPE html>.
 
-REQUIREMENTS:
-- One self-contained HTML file. All CSS inline in a <style> block. No external CSS frameworks.
-- Load Google Fonts via a single <link> tag for the specified fonts.
-- Use CSS custom properties (variables) for all colours so the client can tweak them later.
-- Fully responsive: desktop (max-width 880px container), tablet, mobile (single column, adjusted font sizes).
-- Semantic HTML5: header, main, section, footer.
-- 7 sections matching basealpha.uk/thank-you exactly:
-  1. HERO: Centred headline + paragraph. Below it: a large video embed slot for Video 1 (Call Briefing). If video URL provided, embed it. Otherwise a styled placeholder.
-  2. IMPORTANT REMINDER + WHAT TO EXPECT: Two-column layout on desktop (stacks on mobile). LEFT column: "Important Reminder" heading + paragraph, then "What to Expect" heading + paragraph. RIGHT column: 3 video cards in a vertical stack. Each card has a video embed slot, a bold subheading, and a short paragraph. Card 1 = programme overview. Card 2 = "I'll have your back". Card 3 = "You have to be committed".
-  3. LIFE-CHANGING TRANSFORMATIONS: Centred heading. Grid of photo placeholders (no captions, just images). 3-4 columns on desktop, 2 on mobile.
-  4. HOW DOES IT WORK: Each case study is a horizontal card with image placeholder on left, text on right (same layout for all, NOT alternating). Pillar name as bold subheading. Full paragraph narrative.
-  5. VIDEO TESTIMONIALS: Centred heading. Two video embed slots stacked vertically.
-  6. WRITTEN TESTIMONIALS: Heading "Testimonials" + subline "Here's what success looks like". 3-column grid of cards (1 column on mobile). Each card: quote text + circular photo placeholder + client name.
-  7. FOOTER: Logo placeholder, social icons row (YouTube, Twitter/X, Facebook, Instagram), nav links row, legal links, copyright.
-- Video embed slots: use video URLs if provided, otherwise render styled placeholders.
-- Photo placeholders: light grey background, rounded, labelled "Photo".
-- Typography hierarchy: large bold headings (clamp for responsiveness), accent-coloured section labels, readable body text with generous line-height (1.7-1.8).
-- Spacing: generous — 80-100px between sections, 32px container padding, 48px+ between sub-sections.
-- The design should feel premium and spacious, like the reference page basealpha.uk/thank-you — clean backgrounds, strong typography, alternating layouts for case studies, well-spaced testimonial cards.
-- No JavaScript needed unless for a simple mobile menu.
-- The page must render perfectly when opened as a standalone .html file in any browser.
-- Do NOT wrap the output in markdown code fences. Return ONLY the raw HTML starting with <!DOCTYPE html>.
+STYLE VARIABLES:
+--bg: ${data.styles?.bg || '#ffffff'};
+--panel-bg: ${data.styles?.panelBg || '#f8f8f8'};
+--accent: ${data.styles?.accent || '#C9A84C'};
+--heading-color: ${data.styles?.headingColor || '#1a1a1a'};
+--subheading-color: ${data.styles?.subheadingColor || '#C9A84C'};
+--body-color: ${data.styles?.bodyColor || '#444444'};
+--heading-font: '${data.styles?.headingFont || 'Manrope'}', sans-serif;
+--body-font: '${data.styles?.bodyFont || 'Manrope'}', sans-serif;
 
-STYLE PREFERENCES (use these as CSS variables):
-- Page background: ${data.styles?.bg || '#ffffff'}
-- Panel/card background: ${data.styles?.panelBg || '#f8f8f8'}
-- Accent colour: ${data.styles?.accent || '#C9A84C'}
-- Heading colour: ${data.styles?.headingColor || '#1a1a1a'}
-- Subheading colour: ${data.styles?.subheadingColor || '#C9A84C'}
-- Body text colour: ${data.styles?.bodyColor || '#444444'}
-- Heading font: ${data.styles?.headingFont || 'Manrope'}
-- Subheading font: ${data.styles?.subheadingFont || 'Manrope'}
-- Body font: ${data.styles?.bodyFont || 'Manrope'}
+EXACT PAGE STRUCTURE (7 sections, match this precisely):
 
-NOTE: Videos are NOT embedded on this page. The page contains text, images, and testimonials only. Video scripts are separate deliverables the client records themselves.
+SECTION 1 — HERO
+- Generous padding (80-100px top, 60px bottom).
+- Container: widest (container-xl) for heading, slightly narrower (container-lg) for video.
+- h1 centred, large but not enormous (use clamp for responsive sizing, e.g. clamp(28px, 5vw, 42px)). Font weight 800.
+- Below h1: a styled paragraph (slightly larger than body text, ~18px), centred, max-width ~620px.
+- Below paragraph: a 16:9 video embed. If a video URL is provided, embed as iframe. Otherwise render a placeholder div (background: var(--panel-bg), border-radius: 12px, height: 0, padding-top: 56.17%, position: relative) with a centred "Video" label.
+
+SECTION 2 — IMPORTANT REMINDER + WHAT TO EXPECT (combined)
+- Container: container-lg.
+- Desktop: horizontal flex layout, two columns side by side. Left column ~40% width, right column ~60%.
+- Mobile: stacks vertically (left column first, then right).
+- LEFT COLUMN:
+  - h2: "Important Reminder"
+  - p: One paragraph with cancellation policy and environment instructions.
+  - h2 with top margin: "What to Expect"
+  - p (slightly larger text, ~17px): Motivational paragraph.
+- RIGHT COLUMN: 3 video cards stacked vertically with 24px gap.
+  - Each card: video embed (16:9, same pattern as hero) + h3 (bold, ~18px) + p (regular body text).
+  - Card 1: Programme overview video + programme title + pillars sentence.
+  - Card 2: Differentiation video + "I'll have your back" + coach commitment text.
+  - Card 3: Commitment video + "You have to be committed" + client commitment text.
+
+SECTION 3 — LIFE-CHANGING TRANSFORMATIONS
+- Very generous vertical padding (padding-vertical: 96-120px equivalent).
+- h2 centred, slightly smaller variant.
+- Container: container-md (narrower, keeps images tighter).
+- Image grid: 3 columns on desktop, 2 on tablet, 1 on mobile. Gap: 12-16px.
+- Images: if URLs provided, use <img> with object-fit: cover, border-radius: 8-12px, aspect-ratio or fixed height. If no URLs, render placeholder divs (background: var(--panel-bg), aspect-ratio: 3/4, border-radius: 12px) with no label.
+
+SECTION 4 — HOW DOES IT WORK
+- Container: container-lg.
+- h2 left-aligned.
+- Cards wrapper with top margin.
+- Each case study card: horizontal flex (image left, text right). NOT alternating — same layout for every card.
+  - Image: 40% width, aspect-ratio ~3/4, object-fit: cover, border-radius: 12px. If URL provided use <img>, otherwise placeholder div.
+  - Text: 60% width. h3 with <strong> (pillar name, bold). p with full narrative paragraph (body text, 15-16px, line-height 1.8).
+  - Cards separated by 40-48px vertical gap.
+- On mobile: image stacks above text, full width.
+
+SECTION 5 — VIDEO TESTIMONIALS
+- Padding: generous vertical (80px).
+- Container: container-md.
+- h2 centred with bottom padding.
+- Two video embeds stacked vertically with 24px gap between them. Same 16:9 embed pattern.
+
+SECTION 6 — WRITTEN TESTIMONIALS
+- Generous vertical padding (96-120px).
+- h2 left-aligned or centred.
+- Subline below h2: uppercase, bold, smaller text.
+- 3-column grid on desktop, 1 column on mobile. Gap: 20-24px.
+- Each testimonial card (background: var(--panel-bg), border-radius: 12px, padding: 24-32px):
+  - p: the full quote text (body text size, line-height 1.7, font-style: normal — NOT italic).
+  - Below quote: avatar holder (flex row, align centre, gap 12px):
+    - Circular image (48-64px diameter, border-radius: 50%, object-fit: cover). If URL provided use <img>, otherwise a coloured circle with the first letter of the name.
+    - Name text (bold, 14px).
+
+SECTION 7 — FOOTER
+- Border-top: 1px solid rgba(0,0,0,0.08).
+- Padding: 48px.
+- Two rows:
+  - Row 1: Navigation links (horizontal, centred or spaced) + Logo image (if provided) + Social icon links (YouTube, Twitter/X, Facebook, Instagram — render as simple SVG icons or unicode symbols).
+  - Row 2: Legal links (Terms, Privacy) + Copyright line.
+- All footer text small (12-13px), muted colour.
+
+IMAGE DATA (use these URLs where provided, placeholder divs where not):
+- Logo URL: ${imgs.logo || 'none'}
+- Transformation photos: ${JSON.stringify(imgs.transformations || [])}
+- Case study photos (one per pillar): ${JSON.stringify(imgs.case_studies || [])}
+- Testimonial photos: ${JSON.stringify(imgs.testimonial_photos || [])}
+
+VIDEO URLS (embed as 16:9 iframes where provided, placeholder divs where not):
+- Hero video (Video 1): ${vids.video_1 || 'none'}
+- Programme video (Card 1 in Section 2): ${vids.video_2 || 'none'}
+- Differentiation video (Card 2 in Section 2): ${vids.video_3 || 'none'}
+- Commitment video (Card 3 in Section 2): ${vids.video_4 || 'none'}
+- Testimonial video 1: ${vids.testimonial_1 || 'none'}
+- Testimonial video 2: ${vids.testimonial_2 || 'none'}
+
+For any YouTube URL, convert to embed format (youtube.com/watch?v=ID becomes youtube.com/embed/ID). For Vimeo, use player.vimeo.com/video/ID. For Loom, replace /share/ with /embed/.
 
 CLIENT NAME: ${data.client_name || ''}`
 
-      userPrompt = `Build the complete HTML page using this content:
+      userPrompt = `Build the complete HTML page using this content. Inject the copy into the matching sections.
 
-PAGE COPY (inject into the 8 sections):
+PAGE COPY:
 ${JSON.stringify(data.generated_output || {}, null, 2)}
 
 Return ONLY the complete HTML. No markdown, no explanation, no code fences. Start with <!DOCTYPE html>.`
