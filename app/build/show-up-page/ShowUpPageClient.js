@@ -62,6 +62,69 @@ function TextInput({ value, onChange, placeholder }) {
     className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
 }
 
+function ImageUpload({ value, onChange, label, clientId }) {
+  const [uploading, setUploading] = useState(false)
+  const inputRef = useRef(null)
+
+  const upload = async (file) => {
+    if (!file || !clientId) return
+    setUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `${clientId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`
+    const { data, error } = await supabase.storage.from('page-images').upload(path, file, { upsert: true })
+    if (!error && data) {
+      const { data: urlData } = supabase.storage.from('page-images').getPublicUrl(data.path)
+      onChange(urlData.publicUrl)
+    }
+    setUploading(false)
+  }
+
+  return (
+    <div className="mb-2">
+      {value ? (
+        <div className="relative group">
+          <img src={value} alt="" className="w-full h-20 object-cover rounded border border-zinc-700" />
+          <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 rounded">
+            <button onClick={() => inputRef.current?.click()} className="text-[9px] font-bold uppercase tracking-wider text-white bg-zinc-700 px-2 py-1 rounded hover:bg-zinc-600 transition">Replace</button>
+            <button onClick={() => onChange('')} className="text-[9px] font-bold uppercase tracking-wider text-red-400 bg-zinc-700 px-2 py-1 rounded hover:bg-zinc-600 transition">Remove</button>
+          </div>
+        </div>
+      ) : (
+        <button onClick={() => inputRef.current?.click()} disabled={uploading}
+          className="w-full py-3 rounded border border-dashed border-zinc-700 hover:border-gold/30 text-zinc-600 hover:text-gold text-[10px] font-bold uppercase tracking-wider transition disabled:opacity-50 flex items-center justify-center gap-2">
+          {uploading ? (
+            <><div className="w-3 h-3 border-2 border-gold/30 border-t-gold rounded-full animate-spin" /> Uploading...</>
+          ) : (
+            <><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg> {label || 'Upload Photo'}</>
+          )}
+        </button>
+      )}
+      <input ref={inputRef} type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) upload(e.target.files[0]) }} />
+    </div>
+  )
+}
+
+function VideoPreview({ url, label }) {
+  if (!url) return (
+    <div className="w-full rounded border border-dashed border-zinc-700 bg-zinc-800/50 flex items-center justify-center py-6">
+      <span className="text-zinc-600 text-[10px] font-bold uppercase tracking-wider">{label || 'No video'}</span>
+    </div>
+  )
+
+  let embedUrl = url
+  if (url.includes('youtube.com/watch')) embedUrl = url.replace('watch?v=', 'embed/')
+  else if (url.includes('youtu.be/')) embedUrl = 'https://www.youtube.com/embed/' + url.split('youtu.be/')[1].split('?')[0]
+  else if (url.includes('vimeo.com/')) embedUrl = 'https://player.vimeo.com/video/' + url.split('vimeo.com/')[1].split('?')[0]
+  else if (url.includes('loom.com/share/')) embedUrl = url.replace('/share/', '/embed/')
+
+  return (
+    <div className="w-full rounded overflow-hidden border border-zinc-700" style={{ position: 'relative', paddingTop: '56.25%' }}>
+      <iframe src={embedUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
+        allowFullScreen allow="autoplay; fullscreen; picture-in-picture" title={label || 'Video'} />
+    </div>
+  )
+}
+
 function LoadingOverlay({ lines }) {
   const [idx, setIdx] = useState(0)
   useEffect(() => { const t = setInterval(() => setIdx(p => (p + 1) % lines.length), 2500); return () => clearInterval(t) }, [lines])
@@ -711,46 +774,42 @@ export default function ShowUpPageClient() {
               <FontSelect label="Subheadings" value={styles.subheadingFont} onChange={v => { setStyles(p => ({ ...p, subheadingFont: v })); debouncedSave() }} />
               <FontSelect label="Body" value={styles.bodyFont} onChange={v => { setStyles(p => ({ ...p, bodyFont: v })); debouncedSave() }} />
 
-              <div className="pt-2"><GoldLabel>Video URLs</GoldLabel></div>
+              <div className="pt-2"><GoldLabel>Videos</GoldLabel></div>
               {[['video_1', 'Hero: Call Briefing'], ['video_2', 'Programme Overview'], ['video_3', 'Differentiation Story'], ['video_4', 'Commitment Filter'], ['testimonial_1', 'Testimonial Video 1'], ['testimonial_2', 'Testimonial Video 2']].map(([k, l]) => (
-                <div key={k}><Label>{l}</Label><TextInput value={videoUrls[k]} onChange={v => { setVideoUrls(p => ({ ...p, [k]: v })); debouncedSave() }} placeholder="YouTube, Vimeo, or Loom URL" /></div>
+                <div key={k} className="mb-3">
+                  <Label>{l}</Label>
+                  <TextInput value={videoUrls[k]} onChange={v => { setVideoUrls(p => ({ ...p, [k]: v })); debouncedSave() }} placeholder="YouTube, Vimeo, or Loom URL" />
+                  {videoUrls[k] && <div className="mt-2"><VideoPreview url={videoUrls[k]} label={l} /></div>}
+                </div>
               ))}
 
-              <div className="pt-2"><GoldLabel>Photos & Images</GoldLabel></div>
-              <div>
-                <Label>Logo URL</Label>
-                <TextInput value={images.logo} onChange={v => { setImages(p => ({ ...p, logo: v })); debouncedSave() }} placeholder="https://... your logo image URL" />
-              </div>
-              <div>
-                <Label>Transformation Photos (up to 9)</Label>
-                <p className="text-zinc-600 text-[10px] mb-2">Paste image URLs. These appear in the transformation grid.</p>
+              <div className="pt-2"><GoldLabel>Logo</GoldLabel></div>
+              <ImageUpload value={images.logo} clientId={clientData?.id} onChange={v => { setImages(p => ({ ...p, logo: v })); debouncedSave() }} label="Upload Logo" />
+
+              <div className="pt-2"><GoldLabel>Transformation Photos</GoldLabel></div>
+              <p className="text-zinc-600 text-[10px] mb-2">Before/after or progress photos for the grid.</p>
+              <div className="grid grid-cols-3 gap-1">
                 {images.transformations.map((url, i) => (
-                  <div key={i} className="mb-1">
-                    <TextInput value={url} onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }}
-                      placeholder={`Photo ${i + 1} URL`} />
-                  </div>
+                  <ImageUpload key={i} value={url} clientId={clientData?.id} label={`${i + 1}`}
+                    onChange={v => { const u = [...images.transformations]; u[i] = v; setImages(p => ({ ...p, transformations: u })); debouncedSave() }} />
                 ))}
               </div>
-              <div>
-                <Label>Case Study Photos (1 per pillar)</Label>
-                <p className="text-zinc-600 text-[10px] mb-2">One photo per case study / pillar.</p>
-                {images.case_studies.map((url, i) => (
-                  <div key={i} className="mb-1">
-                    <TextInput value={url} onChange={v => { const u = [...images.case_studies]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }}
-                      placeholder={`Pillar ${i + 1} photo URL`} />
-                  </div>
-                ))}
-                <button onClick={() => { setImages(p => ({ ...p, case_studies: [...p.case_studies, ''] })); debouncedSave() }}
-                  className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Slot</button>
-              </div>
-              <div>
-                <Label>Testimonial Photos</Label>
-                <p className="text-zinc-600 text-[10px] mb-2">Circular avatar photos for written testimonials.</p>
+
+              <div className="pt-2"><GoldLabel>Case Study Photos</GoldLabel></div>
+              <p className="text-zinc-600 text-[10px] mb-2">One photo per case study / pillar.</p>
+              {images.case_studies.map((url, i) => (
+                <ImageUpload key={i} value={url} clientId={clientData?.id} label={`Pillar ${i + 1}`}
+                  onChange={v => { const u = [...images.case_studies]; u[i] = v; setImages(p => ({ ...p, case_studies: u })); debouncedSave() }} />
+              ))}
+              <button onClick={() => { setImages(p => ({ ...p, case_studies: [...p.case_studies, ''] })); debouncedSave() }}
+                className="w-full mt-1 px-3 py-1.5 text-[10px] font-bold uppercase tracking-wider text-zinc-600 hover:text-gold border border-dashed border-zinc-700 hover:border-gold/30 rounded transition">+ Add Slot</button>
+
+              <div className="pt-2"><GoldLabel>Testimonial Photos</GoldLabel></div>
+              <p className="text-zinc-600 text-[10px] mb-2">Avatar photos for written testimonials.</p>
+              <div className="grid grid-cols-3 gap-1">
                 {images.testimonial_photos.map((url, i) => (
-                  <div key={i} className="mb-1">
-                    <TextInput value={url} onChange={v => { const u = [...images.testimonial_photos]; u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }}
-                      placeholder={`Testimonial ${i + 1} photo URL`} />
-                  </div>
+                  <ImageUpload key={i} value={url} clientId={clientData?.id} label={`${i + 1}`}
+                    onChange={v => { const u = [...images.testimonial_photos]; u[i] = v; setImages(p => ({ ...p, testimonial_photos: u })); debouncedSave() }} />
                 ))}
               </div>
             </div>
