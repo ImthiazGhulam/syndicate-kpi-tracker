@@ -972,23 +972,21 @@ TONE: the client's stored Tone & Voice profile is the primary authority for how 
 
 BASELINE VOICE RULES: sounds like a voice note to a mate, not marketing. No em-dashes. No memo words (however, therefore, moreover, furthermore, additionally). Never "It's not X. It's Y." reversals. No parallel tricolons. Specifics over adjectives. Vary sentence length so the right-hand margin is jagged, not straight. Profanity only if their tone profile says so. Strip anything that wouldn't survive being said out loud in a pub.
 
-PAGE STRUCTURE — eight sections, in this exact order. This structure matches a proven high-converting thank-you page format:
+PAGE STRUCTURE — this matches the exact layout of a proven high-converting thank-you page (basealpha.uk/thank-you):
 
-1. HERO / CONFIRMATION. Centred on the page. A bold thank-you headline (e.g. "Thank You for Booking a Call") followed by a short, high-energy motivational paragraph setting the tone. No video in this section. No label or badge. Just the headline and one paragraph, centred, clean, spacious.
+1. HERO / CONFIRMATION. Centred bold thank-you headline (e.g. "Thank You for Booking a Call") + a short motivational paragraph. Directly below: Video 1 (the Call Briefing) as a large embedded video.
 
-2. IMPORTANT REMINDER. Two to three short paragraphs covering: cancellation policy (framed as standards, not threats), and environment instructions (quiet place, laptop not phone, distraction-free). The call happens on ${data.build_gaps?.call_platform || 'Zoom'} via the link in the calendar invite — no phone call is coming; say so explicitly. Simple left-aligned text. No bullet lists, no boxes.
+2. IMPORTANT REMINDER + WHAT TO EXPECT. These sit together in one section, side by side on desktop. LEFT SIDE: "Important Reminder" heading + one paragraph (cancellation policy + environment: quiet place, laptop not phone, the call is on ${data.build_gaps?.call_platform || 'Zoom'} via the calendar invite link, no phone call is coming). Then "What to Expect" heading + one short motivational paragraph. RIGHT SIDE: A 3-card video grid, each card has a video embed slot + subheading + short paragraph: Card 1 = programme overview video + programme name + pillars listed. Card 2 = differentiation video + "I'll have your back" + coach commitment paragraph. Card 3 = commitment filter video + "You have to be committed" + who this is for.
 
-3. WHAT TO EXPECT. Short and punchy. Three parts: (a) One opening paragraph setting the tone — direct, motivational, no-nonsense. (b) The programme name and its pillars listed in one sentence (e.g. "This programme is built on four key areas: X, Y, Z and W"). (c) Two short paragraphs: "I'll have your back" (coach's commitment — what they get, how results happen) and "You have to be committed" (the client's commitment — who this is for, growth mindset required). Keep this section brief. The depth lives in the case studies section, not here.
+3. LIFE-CHANGING TRANSFORMATIONS. Centred heading. A grid of 4-9 transformation photo placeholders with no captions, just images.
 
-4. LIFE-CHANGING TRANSFORMATIONS. A grid of transformation images (photo placeholders). 4 to 8 slots in a responsive grid. Each slot has a name/initials and a one-line caption underneath.
+4. HOW DOES IT WORK? Each case study is a card with image on the left and text on the right (same layout for all, NOT alternating). Subheading is the pillar name (e.g. "Base Alpha Performance System."). The text is one long narrative paragraph — name the client, their life situation, what they struggled with, how it affected them personally, what the programme did through this pillar, the measurable result, the life outcome. End with one sentence connecting back to the pillar philosophy. Conversational, not marketing copy. Built from client wins data only.
 
-5. HOW DOES IT WORK? One case-study block per pillar/component of the system. Each block has an image placeholder on one side and a LONG-FORM narrative on the other, alternating left-right. The subheading is the pillar name (e.g. "The Performance System"). The narrative is a full paragraph — name the client, describe their life situation, what they struggled with, how that affected them personally, what the programme did for them specifically through this pillar, the measurable result, and the life outcome that result unlocked. End each narrative with one sentence connecting it back to the pillar's philosophy. These should read like real stories about real people, conversational, not marketing copy. Built from client wins data only.
+5. VIDEO TESTIMONIALS. Centred heading "Here's what our members think". Two video testimonial embeds stacked vertically (not a grid).
 
-6. TESTIMONIALS HEADER. A centred intro: a heading like "Here's What Our Members Think" with a short line underneath like "Here's what success looks like."
+6. WRITTEN TESTIMONIALS. Heading "Testimonials" + subheading "Here's what success looks like". A 3-column responsive grid of testimonial cards, each with: full raw quote text (keep real voice, imperfect grammar), photo placeholder, client name. 6-9 cards. On mobile these become a slider.
 
-7. TESTIMONIAL GRID. Quote cards in a 3-column responsive grid. Each card has: the full quote text (keep it long and raw — real voice, real length, imperfect grammar kept in), client name, and a photo placeholder. The strongest testimonials pair a number with a life change. Select from client wins data. Do NOT clean up the language or make it polished — raw testimonials are more believable. Never compose quotes the clients didn't say. Aim for 6 to 9 cards.
-
-8. FOOTER. Logo placeholder, social media icons (YouTube, Instagram, Facebook), navigation links, legal links (Terms, Privacy), copyright line. Standard footer structure.
+7. FOOTER. Logo, social icons (YouTube, Twitter/X, Facebook, Instagram), nav links (Home, About, etc.), legal links (Terms, Privacy), copyright.
 
 Not on the page: pricing.
 
@@ -1003,14 +1001,19 @@ VIDEO 4 — COMMITMENT FILTER (45-75s, Section 3). Built from the Premium Positi
 TESTIMONIAL BRIEF (a message the coach sends their own clients). Beat list, no script: where you started (specific, slightly self-deprecating) > what you tried that failed and how the coach came in > what the process was actually like (tailored plans, check-ins, gradual adjustments, access) > the result with one number > what changed beyond the obvious > community texture if real > who you'd recommend it to. Tell them rough delivery beats polish; 2-5 minutes raw, the coach trims.
 
 DELIVERABLES — produce all of these as a JSON object with these exact keys:
-"section_1_hero": the thank-you headline on its own line, then the motivational paragraph on the next line (separated by a newline),
-"section_2_reminder": full Section 2 copy — cancellation policy paragraph, then environment instructions paragraph,
-"section_3_expect": full Section 3 copy — keep it short. Opening motivational paragraph, then the programme name with pillars listed in one sentence, then coach commitment paragraph ("I'll have your back"), then client commitment paragraph ("You have to be committed"). Use the programme name and pillar names from the Sold Out data,
-"section_4_transformations": array of objects [{name, context_line}] for photo captions in the transformation grid (4 to 8 entries),
-"section_5_casestudies": array of objects [{pillar_name, narrative}] — one per programme pillar. pillar_name is the system component name (used as subheading). narrative is one FULL PARAGRAPH telling the client's story conversationally: name them, describe their situation, what they struggled with, how it affected their life, what the programme did through this pillar, the measurable result, the life outcome, and one sentence connecting back to the pillar philosophy. Write these as real stories, not marketing copy,
-"section_6_testimonials_header": heading text + intro line for the testimonials section,
-"section_7_testimonials": array of objects [{name, quote, number, life_change}] — 6 to 9 testimonial cards selected and lightly edited from client wins. Never compose quotes the clients didn't say,
-"section_8_footer": any specific footer copy if needed (can be empty string),
+"section_1_hero": the thank-you headline on line 1, the motivational paragraph on line 2 (separated by newline),
+"section_2_reminder": the Important Reminder paragraph (cancellation + environment in one paragraph),
+"section_2_expect_intro": the "What to Expect" motivational paragraph,
+"section_2_card_1_title": programme name (e.g. "The Ascend Programme"),
+"section_2_card_1_text": programme pillars in one sentence (e.g. "This programme is built on four key areas: X, Y, Z and W"),
+"section_2_card_2_title": "I'll have your back" or equivalent,
+"section_2_card_2_text": coach commitment paragraph (what they get, how results happen),
+"section_2_card_3_title": "You have to be committed" or equivalent,
+"section_2_card_3_text": client commitment paragraph (growth mindset, willing to do the work),
+"section_4_casestudies": array of objects [{pillar_name, narrative}] — one per programme pillar. pillar_name is the system component (e.g. "Base Alpha Performance System."). narrative is one FULL conversational paragraph: name the client, their situation, struggle, how it affected them, what the programme did through this pillar, the measurable result, life outcome, one sentence tying back to the pillar philosophy,
+"section_5_video_testimonials_heading": heading for video testimonials section (e.g. "Here's what our members think"),
+"section_6_testimonials": array of objects [{name, quote}] — 6 to 9 raw testimonial cards from client wins. Keep real voice, real length, imperfect grammar. Never compose quotes,
+"section_7_footer": empty string (footer is standard),
 "video_1": Video Script 1 The Call Briefing word for word,
 "video_2": Video Script 2 The Programme full script,
 "video_3": Video Script 3 The Differentiation Story full script,
@@ -1064,17 +1067,16 @@ REQUIREMENTS:
 - Use CSS custom properties (variables) for all colours so the client can tweak them later.
 - Fully responsive: desktop (max-width 880px container), tablet, mobile (single column, adjusted font sizes).
 - Semantic HTML5: header, main, section, footer.
-- 8 sections in this exact order, matching the structure of basealpha.uk/thank-you:
-  1. HERO: Centred thank-you headline + motivational paragraph. No video here. Clean and spacious.
-  2. IMPORTANT REMINDER: Left-aligned paragraphs with cancellation policy and call environment instructions. Simple text, no boxes or cards.
-  3. WHAT TO EXPECT: Programme breakdown with subheadings per pillar/component, each with a description paragraph. Ends with coach commitment paragraph and client commitment paragraph. Text only, no videos embedded.
-  4. LIFE-CHANGING TRANSFORMATIONS: Image grid (4-8 photo placeholders with captions underneath each).
-  5. HOW DOES IT WORK: Alternating left-right case study blocks. Each has an image placeholder on one side and a narrative on the other. Alternate the image side with each block.
-  6. TESTIMONIALS HEADER: Centred heading + short intro line.
-  7. TESTIMONIAL GRID: 3-column responsive grid of quote cards. Each card has the quote, client name, and a circular photo placeholder.
-  8. FOOTER: Logo placeholder, social media icon placeholders, nav links, legal links, copyright.
-- Video slots: NOT embedded on the page. Videos are separate deliverables (scripts). The page is text + images + testimonials only.
-- Image/photo slots: render as styled placeholder divs (light grey background, rounded corners) with a "Photo" label centred inside. The client replaces these with real images.
+- 7 sections matching basealpha.uk/thank-you exactly:
+  1. HERO: Centred headline + paragraph. Below it: a large video embed slot for Video 1 (Call Briefing). If video URL provided, embed it. Otherwise a styled placeholder.
+  2. IMPORTANT REMINDER + WHAT TO EXPECT: Two-column layout on desktop (stacks on mobile). LEFT column: "Important Reminder" heading + paragraph, then "What to Expect" heading + paragraph. RIGHT column: 3 video cards in a vertical stack. Each card has a video embed slot, a bold subheading, and a short paragraph. Card 1 = programme overview. Card 2 = "I'll have your back". Card 3 = "You have to be committed".
+  3. LIFE-CHANGING TRANSFORMATIONS: Centred heading. Grid of photo placeholders (no captions, just images). 3-4 columns on desktop, 2 on mobile.
+  4. HOW DOES IT WORK: Each case study is a horizontal card with image placeholder on left, text on right (same layout for all, NOT alternating). Pillar name as bold subheading. Full paragraph narrative.
+  5. VIDEO TESTIMONIALS: Centred heading. Two video embed slots stacked vertically.
+  6. WRITTEN TESTIMONIALS: Heading "Testimonials" + subline "Here's what success looks like". 3-column grid of cards (1 column on mobile). Each card: quote text + circular photo placeholder + client name.
+  7. FOOTER: Logo placeholder, social icons row (YouTube, Twitter/X, Facebook, Instagram), nav links row, legal links, copyright.
+- Video embed slots: use video URLs if provided, otherwise render styled placeholders.
+- Photo placeholders: light grey background, rounded, labelled "Photo".
 - Typography hierarchy: large bold headings (clamp for responsiveness), accent-coloured section labels, readable body text with generous line-height (1.7-1.8).
 - Spacing: generous — 80-100px between sections, 32px container padding, 48px+ between sub-sections.
 - The design should feel premium and spacious, like the reference page basealpha.uk/thank-you — clean backgrounds, strong typography, alternating layouts for case studies, well-spaced testimonial cards.

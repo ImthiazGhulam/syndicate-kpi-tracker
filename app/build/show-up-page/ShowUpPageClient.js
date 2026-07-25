@@ -732,14 +732,18 @@ export default function ShowUpPageClient() {
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto space-y-4">
                   {[
-                    { key: 'section_1_hero', label: 'Section 1: Hero / Confirmation', icon: '🏆' },
-                    { key: 'section_2_reminder', label: 'Section 2: Important Reminder', icon: '⚠️' },
-                    { key: 'section_3_expect', label: 'Section 3: What to Expect', icon: '📺' },
-                    { key: 'section_4_transformations', label: 'Section 4: Transformations', icon: '🔄' },
-                    { key: 'section_5_casestudies', label: 'Section 5: How Does It Work?', icon: '📖' },
-                    { key: 'section_6_testimonials_header', label: 'Section 6: Testimonials Header', icon: '🎤' },
-                    { key: 'section_7_testimonials', label: 'Section 7: Testimonial Cards', icon: '💬' },
-                    { key: 'section_8_footer', label: 'Section 8: Footer', icon: '📎' },
+                    { key: 'section_1_hero', label: 'Hero / Confirmation', icon: '🏆' },
+                    { key: 'section_2_reminder', label: 'Important Reminder', icon: '⚠️' },
+                    { key: 'section_2_expect_intro', label: 'What to Expect Intro', icon: '📺' },
+                    { key: 'section_2_card_1_title', label: 'Programme Card Title', icon: '🎯' },
+                    { key: 'section_2_card_1_text', label: 'Programme Card Text', icon: '🎯' },
+                    { key: 'section_2_card_2_title', label: "I'll Have Your Back Title", icon: '🤝' },
+                    { key: 'section_2_card_2_text', label: "I'll Have Your Back Text", icon: '🤝' },
+                    { key: 'section_2_card_3_title', label: 'Commitment Title', icon: '💪' },
+                    { key: 'section_2_card_3_text', label: 'Commitment Text', icon: '💪' },
+                    { key: 'section_4_casestudies', label: 'Case Studies', icon: '📖' },
+                    { key: 'section_5_video_testimonials_heading', label: 'Video Testimonials Heading', icon: '🎥' },
+                    { key: 'section_6_testimonials', label: 'Written Testimonials', icon: '💬' },
                   ].map(sec => {
                     const raw = generatedOutput?.[sec.key]
                     const display = !raw ? 'Not generated' : typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)
@@ -759,7 +763,7 @@ export default function ShowUpPageClient() {
                   })}
                   {/* Copy all sections at once */}
                   <button onClick={() => {
-                    const allCopy = ['section_1_hero', 'section_2_reminder', 'section_3_expect', 'section_4_transformations', 'section_5_casestudies', 'section_6_testimonials_header', 'section_7_testimonials', 'section_8_footer']
+                    const allCopy = ['section_1_hero', 'section_2_reminder', 'section_2_expect_intro', 'section_2_card_1_title', 'section_2_card_1_text', 'section_2_card_2_title', 'section_2_card_2_text', 'section_2_card_3_title', 'section_2_card_3_text', 'section_4_casestudies', 'section_5_video_testimonials_heading', 'section_6_testimonials']
                       .map(k => {
                         const v = generatedOutput?.[k]
                         const label = k.replace('section_', 'SECTION ').replace(/_/g, ' ').toUpperCase()
