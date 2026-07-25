@@ -1015,7 +1015,8 @@ export default function ShowUpPageClient() {
                 {pageHTML && (
                   <>
                     <div className="rounded-lg overflow-hidden shadow-2xl border border-white/[0.06] transition-all duration-300 flex-1" style={{ width: viewportMode === 'mobile' ? '375px' : '100%', maxWidth: '1280px', height: viewportMode === 'mobile' ? 'calc(100vh - 160px)' : 'calc(100vh - 120px)' }}>
-                      <iframe srcDoc={pageHTML} title="Show Up Page Preview" className="w-full h-full border-0" sandbox="allow-same-origin allow-scripts" />
+                      <iframe key={JSON.stringify(videoUrls) + JSON.stringify(images.transformations?.filter(Boolean).length) + JSON.stringify(images.case_studies?.filter(Boolean).length) + JSON.stringify(images.logo) + styles.bg + styles.accent + styles.headingFont}
+                        srcDoc={getFullHTML()} title="Show Up Page Preview" className="w-full h-full border-0" sandbox="allow-same-origin allow-scripts" />
                     </div>
                     <button onClick={() => generatePageHTML()} disabled={generatingHTML}
                       className="mt-3 px-4 py-2 rounded text-[10px] font-bold uppercase tracking-wider text-zinc-400 border border-zinc-700 hover:text-gold hover:border-gold/30 transition disabled:opacity-50">
