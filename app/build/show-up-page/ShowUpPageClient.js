@@ -18,6 +18,7 @@ const BUILD_STATUS_LINES = [
 
 const DELIVERABLE_TABS = [
   { key: 'preview', label: 'Live Preview', icon: '👁️' },
+  { key: 'page_copy', label: 'Page Copy', icon: '📄' },
   { key: 'code', label: 'HTML Code', icon: '</>' },
   { key: 'video_1', label: 'Video 1: Briefing', icon: '🎬' },
   { key: 'video_2', label: 'Video 2: Programme', icon: '🎥' },
@@ -688,7 +689,55 @@ export default function ShowUpPageClient() {
           {/* Preview / Content area */}
           <div className="flex-1 flex flex-col min-w-0 bg-zinc-900/50">
             {/* Tab content for non-preview tabs */}
-            {activeTab !== 'preview' && activeTab !== 'code' && (
+            {/* Page Copy tab — all 8 sections with individual copy buttons */}
+            {activeTab === 'page_copy' && (
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="max-w-2xl mx-auto space-y-4">
+                  {[
+                    { key: 'section_1_hero', label: 'Section 1: Hero / Confirmation', icon: '🏆' },
+                    { key: 'section_2_reminder', label: 'Section 2: Important Reminder', icon: '⚠️' },
+                    { key: 'section_3_expect', label: 'Section 3: What to Expect', icon: '📺' },
+                    { key: 'section_4_transformations', label: 'Section 4: Transformations', icon: '🔄' },
+                    { key: 'section_5_casestudies', label: 'Section 5: How Does It Work?', icon: '📖' },
+                    { key: 'section_6_video_testimonials', label: 'Section 6: Video Testimonials', icon: '🎥' },
+                    { key: 'section_7_written_testimonials', label: 'Section 7: Written Testimonials', icon: '💬' },
+                    { key: 'section_8_footer', label: 'Section 8: Footer', icon: '📎' },
+                  ].map(sec => {
+                    const raw = generatedOutput?.[sec.key]
+                    const display = !raw ? 'Not generated' : typeof raw === 'string' ? raw : JSON.stringify(raw, null, 2)
+                    return (
+                      <details key={sec.key} className="glass-card overflow-hidden group" open>
+                        <summary className="flex items-center justify-between px-5 py-3 cursor-pointer border-b border-white/[0.06] list-none">
+                          <span className="text-xs font-bold text-gold uppercase tracking-widest">{sec.icon} {sec.label}</span>
+                          <div className="flex items-center gap-2">
+                            <button onClick={e => { e.preventDefault(); navigator.clipboard.writeText(display); flash('Copied!') }}
+                              className="px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider bg-gold/10 text-gold border border-gold/30 hover:bg-gold/20 transition">Copy</button>
+                            <svg className="w-4 h-4 text-zinc-500 transition-transform group-open:rotate-180" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                          </div>
+                        </summary>
+                        <div className="p-5 text-sm text-zinc-200 leading-relaxed whitespace-pre-wrap">{display}</div>
+                      </details>
+                    )
+                  })}
+                  {/* Copy all sections at once */}
+                  <button onClick={() => {
+                    const allCopy = ['section_1_hero', 'section_2_reminder', 'section_3_expect', 'section_4_transformations', 'section_5_casestudies', 'section_6_video_testimonials', 'section_7_written_testimonials', 'section_8_footer']
+                      .map(k => {
+                        const v = generatedOutput?.[k]
+                        const label = k.replace('section_', 'SECTION ').replace(/_/g, ' ').toUpperCase()
+                        const text = typeof v === 'string' ? v : v ? JSON.stringify(v, null, 2) : ''
+                        return `--- ${label} ---\n${text}`
+                      }).join('\n\n')
+                    navigator.clipboard.writeText(allCopy)
+                    flash('All copy copied!')
+                  }} className="w-full px-4 py-3 rounded-lg bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest transition">
+                    Copy All Page Copy
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {activeTab !== 'preview' && activeTab !== 'code' && activeTab !== 'page_copy' && (
               <div className="flex-1 overflow-y-auto p-6">
                 <div className="max-w-2xl mx-auto">
                   {(() => {
