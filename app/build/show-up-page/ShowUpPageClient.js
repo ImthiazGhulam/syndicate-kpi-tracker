@@ -462,11 +462,31 @@ export default function ShowUpPageClient() {
         }}),
       })
       const result = await res.json()
+      console.log('Show Up raw result keys:', Object.keys(result))
+      console.log('Show Up raw result preview:', JSON.stringify(result).slice(0, 800))
+
       if (result.error) { setApiError(result.error) }
       else if (result.gaps) { setAiGaps(result.gaps) }
-      else {
-        // Normalise keys
-        const output = result.section_1_hero ? result : result.page_copy ? { section_1_hero: result.page_copy, ...result } : result
+      else if (result.plan && typeof result.plan === 'string') {
+        // Fell through to default text handler — try to parse it as JSON
+        try {
+          const cleaned = result.plan.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const parsed = JSON.parse(cleaned)
+          console.log('Parsed from plan text, keys:', Object.keys(parsed))
+          setGeneratedOutput(parsed)
+          setCurrentState(4)
+          await saveToSupabase({ generated_output: parsed, status: 'complete' })
+        } catch (e) {
+          // Plain text — put it all in section_1_hero
+          const output = { section_1_hero: result.plan, video_1: '', video_2: '', video_3: '', video_4: '', testimonial_brief: '', qa_report: '' }
+          setGeneratedOutput(output)
+          setCurrentState(4)
+          await saveToSupabase({ generated_output: output, status: 'complete' })
+        }
+      } else {
+        // Direct JSON response — normalise if needed
+        const output = result.section_1_hero ? result : { ...result }
+        console.log('Direct JSON output keys:', Object.keys(output))
         setGeneratedOutput(output)
         setCurrentState(4)
         await saveToSupabase({ generated_output: output, status: 'complete' })

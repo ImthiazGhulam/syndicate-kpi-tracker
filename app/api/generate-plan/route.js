@@ -1048,7 +1048,7 @@ Produce all deliverables as JSON.`
     }
 
     const maxTokens = type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
-      : (type === 'show-up-page') ? 8000
+      : (type === 'show-up-page') ? 16000
       : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft' || type === 'comeback-compose') ? 4000
       : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map') ? 3000
       : 2500
@@ -1059,6 +1059,7 @@ Produce all deliverables as JSON.`
 
     // For Show Up Page Builder, parse structured JSON
     if (type === 'show-up-page') {
+      console.log('Show Up API raw text length:', text.length, 'first 200:', text.slice(0, 200))
       try {
         const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
         // Check for GAPS block (plain text, not JSON)
@@ -1073,7 +1074,7 @@ Produce all deliverables as JSON.`
         return NextResponse.json(parsed)
       } catch (parseErr) {
         try {
-          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 8000)
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 16000)
           const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
           const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
           if (retryCleaned.startsWith('GAPS:')) {
