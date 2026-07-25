@@ -30,15 +30,15 @@ const DELIVERABLE_TABS = [
 
 const GOOGLE_FONTS = [
   { group: 'Bold / Condensed', fonts: ['Oswald', 'Bebas Neue', 'Barlow Condensed', 'Fjalla One', 'Teko'] },
-  { group: 'Clean / Modern', fonts: ['Inter', 'DM Sans', 'Plus Jakarta Sans', 'Outfit', 'Space Grotesk'] },
+  { group: 'Clean / Modern', fonts: ['Manrope', 'Inter', 'DM Sans', 'Plus Jakarta Sans', 'Outfit', 'Space Grotesk'] },
   { group: 'Editorial / Serif', fonts: ['Playfair Display', 'Cormorant Garamond', 'Libre Baskerville', 'Source Serif 4', 'Lora'] },
   { group: 'Display', fonts: ['Orbitron', 'Montserrat', 'Raleway', 'Poppins', 'Sora'] },
 ]
 
 const DEFAULT_STYLES = {
-  bg: '#09090b', panelBg: '#18181b', accent: '#C9A84C',
-  headingColor: '#ffffff', subheadingColor: '#C9A84C', bodyColor: '#d4d4d8',
-  headingFont: 'Inter', subheadingFont: 'Inter', bodyFont: 'Inter',
+  bg: '#ffffff', panelBg: '#f8f8f8', accent: '#C9A84C',
+  headingColor: '#1a1a1a', subheadingColor: '#C9A84C', bodyColor: '#444444',
+  headingFont: 'Manrope', subheadingFont: 'Manrope', bodyFont: 'Manrope',
 }
 
 const CALL_PLATFORMS = ['Zoom', 'Google Meet']
@@ -164,41 +164,40 @@ function buildPageHTML(output, styles, videoUrls, clientName) {
   const writtenTestimonials = Array.isArray(output?.section_7_written_testimonials) ? output.section_7_written_testimonials : []
 
   const transformGrid = transformations.map(t => `
-    <div style="background:${s.panelBg};border-radius:12px;padding:24px;border:1px solid rgba(255,255,255,0.06);">
-      <div style="background:rgba(255,255,255,0.03);border-radius:8px;height:200px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;">
-        <span style="color:rgba(255,255,255,0.15);font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Photo</span>
+    <div style="text-align:center;">
+      <div style="background:${s.panelBg};border-radius:16px;height:280px;display:flex;align-items:center;justify-content:center;margin-bottom:16px;overflow:hidden;">
+        <span style="color:${s.bodyColor}40;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Photo</span>
       </div>
-      <p style="font-family:'${s.subheadingFont}',sans-serif;color:${s.accent};font-weight:700;font-size:14px;">${t.name || ''}</p>
-      <p style="font-family:'${s.bodyFont}',sans-serif;color:${s.bodyColor};font-size:13px;margin-top:4px;">${t.context_line || ''}</p>
+      <p style="font-family:var(--heading-font);color:${s.headingColor};font-weight:700;font-size:16px;">${t.name || ''}</p>
+      <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:14px;margin-top:4px;line-height:1.6;">${t.context_line || ''}</p>
     </div>`).join('')
 
-  const caseStudyBlocks = caseStudies.map(cs => `
-    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:32px;padding:32px;background:${s.panelBg};border-radius:12px;border:1px solid rgba(255,255,255,0.06);">
-      <div style="flex:0 0 200px;">
-        <div style="background:rgba(255,255,255,0.03);border-radius:8px;height:200px;display:flex;align-items:center;justify-content:center;">
-          <span style="color:rgba(255,255,255,0.15);font-size:12px;text-transform:uppercase;letter-spacing:0.1em;">Photo</span>
+  const caseStudyBlocks = caseStudies.map((cs, idx) => `
+    <div style="display:flex;gap:48px;flex-wrap:wrap;margin-bottom:64px;align-items:center;${idx % 2 === 1 ? 'flex-direction:row-reverse;' : ''}">
+      <div style="flex:1;min-width:280px;">
+        <div style="background:${s.panelBg};border-radius:16px;height:360px;display:flex;align-items:center;justify-content:center;overflow:hidden;">
+          <span style="color:${s.bodyColor}30;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;">Photo</span>
         </div>
       </div>
-      <div style="flex:1;min-width:250px;">
-        <p style="font-family:'${s.headingFont}',sans-serif;color:${s.headingColor};font-weight:700;font-size:18px;margin-bottom:12px;">${cs.name || ''}</p>
-        <p style="font-family:'${s.bodyFont}',sans-serif;color:${s.bodyColor};font-size:14px;line-height:1.7;margin-bottom:8px;"><strong style="color:${s.accent};">Before:</strong> ${cs.situation || ''}</p>
-        <p style="font-family:'${s.bodyFont}',sans-serif;color:${s.bodyColor};font-size:14px;line-height:1.7;margin-bottom:8px;"><strong style="color:${s.accent};">The barrier:</strong> ${cs.barrier || ''}</p>
-        <p style="font-family:'${s.bodyFont}',sans-serif;color:${s.bodyColor};font-size:14px;line-height:1.7;margin-bottom:8px;"><strong style="color:${s.accent};">What changed:</strong> ${cs.intervention || ''}</p>
-        <p style="font-family:'${s.headingFont}',sans-serif;color:${s.accent};font-size:20px;font-weight:800;margin:12px 0;">${cs.result_number || ''}</p>
-        <p style="font-family:'${s.bodyFont}',sans-serif;color:${s.bodyColor};font-size:14px;line-height:1.7;">${cs.life_outcome || ''}</p>
+      <div style="flex:1;min-width:280px;">
+        <p style="font-family:var(--subheading-font);color:${s.accent};font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px;">${cs.name || ''}</p>
+        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.8;margin-bottom:16px;">${cs.situation || ''}</p>
+        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.8;margin-bottom:16px;">${cs.intervention || ''}</p>
+        <p style="font-family:var(--heading-font);color:${s.headingColor};font-size:28px;font-weight:800;margin:20px 0 8px;">${cs.result_number || ''}</p>
+        <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:15px;line-height:1.8;">${cs.life_outcome || ''}</p>
       </div>
     </div>`).join('')
 
   const testimonialCards = writtenTestimonials.map(t => `
-    <div style="background:${s.panelBg};border-radius:12px;padding:24px;border:1px solid rgba(255,255,255,0.06);">
-      <p style="font-family:'${s.bodyFont}',sans-serif;color:${s.bodyColor};font-size:14px;line-height:1.7;font-style:italic;margin-bottom:16px;">"${t.quote || ''}"</p>
-      <div style="display:flex;align-items:center;gap:12px;">
-        <div style="width:40px;height:40px;border-radius:50%;background:${s.accent}20;display:flex;align-items:center;justify-content:center;">
-          <span style="color:${s.accent};font-weight:700;font-size:14px;">${(t.name || '?')[0]}</span>
+    <div style="background:${s.panelBg};border-radius:16px;padding:32px;">
+      <p style="font-family:var(--body-font);color:${s.bodyColor};font-size:16px;line-height:1.8;font-style:italic;margin-bottom:24px;">"${t.quote || ''}"</p>
+      <div style="display:flex;align-items:center;gap:14px;">
+        <div style="width:48px;height:48px;border-radius:50%;background:${s.accent};display:flex;align-items:center;justify-content:center;">
+          <span style="color:${s.bg};font-weight:800;font-size:18px;">${(t.name || '?')[0]}</span>
         </div>
         <div>
-          <p style="font-family:'${s.subheadingFont}',sans-serif;color:${s.headingColor};font-weight:700;font-size:13px;">${t.name || ''}</p>
-          ${t.number ? `<p style="font-family:'${s.bodyFont}',sans-serif;color:${s.accent};font-size:12px;">${t.number}</p>` : ''}
+          <p style="font-family:var(--heading-font);color:${s.headingColor};font-weight:700;font-size:15px;">${t.name || ''}</p>
+          ${t.number ? `<p style="font-family:var(--body-font);color:${s.accent};font-size:13px;font-weight:600;">${t.number}</p>` : ''}
         </div>
       </div>
     </div>`).join('')
@@ -209,35 +208,46 @@ function buildPageHTML(output, styles, videoUrls, clientName) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0">
 <title>${clientName || 'Your Call is Booked'}</title>
-<link href="https://fonts.googleapis.com/css2?family=${allFonts}:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=${allFonts}:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 <style>
 :root{--bg:${s.bg};--panel:${s.panelBg};--accent:${s.accent};--heading:${s.headingColor};--subheading:${s.subheadingColor};--body:${s.bodyColor};--heading-font:'${s.headingFont}',sans-serif;--subheading-font:'${s.subheadingFont}',sans-serif;--body-font:'${s.bodyFont}',sans-serif;}
 *{margin:0;padding:0;box-sizing:border-box;}
-body{font-family:var(--body-font);background:var(--bg);color:var(--body);-webkit-font-smoothing:antialiased;}
-::selection{background:rgba(201,168,76,0.3);}
+body{font-family:var(--body-font);background:var(--bg);color:var(--body);-webkit-font-smoothing:antialiased;-moz-osx-font-smoothing:grayscale;}
+::selection{background:${s.accent}30;}
 a{color:var(--accent);text-decoration:none;}
-.container{max-width:800px;margin:0 auto;padding:0 24px;}
-.section{padding:64px 0;}
-.section+.section{border-top:1px solid rgba(255,255,255,0.06);}
-h1{font-family:var(--heading-font);color:var(--heading);font-size:clamp(28px,5vw,42px);font-weight:800;line-height:1.2;letter-spacing:-0.02em;}
-h2{font-family:var(--subheading-font);color:var(--subheading);font-size:13px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:20px;}
-h3{font-family:var(--heading-font);color:var(--heading);font-size:20px;font-weight:700;margin-bottom:12px;}
-p,li{font-family:var(--body-font);color:var(--body);font-size:15px;line-height:1.7;}
-.hero-section{padding:80px 0 64px;text-align:center;background:linear-gradient(180deg,rgba(201,168,76,0.04) 0%,transparent 100%);}
-.grid-2{display:grid;grid-template-columns:repeat(auto-fit,minmax(250px,1fr));gap:16px;}
-.grid-3{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:16px;}
-.checklist{list-style:none;padding:0;}
-.checklist li{padding:12px 16px;background:var(--panel);border-radius:8px;margin-bottom:8px;border:1px solid rgba(255,255,255,0.06);display:flex;align-items:flex-start;gap:12px;}
-.checklist li::before{content:'\\2713';color:var(--accent);font-weight:700;flex-shrink:0;margin-top:1px;}
-@media(max-width:640px){.container{padding:0 16px;}.section{padding:40px 0;}h1{font-size:24px;}.grid-2,.grid-3{grid-template-columns:1fr;}}
+a:hover{opacity:0.85;}
+.container{max-width:880px;margin:0 auto;padding:0 32px;}
+.section{padding:80px 0;}
+.section+.section{border-top:1px solid ${s.headingColor}0a;}
+h1{font-family:var(--heading-font);color:var(--heading);font-size:clamp(32px,5vw,52px);font-weight:800;line-height:1.15;letter-spacing:-0.03em;}
+h2{font-family:var(--heading-font);color:var(--heading);font-size:clamp(24px,3.5vw,36px);font-weight:800;line-height:1.2;letter-spacing:-0.02em;margin-bottom:24px;}
+h3{font-family:var(--heading-font);color:var(--heading);font-size:20px;font-weight:700;margin-bottom:16px;}
+p,li{font-family:var(--body-font);color:var(--body);font-size:16px;line-height:1.8;}
+.label{font-family:var(--subheading-font);color:var(--subheading);font-size:12px;font-weight:700;letter-spacing:0.15em;text-transform:uppercase;margin-bottom:12px;}
+.hero{padding:100px 0 80px;text-align:center;}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:24px;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;}
+.video-wrap{position:relative;padding-bottom:56.25%;height:0;overflow:hidden;border-radius:16px;margin:32px 0;box-shadow:0 20px 60px ${s.headingColor}10;}
+.video-wrap iframe{position:absolute;top:0;left:0;width:100%;height:100%;border:0;}
+.video-placeholder{background:${s.panelBg};border-radius:16px;padding:80px 24px;text-align:center;margin:32px 0;}
+.video-placeholder span{color:${s.bodyColor}40;font-size:13px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;}
+.reminder-box{background:${s.panelBg};border-radius:16px;padding:40px;margin-top:24px;}
+.reminder-box ul{list-style:none;padding:0;margin:20px 0 0;}
+.reminder-box li{padding:14px 0;border-bottom:1px solid ${s.headingColor}08;display:flex;align-items:flex-start;gap:14px;font-size:15px;}
+.reminder-box li:last-child{border-bottom:none;}
+.reminder-box li::before{content:'\\2713';color:${s.accent};font-weight:700;font-size:16px;flex-shrink:0;margin-top:2px;}
+.subsection{margin-top:56px;padding-top:56px;border-top:1px solid ${s.headingColor}08;}
+@media(max-width:768px){.container{padding:0 20px;}.section{padding:56px 0;}.hero{padding:64px 0 48px;}.grid-2{grid-template-columns:1fr;}.grid-4{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:480px){.grid-4{grid-template-columns:1fr;}}
 </style>
 </head>
 <body>
 
 <!-- SECTION 1: HERO / CONFIRMATION -->
-<div class="hero-section">
+<div class="hero">
 <div class="container">
-${s1.split('\n').map(l => l.trim()).filter(Boolean).map((l, i) => i === 0 ? `<h1>${l}</h1>` : `<p style="margin-top:16px;font-size:17px;max-width:600px;margin-left:auto;margin-right:auto;">${l}</p>`).join('')}
+<p class="label">Booking Confirmed</p>
+${s1.split('\n').map(l => l.trim()).filter(Boolean).map((l, i) => i === 0 ? `<h1>${l}</h1>` : `<p style="margin-top:20px;font-size:18px;max-width:620px;margin-left:auto;margin-right:auto;color:${s.bodyColor};">${l}</p>`).join('')}
 ${embedVideo(vids.video_1, 'Video 1: Call Briefing')}
 </div>
 </div>
@@ -245,26 +255,27 @@ ${embedVideo(vids.video_1, 'Video 1: Call Briefing')}
 <!-- SECTION 2: IMPORTANT REMINDER -->
 <div class="section"><div class="container">
 <h2>Important Reminder</h2>
-${s2.split('\n').filter(Boolean).map(l => {
-    const trimmed = l.trim()
-    if (trimmed.startsWith('- ') || trimmed.startsWith('* ')) return ''
-    return `<p style="margin-bottom:12px;">${trimmed}</p>`
-  }).join('')}
-<ul class="checklist" style="margin-top:20px;">
+<div class="reminder-box">
+${s2.split('\n').filter(l => l.trim() && !l.trim().startsWith('- ') && !l.trim().startsWith('* ')).map(l => `<p style="margin-bottom:12px;font-size:15px;">${l.trim()}</p>`).join('')}
+<ul>
 ${s2.split('\n').filter(l => l.trim().startsWith('- ') || l.trim().startsWith('* ')).map(l => `<li>${l.trim().replace(/^[-*]\s*/, '')}</li>`).join('')}
 </ul>
+</div>
 </div></div>
 
 <!-- SECTION 3: WHAT TO EXPECT -->
 <div class="section"><div class="container">
+<p class="label">Your Journey Starts Here</p>
 <h2>What to Expect</h2>
-${s3.split('\n').filter(Boolean).map(l => `<p style="margin-bottom:12px;">${l.trim()}</p>`).join('')}
+${s3.split('\n').filter(Boolean).map(l => `<p style="margin-bottom:16px;font-size:16px;line-height:1.8;">${l.trim()}</p>`).join('')}
 ${embedVideo(vids.video_2, 'Video 2: The Programme')}
-<div style="margin-top:40px;">
-<h3>The Story</h3>
+<div class="subsection">
+<p class="label">Our Story</p>
+<h3>How is this different from everything you've tried?</h3>
 ${embedVideo(vids.video_3, 'Video 3: The Differentiation Story')}
 </div>
-<div style="margin-top:40px;">
+<div class="subsection">
+<p class="label">Commitment</p>
 <h3>Is This For You?</h3>
 ${embedVideo(vids.video_4, 'Video 4: The Commitment Filter')}
 </div>
@@ -272,20 +283,29 @@ ${embedVideo(vids.video_4, 'Video 4: The Commitment Filter')}
 
 <!-- SECTION 4: TRANSFORMATIONS -->
 <div class="section"><div class="container">
-<h2>Transformations</h2>
-<div class="grid-2">${transformGrid || '<p style="color:rgba(255,255,255,0.3);">Add transformation photos and captions</p>'}</div>
+<div style="text-align:center;margin-bottom:48px;">
+<p class="label">Real Results</p>
+<h2>Life-Changing Transformations</h2>
+</div>
+<div class="grid-4">${transformGrid || `<div style="grid-column:1/-1;text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Add transformation photos</span></div>`}</div>
 </div></div>
 
 <!-- SECTION 5: HOW DOES IT WORK -->
 <div class="section"><div class="container">
+<div style="text-align:center;margin-bottom:56px;">
+<p class="label">The Method</p>
 <h2>How Does It Work?</h2>
-${caseStudyBlocks || '<p style="color:rgba(255,255,255,0.3);">Case studies will appear here</p>'}
+</div>
+${caseStudyBlocks || `<div style="text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Case studies will appear here</span></div>`}
 </div></div>
 
 <!-- SECTION 6: VIDEO TESTIMONIALS -->
 <div class="section"><div class="container">
-<h2>Video Testimonials</h2>
-<p style="margin-bottom:24px;">${str(output?.section_6_video_testimonials)}</p>
+<div style="text-align:center;margin-bottom:40px;">
+<p class="label">From Our Members</p>
+<h2>Hear It From Them</h2>
+<p style="max-width:560px;margin:0 auto;font-size:16px;">${str(output?.section_6_video_testimonials)}</p>
+</div>
 <div class="grid-2">
 ${embedVideo(vids.testimonial_1, 'Testimonial Video 1')}
 ${embedVideo(vids.testimonial_2, 'Testimonial Video 2')}
@@ -294,13 +314,16 @@ ${embedVideo(vids.testimonial_2, 'Testimonial Video 2')}
 
 <!-- SECTION 7: WRITTEN TESTIMONIALS -->
 <div class="section"><div class="container">
+<div style="text-align:center;margin-bottom:40px;">
+<p class="label">Success Stories</p>
 <h2>What Our Members Say</h2>
-<div class="grid-2">${testimonialCards || '<p style="color:rgba(255,255,255,0.3);">Written testimonials will appear here</p>'}</div>
+</div>
+<div class="grid-2">${testimonialCards || `<div style="grid-column:1/-1;text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Written testimonials will appear here</span></div>`}</div>
 </div></div>
 
 <!-- SECTION 8: FOOTER -->
-<footer style="padding:48px 24px;text-align:center;border-top:1px solid rgba(255,255,255,0.06);">
-<p style="font-size:11px;color:rgba(255,255,255,0.25);letter-spacing:0.1em;text-transform:uppercase;">&copy; ${new Date().getFullYear()} ${clientName || ''} &middot; All Rights Reserved</p>
+<footer style="padding:56px 32px;text-align:center;border-top:1px solid ${s.headingColor}0a;">
+<p style="font-family:var(--body-font);font-size:12px;color:${s.bodyColor}80;letter-spacing:0.05em;">&copy; ${new Date().getFullYear()} ${clientName || ''} &middot; All Rights Reserved</p>
 </footer>
 
 </body>
