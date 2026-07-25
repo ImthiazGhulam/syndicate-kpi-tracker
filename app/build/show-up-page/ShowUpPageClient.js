@@ -760,6 +760,7 @@ export default function ShowUpPageClient() {
               <button onClick={downloadHTML} className="w-full px-4 py-3 rounded-lg bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest transition">Download HTML</button>
               <button onClick={() => { navigator.clipboard.writeText(getFullHTML()); flash('HTML Copied!') }} className="w-full px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest text-zinc-400 hover:text-white border border-zinc-700 hover:border-zinc-500 transition">Copy Code</button>
               <button onClick={() => { setCurrentState(1); setGeneratedOutput(null) }} className="w-full px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest text-zinc-600 hover:text-white transition">← Edit Inputs & Rebuild</button>
+              <button onClick={() => router.push('/client')} className="w-full px-4 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">← Dashboard</button>
             </div>
           </div>
 
