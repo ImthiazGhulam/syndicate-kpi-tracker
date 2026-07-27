@@ -288,6 +288,7 @@ export default function ClientPage() {
   const [dragOverCol, setDragOverCol] = useState(null)
   const [editingLead, setEditingLead] = useState(null)
   const [leadForm, setLeadForm] = useState({ name: '', instagram: '', notes: '' })
+  const [mobileStage, setMobileStage] = useState('dm_sent')
 
   // DM Sales Coach (embedded in Hot List)
   const [coachOpen, setCoachOpen] = useState(false)
@@ -3399,7 +3400,7 @@ export default function ClientPage() {
                           style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
                           className="absolute inset-x-0 flex border-t border-zinc-800/40 active:bg-zinc-800/30 cursor-pointer transition"
                           onClick={() => openNewTaskModal(dayViewDate, `${String(h).padStart(2, '0')}:00`)}>
-                          <div className="w-14 flex-shrink-0 text-right pr-3 pt-1">
+                          <div className="w-10 sm:w-14 flex-shrink-0 text-right pr-1 sm:pr-3 pt-1">
                             <span className="text-xs text-zinc-600">{h === 0 ? '12am' : h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
                           </div>
                         </div>
@@ -3436,7 +3437,7 @@ export default function ClientPage() {
             {calendarView === 'week' && (
               <div className="border border-zinc-800 rounded-lg overflow-hidden">
                 <div ref={weekViewRef} className="overflow-auto scrollbar-thin" style={{ maxHeight: '560px' }}>
-                  <div style={{ minWidth: '560px' }}>
+                  <div style={{ minWidth: 'min(560px, 100%)' }}>
                     {/* Day headers — sticky top */}
                     <div className="flex sticky top-0 z-20 bg-zinc-950 border-b border-zinc-800" style={{ paddingLeft: '48px' }}>
                       {weekDays.map(dateStr => {
@@ -3887,16 +3888,17 @@ export default function ClientPage() {
               <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
             </div>
 
-            {/* Stage jump pills */}
+            {/* Stage pills — on mobile these filter to one stage */}
             <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-none pb-1">
               {LEAD_STAGES.map(stage => {
                 const count = leads.filter(l => l.status === stage.id).length
                 return (
                   <button key={stage.id} onClick={() => {
+                    setMobileStage(stage.id)
                     const el = document.querySelector(`[data-stage="${stage.id}"]`)
                     if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
                   }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex-shrink-0 transition border ${count > 0 ? 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-gold/30 hover:text-gold' : 'bg-zinc-900 text-zinc-600 border-zinc-800'}`}>
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex-shrink-0 transition border ${mobileStage === stage.id ? 'bg-gold/20 text-gold border-gold/30 sm:bg-zinc-800 sm:text-zinc-300 sm:border-zinc-700' : count > 0 ? 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-gold/30 hover:text-gold' : 'bg-zinc-900 text-zinc-600 border-zinc-800'}`}>
                     <span className={`w-1.5 h-1.5 rounded-full ${stage.color.split(' ')[0].replace('border-', 'bg-').replace('/40', '')}`} />
                     {stage.label} <span className="text-zinc-500">{count}</span>
                   </button>
@@ -3904,8 +3906,9 @@ export default function ClientPage() {
               })}
             </div>
 
+            {/* Desktop: full grid. Mobile: one stage at a time */}
             <div className="pb-4">
-              <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${LEAD_STAGES.length}, minmax(0, 1fr))` }}>
+              <div className="hidden sm:grid gap-2" style={{ gridTemplateColumns: `repeat(${LEAD_STAGES.length}, minmax(0, 1fr))` }}>
                 {LEAD_STAGES.map((stage, stageIdx) => {
                   const stageLeads = leads.filter(l => l.status === stage.id)
                   const prevStageId = stageIdx > 0 ? LEAD_STAGES[stageIdx - 1].id : null
@@ -4022,6 +4025,78 @@ export default function ClientPage() {
                     </div>
                   )
                 })}
+              </div>
+
+              {/* Mobile: show one stage at a time */}
+              <div className="sm:hidden">
+                {(() => {
+                  const stage = LEAD_STAGES.find(s => s.id === mobileStage) || LEAD_STAGES[0]
+                  const stageIdx = LEAD_STAGES.findIndex(s => s.id === mobileStage)
+                  const stageLeads = leads.filter(l => l.status === stage.id)
+                  const prevStageId = stageIdx > 0 ? LEAD_STAGES[stageIdx - 1].id : null
+                  const nextStageId = stageIdx < LEAD_STAGES.length - 1 ? LEAD_STAGES[stageIdx + 1].id : null
+                  return (
+                    <div data-stage={stage.id}>
+                      <div className={`rounded-t-lg border-t-2 ${stage.color} px-3 py-2.5 bg-zinc-900`}>
+                        <div className="flex items-center justify-between">
+                          <h3 className="text-xs font-bold text-white uppercase tracking-wider">{stage.label}</h3>
+                          <span className="text-xs font-bold text-zinc-500 bg-zinc-800 px-1.5 py-0.5 rounded">{stageLeads.length}</span>
+                        </div>
+                      </div>
+                      <div className="bg-zinc-900/50 border border-t-0 border-zinc-800 rounded-b-lg p-2 min-h-[200px] space-y-2">
+                        {stageLeads.map(lead => (
+                          <div key={lead.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group">
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="min-w-0 flex-1" onClick={() => openLeadModal(lead)}>
+                                <p className="text-sm font-semibold text-white leading-tight">{lead.name}</p>
+                                {lead.instagram && <p className="text-xs text-violet-400 mt-0.5 truncate">@{lead.instagram.replace('@', '')}</p>}
+                              </div>
+                              <div className="flex items-center gap-1 flex-shrink-0">
+                                <button onClick={() => askCoachAboutLead(lead)} className="text-zinc-600 active:text-gold p-1">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" /></svg>
+                                </button>
+                                <button onClick={() => openLeadModal(lead)} className="text-zinc-600 active:text-gold p-1">
+                                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" /></svg>
+                                </button>
+                              </div>
+                            </div>
+                            {lead.notes && <p className="text-[10px] text-zinc-500 mt-1.5 line-clamp-2">{lead.notes}</p>}
+                            <p className="text-[10px] text-zinc-600 mt-1.5">Moved: {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                            <div className="flex items-center gap-1.5 mt-2">
+                              {prevStageId && (
+                                <button onClick={() => moveLead(lead.id, prevStageId)}
+                                  className="flex-1 py-2 text-[10px] font-semibold text-zinc-500 active:text-white bg-zinc-900 active:bg-zinc-700 rounded uppercase tracking-wider text-center">← Back</button>
+                              )}
+                              {nextStageId && (
+                                <button onClick={() => moveLead(lead.id, nextStageId)}
+                                  className="flex-1 py-2 text-[10px] font-semibold text-gold active:text-gold-light bg-gold/10 active:bg-gold/20 rounded uppercase tracking-wider text-center">Next →</button>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                        {addingLeadCol === stage.id ? (
+                          <div className="space-y-2">
+                            <input autoFocus value={newLeadName} onChange={e => setNewLeadName(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && newLeadName.trim()) addLead(stage.id); if (e.key === 'Escape') { setAddingLeadCol(null); setNewLeadName(''); setNewLeadIG('') } }}
+                              placeholder="Lead name..."
+                              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold" />
+                            <input value={newLeadIG} onChange={e => setNewLeadIG(e.target.value)}
+                              onKeyDown={e => { if (e.key === 'Enter' && newLeadName.trim()) addLead(stage.id); if (e.key === 'Escape') { setAddingLeadCol(null); setNewLeadName(''); setNewLeadIG('') } }}
+                              placeholder="@instagram (optional)"
+                              className="w-full px-3 py-2.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-violet-500" />
+                            <div className="flex gap-1.5">
+                              <button onClick={() => addLead(stage.id)} className="flex-1 py-2 bg-gold active:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded">Add</button>
+                              <button onClick={() => { setAddingLeadCol(null); setNewLeadName(''); setNewLeadIG('') }} className="px-3 py-2 border border-zinc-700 text-zinc-500 text-[10px] uppercase tracking-widest rounded">✕</button>
+                            </div>
+                          </div>
+                        ) : (
+                          <button onClick={() => { setAddingLeadCol(stage.id); setNewLeadName(''); setNewLeadIG('') }}
+                            className="w-full py-2.5 text-[10px] font-semibold text-zinc-600 active:text-gold uppercase tracking-widest text-center rounded active:bg-zinc-800/60">+ Add card</button>
+                        )}
+                      </div>
+                    </div>
+                  )
+                })()}
               </div>
             </div>
 
@@ -4918,7 +4993,7 @@ export default function ClientPage() {
                             style={{ top: `${i * HOUR_H}px`, height: `${HOUR_H}px` }}
                             className="absolute inset-x-0 flex border-t border-zinc-800/40 active:bg-zinc-800/30 cursor-pointer transition"
                             onClick={() => openNewTaskModal(dayViewDate, `${String(h).padStart(2, '0')}:00`)}>
-                            <div className="w-14 flex-shrink-0 text-right pr-3 pt-1">
+                            <div className="w-10 sm:w-14 flex-shrink-0 text-right pr-1 sm:pr-3 pt-1">
                               <span className="text-xs text-zinc-600">{h === 0 ? '12am' : h === 12 ? '12pm' : h > 12 ? `${h - 12}pm` : `${h}am`}</span>
                             </div>
                           </div>
@@ -4953,7 +5028,7 @@ export default function ClientPage() {
               {calendarView === 'week' && (
                 <div className="border border-zinc-800 rounded-lg overflow-hidden">
                   <div ref={weekViewRef} className="overflow-auto scrollbar-thin" style={{ maxHeight: '560px' }}>
-                    <div style={{ minWidth: '560px' }}>
+                    <div style={{ minWidth: 'min(560px, 100%)' }}>
                       <div className="flex sticky top-0 z-20 bg-zinc-950 border-b border-zinc-800" style={{ paddingLeft: '48px' }}>
                         {weekDays.map(dateStr => {
                           const { day, date } = formatDayHeader(dateStr)
