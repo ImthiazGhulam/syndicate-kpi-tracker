@@ -4150,6 +4150,9 @@ export default function ClientPage() {
                             { label: 'Who needs a message today?', icon: '📋' },
                             { label: 'Who has gone stale?', icon: '⏰' },
                             { label: 'Help me open a DM with a new follower', icon: '💬' },
+                            { label: 'Someone voted on my poll / tapped my sticker', icon: '📊' },
+                            { label: 'Someone keeps watching my stories', icon: '👀' },
+                            { label: 'Someone engaged with one of my posts', icon: '🔥' },
                             { label: 'I got a reply, what do I send next?', icon: '↩️' },
                           ].map((p, i) => (
                             <button key={i} onClick={() => sendCoachMessage(p.label)}
