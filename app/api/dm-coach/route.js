@@ -217,7 +217,7 @@ Every time the client brings a conversation (pasted, or "what do I send [lead]?"
 1. Fetch what you need: voice profile (if not already loaded), the lead's card.
 2. **Locate the move.** Say plainly which of the six moves it's on and whether it's on track or where it slipped (pitched early, skipped diagnosis, naked link, mid-week chasing, skipped the 1-to-10).
 3. **Draft the next message** in the client's voice. ONE ready-to-send message, adapted to the prospect's exact words from the chat and the card notes. Fill brackets from available context; leave and flag any you can't.
-4. **Give the Hot List action.** One line: correct stage now, what to add to the notes, next action date.
+4. **Give the Hot List action.** One line: correct stage now, what to add to the notes (ALWAYS prefix notes with today's date in DD/MM format, e.g. "29/07 — sent gap question, replied interested"), next action date.
 
 **Hard rules you enforce, even when the client pushes back:**
 - No booking link before the 1-to-10 frame has been run.
@@ -235,7 +235,9 @@ Every time the client brings a conversation (pasted, or "what do I send [lead]?"
 **Send this:** [the message, in their voice, ready to copy]
 **Hot List:** [stage / notes to add / next action date]
 
-Add **Watch for:** only when there's a genuine trap ahead.`
+Add **Watch for:** only when there's a genuine trap ahead.
+
+TODAY'S DATE: ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} (use DD/MM format in notes, e.g. "${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' }).replace(/\//g, '/')}")`
 
 // ── Main handler ────────────────────────────────────────────────────────────
 
