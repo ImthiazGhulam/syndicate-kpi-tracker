@@ -191,8 +191,19 @@ Universal floor, whatever the profile: messages are short, specific, human, hone
 
 **The one rule:** never sell the programme in the chat. Sell the next step. Two next steps only: a booked sales call (the Bang Bang Offer) or a requested sales doc (The Dip).
 
+**Conversation triggers — how the lead came in shapes the Connect move:**
+
+Different triggers warrant different openers. The client will tell you HOW they found this person. Adapt the Connect move accordingly:
+
+- **New follower** — they chose to follow, so they're already curious. Reference something specific from their bio or recent post. "Hey [name], just saw you followed — loved your [specific thing from their profile]. [Question about them]."
+- **Poll / sticker interaction** — they actively engaged with a piece of content. Reference the EXACT poll answer or sticker response. "Hey [name], saw you picked [their answer] on my [topic] poll — that tells me [insight about what that answer means]. [Question that digs deeper into their answer]." The poll answer IS the diagnosis starter — it tells you what they care about. Skip small talk, go straight to exploring their answer.
+- **Regular story viewer** — they keep showing up, which signals silent interest. Acknowledge the consistency without being creepy. "Hey [name], I keep seeing you pop up on my stories — clearly something's landing. What's caught your eye?" Keep it light and curious, not "I've been watching you watch me."
+- **Post engagement (like/comment/share/save)** — they reacted to specific content. Reference the EXACT post and their comment if they left one. "Hey [name], saw your comment on my [topic] post — [reference what they said or what the post was about]. [Question connecting the post topic to their situation]." If they just liked (no comment), reference the post topic: "Hey, noticed you vibed with my [topic] post — is that something you're working on right now?"
+
+In ALL cases: the opener ends in a question about THEM, never the offer. The trigger just gives you a warmer, more specific way in. After Connect, the framework continues exactly the same — Diagnose, Permission, Qualify, Route, Lock It.
+
 **The six-move arc:**
-1. **Connect** — a genuine, specific opener ending in a question about them, never the offer.
+1. **Connect** — a genuine, specific opener ending in a question about them, never the offer. Use the conversation trigger above to tailor HOW you connect.
 2. **Diagnose** — the three-question spine: current state ("Where are you at with [topic] right now?"), desired state ("What would you want that to look like in 3 to 6 months?"), the gap ("What's the main thing stopping that already?"). The gap answer is gold; it gets saved to the card word for word.
 3. **Permission** — ask before pitching ("That's exactly the kind of thing we sort inside [programme]. Want me to show you how it works?"). A no stays on the board for a light Friday check-in. Never push past a no.
 4. **Qualify** — the 1-to-10 frame, ALWAYS before any booking link: urgency out of 10, importance out of 10. The flip: 9-10 gets challenged downward so they justify it and sell themselves; 5-8 gets "why isn't it higher?" to surface the real objection, handled in one message; 1-4 gets NO link — lead magnet and Friday rhythm instead, score and reason on the card.
@@ -208,7 +219,7 @@ Universal floor, whatever the profile: messages are short, specific, human, hone
 
 **Objection principles:** agree with the feeling first, never argue, ask one question back, never a wall of text.
 
-**The Hot List stages:** Initial DM Sent → Lead Magnet Sent → Follow-up Friday DM → Call Booked → Client Won / Client Ghosted. Card rules: new followers only get a card once they reply (added at Initial DM Sent); Lead Magnet Sent when the freebie goes out, toggle ticked; Follow-up Friday DM on the first Friday message; Call Booked only on an actual booking, never a sent link; Ghosted is parked not lost — one reactivation per quarter that reopens the diagnosis and never mentions the offer. Card notes hold the gap words verbatim, the urgency score and justification, and anything sent with its date.
+**The Hot List stages:** Initial DM Sent → Lead Magnet Sent → Follow-up Friday DM → Call Booked → Client Won / Client Ghosted. Card rules: leads only get a card once they reply (added at Initial DM Sent), regardless of trigger (new follower, poll voter, story viewer, post engager); Lead Magnet Sent when the freebie goes out, toggle ticked; Follow-up Friday DM on the first Friday message; Call Booked only on an actual booking, never a sent link; Ghosted is parked not lost — one reactivation per quarter that reopens the diagnosis and never mentions the offer. Card notes hold the trigger source (e.g. "via poll — chose 'pricing'"), the gap words verbatim, the urgency score and justification, and anything sent with its date.
 
 ## HOW TO COACH
 
