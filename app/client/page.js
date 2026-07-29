@@ -295,8 +295,11 @@ export default function ClientPage() {
   const [coachMessages, setCoachMessages] = useState([])
   const [coachInput, setCoachInput] = useState('')
   const [coachSending, setCoachSending] = useState(false)
+  const [coachPendingImages, setCoachPendingImages] = useState([])
+  const [coachUploading, setCoachUploading] = useState(false)
   const coachEndRef = useRef(null)
   const coachInputRef = useRef(null)
+  const coachFileRef = useRef(null)
   const [coachStatusIdx, setCoachStatusIdx] = useState(0)
 
   // Check-in form
@@ -855,20 +858,35 @@ export default function ClientPage() {
 
   useEffect(() => { coachEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [coachMessages, coachSending])
 
+  const uploadCoachImage = async (file) => {
+    if (!file || !clientData) return
+    setCoachUploading(true)
+    const ext = file.name.split('.').pop()
+    const path = `${clientData.id}/coach-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`
+    const { data, error } = await supabase.storage.from('page-images').upload(path, file, { upsert: true })
+    if (!error && data) {
+      const { data: urlData } = supabase.storage.from('page-images').getPublicUrl(data.path)
+      setCoachPendingImages(prev => [...prev, urlData.publicUrl])
+    }
+    setCoachUploading(false)
+  }
+
   const sendCoachMessage = async (text) => {
     const msg = text || coachInput.trim()
-    if (!msg || coachSending) return
-    const userMsg = { role: 'user', content: msg }
+    const imgs = coachPendingImages
+    if ((!msg && imgs.length === 0) || coachSending) return
+    const userMsg = { role: 'user', content: msg || 'What do you see in this image?', images: imgs.length > 0 ? imgs : undefined }
     const all = [...coachMessages, userMsg]
     setCoachMessages(all)
     setCoachInput('')
+    setCoachPendingImages([])
     setCoachSending(true)
     setCoachStatusIdx(0)
     try {
       const res = await fetch('/api/dm-coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: all.map(m => ({ role: m.role, content: m.content })), clientId: clientData.id }),
+        body: JSON.stringify({ messages: all.map(m => ({ role: m.role, content: m.content, images: m.images })), clientId: clientData.id }),
       })
       const result = await res.json()
       setCoachMessages([...all, { role: 'assistant', content: result.error ? `Error: ${result.error}` : result.reply }])
@@ -4147,6 +4165,13 @@ export default function ClientPage() {
                       <div key={i} className={`mb-3 ${msg.role === 'user' ? 'text-right' : ''}`}>
                         {msg.role === 'user' ? (
                           <div className="inline-block bg-zinc-800 border border-zinc-700 rounded-lg px-3 py-2 max-w-[85%] text-left">
+                            {msg.images && msg.images.length > 0 && (
+                              <div className="flex gap-1.5 mb-2 flex-wrap">
+                                {msg.images.map((url, j) => (
+                                  <img key={j} src={url} alt="" className="h-20 rounded border border-zinc-600 object-cover" />
+                                ))}
+                              </div>
+                            )}
                             <p className="text-sm text-zinc-200 whitespace-pre-wrap">{msg.content}</p>
                           </div>
                         ) : (
@@ -4179,13 +4204,35 @@ export default function ClientPage() {
                     <div ref={coachEndRef} />
                   </div>
 
+                  {/* Pending images preview */}
+                  {coachPendingImages.length > 0 && (
+                    <div className="px-4 sm:px-6 py-2 border-t border-white/[0.06] flex gap-2 overflow-x-auto">
+                      {coachPendingImages.map((url, i) => (
+                        <div key={i} className="relative flex-shrink-0">
+                          <img src={url} alt="" className="h-14 w-14 object-cover rounded border border-zinc-700" />
+                          <button onClick={() => setCoachPendingImages(p => p.filter((_, j) => j !== i))}
+                            className="absolute -top-1 -right-1 w-4 h-4 bg-red-900 text-red-300 rounded-full text-[8px] flex items-center justify-center">✕</button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   {/* Input */}
-                  <div className="px-4 sm:px-6 py-2.5 border-t border-white/[0.06] flex gap-2">
+                  <div className="px-4 sm:px-6 py-2.5 border-t border-white/[0.06] flex gap-2 items-center">
+                    <button onClick={() => coachFileRef.current?.click()} disabled={coachUploading}
+                      className="p-2 text-zinc-500 hover:text-gold active:text-gold transition flex-shrink-0 disabled:opacity-30" title="Upload image">
+                      {coachUploading ? (
+                        <div className="w-5 h-5 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" /></svg>
+                      )}
+                    </button>
+                    <input ref={coachFileRef} type="file" accept="image/*" className="hidden" onChange={e => { if (e.target.files?.[0]) uploadCoachImage(e.target.files[0]); e.target.value = '' }} />
                     <input ref={coachInputRef} value={coachInput} onChange={e => setCoachInput(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); sendCoachMessage() } }}
-                      placeholder="Ask about a lead or paste a DM..."
+                      placeholder="Ask about a lead, paste a DM, or upload a screenshot..."
                       className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition" />
-                    <button onClick={() => sendCoachMessage()} disabled={!coachInput.trim() || coachSending}
+                    <button onClick={() => sendCoachMessage()} disabled={(!coachInput.trim() && coachPendingImages.length === 0) || coachSending}
                       className="px-3 py-2 rounded bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest transition disabled:opacity-30">
                       Send
                     </button>

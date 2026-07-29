@@ -247,11 +247,23 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Missing client ID' }, { status: 400 })
     }
 
-    // Build messages array for Anthropic
-    let anthropicMessages = messages.map(m => ({
-      role: m.role,
-      content: m.content,
-    }))
+    // Build messages array for Anthropic — support vision (image_url blocks)
+    let anthropicMessages = messages.map(m => {
+      // If content is already an array (has images), pass through
+      if (Array.isArray(m.content)) {
+        return { role: m.role, content: m.content }
+      }
+      // If it has images attached, build multimodal content
+      if (m.images && m.images.length > 0) {
+        const blocks = m.images.map(url => ({
+          type: 'image',
+          source: { type: 'url', url },
+        }))
+        blocks.push({ type: 'text', text: m.content || 'What do you see in this image?' })
+        return { role: m.role, content: blocks }
+      }
+      return { role: m.role, content: m.content }
+    })
 
     // Agentic tool-use loop — keep going until the model stops calling tools
     let maxLoops = 8
