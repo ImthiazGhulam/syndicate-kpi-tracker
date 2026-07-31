@@ -1169,6 +1169,22 @@ export default function ContentCaptureV2Client() {
     const typeLabel = TYPESHORT[momentType] || momentType
     const engineLabel = engine ? (ENGINES.find(e => e.id === engine)?.label || engine) : 'not yet chosen'
     const formatLabel = format || 'not yet chosen'
+
+    // For sales posts, include offer context so questions reference the actual offer
+    let offerInfo = ''
+    if (job === 'sales' && playbookContext?.offer) {
+      const o = playbookContext.offer
+      const parts = []
+      if (o.offerName) parts.push(`Offer: ${o.offerName}${o.price ? ' (£' + o.price + ')' : ''}`)
+      if (o.corePromise) parts.push(`Promise: ${o.corePromise}`)
+      if (o.guaranteeType) parts.push(`Guarantee: ${o.guaranteeType}`)
+      if (o.scarcity) parts.push(`Scarcity: ${o.scarcity}`)
+      if (o.dipName) parts.push(`Micro offer: ${o.dipName}${o.dipPrice ? ' (£' + o.dipPrice + ')' : ''}`)
+      if (playbookContext.icp?.pains) parts.push(`Audience pains: ${playbookContext.icp.pains}`)
+      if (playbookContext.icp?.realObjections) parts.push(`Common objections: ${playbookContext.icp.realObjections}`)
+      if (parts.length) offerInfo = `\n\nThis person's offer (from their Sold Out playbook — reference these details in your questions):\n${parts.join('\n')}`
+    }
+
     const prompt = `You are inside a content tool. A coach has logged this moment:
 
 "${momentLine}"
@@ -1176,7 +1192,7 @@ export default function ContentCaptureV2Client() {
 Moment type: ${typeLabel}
 This will become: ${jobLabel}
 Content engine: ${engineLabel} (${engine === 'story' ? 'builds recognition and belief through narrative' : engine === 'teaching' ? 'builds authority through method and how-to' : engine === 'proof' ? 'builds certainty through results and receipts' : engine === 'offer' ? 'builds decisions through the thing for sale' : 'to be determined'})
-Format: ${formatLabel}
+Format: ${formatLabel}${offerInfo}
 
 Generate exactly 3 follow-up questions to extract the detail needed to write this specific type of piece. Each question should react to what they actually wrote — reference their specific words, names, or situation.
 
@@ -1887,10 +1903,46 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
             Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
           </p>
-          <div className="glass-card p-4 mb-6">
+          <div className="glass-card p-4 mb-4">
             <p className="text-sm text-white">{m.line}</p>
             <span className="text-xs text-gold/60 uppercase tracking-widest">{TYPESHORT[m.type]}</span>
           </div>
+
+          {sl.job === 'sales' && playbookContext?.offer && (
+            <div className="glass-card p-4 mb-4 border-gold/20">
+              <GoldLabel>From your Sold Out Playbook</GoldLabel>
+              <div className="space-y-2">
+                {playbookContext.offer.offerName && (
+                  <div className="flex justify-between items-baseline">
+                    <span className="text-sm text-white font-bold">{playbookContext.offer.offerName}</span>
+                    {playbookContext.offer.price && <span className="text-xs text-gold font-bold">£{playbookContext.offer.price}</span>}
+                  </div>
+                )}
+                {playbookContext.offer.corePromise && <p className="text-xs text-zinc-400">{playbookContext.offer.corePromise}</p>}
+                {playbookContext.offer.guaranteeType && <p className="text-xs text-zinc-500">Guarantee: {playbookContext.offer.guaranteeType}</p>}
+                {playbookContext.offer.scarcity && <p className="text-xs text-zinc-500">Scarcity: {playbookContext.offer.scarcity}</p>}
+                {playbookContext.offer.dipName && (
+                  <div className="border-t border-zinc-800 pt-2 mt-2">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-sm text-white font-bold">{playbookContext.offer.dipName}</span>
+                      {playbookContext.offer.dipPrice && <span className="text-xs text-gold font-bold">£{playbookContext.offer.dipPrice}</span>}
+                    </div>
+                    {playbookContext.offer.dipPromise && <p className="text-xs text-zinc-400">{playbookContext.offer.dipPromise}</p>}
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {sl.job === 'sales' && playbookContext?.icp && (
+            <div className="glass-card p-4 mb-4">
+              <GoldLabel>Your audience</GoldLabel>
+              {playbookContext.icp.pains && <p className="text-xs text-zinc-400 mb-1">Pains: {playbookContext.icp.pains}</p>}
+              {playbookContext.icp.realObjections && <p className="text-xs text-zinc-400 mb-1">Objections: {playbookContext.icp.realObjections}</p>}
+              {playbookContext.icp.costOfInaction && <p className="text-xs text-zinc-400">Cost of inaction: {playbookContext.icp.costOfInaction}</p>}
+            </div>
+          )}
+
           <div className="mt-2">
             <GoldLabel>What's this piece doing?</GoldLabel>
             <DimLabel>Pick the engine — then the format options adjust.</DimLabel>
