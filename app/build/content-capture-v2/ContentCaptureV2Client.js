@@ -924,6 +924,10 @@ export default function ContentCaptureV2Client() {
   const [savedWeeks, setSavedWeeks] = useState([])
   const [viewingWeek, setViewingWeek] = useState(null)
 
+  // Sidebar
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [streakCount, setStreakCount] = useState(0)
+
   // Modals
   const [modal, setModal] = useState(null)
   const [picker, setPicker] = useState(null)
@@ -1181,6 +1185,26 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   const ytCount = ytN !== null ? ytN : (doesYT ? 1 : 0)
   const mix = mixFor(stage, pieceCount, weekGoal)
 
+  // ── Navigation ──────────────────────────────────────────────────────────
+
+  function navigateTo(screenId, data) {
+    if (screenId === 'quick-moment') {
+      setQuickMoment(null); setQuickJob(null); setEnrichIdx(0)
+    }
+    if (screenId === 'week-goal') {
+      setWeekGoal(null)
+      if (!stage) { setAfterChannels('week-goal'); setScreen('stage'); return }
+    }
+    if (screenId === 'view-week' && data) {
+      setViewingWeek(data)
+    }
+    if (screenId === 'view-weeks') {
+      // Show list of all weeks — reuse view-week with null to show list
+      setViewingWeek(null)
+    }
+    setScreen(screenId)
+  }
+
   // ── Build week slots ──────────────────────────────────────────────────────
 
   function buildWeekSlots(goalOverride) {
@@ -1238,15 +1262,14 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'stage') {
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={stage ? () => setScreen('home') : null} onStage={() => {}} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white flex items-center justify-center">
+        <div className="max-w-lg w-full px-4">
           <Question>Where's your <span className="text-gold font-medium">business at</span> right now?</Question>
-          <DimLabel>One tap. This quietly shapes what your week looks like and what the tool suggests. Change it any time up top.</DimLabel>
+          <DimLabel>One tap. This shapes what your week looks like and what the tool suggests.</DimLabel>
           <div className="flex flex-col gap-2">
             {STAGES.map(s => (
               <OptionButton key={s.id} onClick={async () => { setStage(s.id); await saveProfile({ stage: s.id }); setScreen('channels') }}>
-                {s.t}<span className="block text-zinc-600 text-[12.5px] mt-1">{s.s}</span>
+                {s.t}<span className="block text-zinc-500 text-xs mt-1 font-normal">{s.s}</span>
               </OptionButton>
             ))}
           </div>
@@ -1255,27 +1278,26 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn>
             </div>
           )}
-        </main>
+        </div>
       </div>
     )
   }
 
   if (screen === 'channels') {
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={stage ? () => setScreen('home') : null} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white flex items-center justify-center">
+        <div className="max-w-lg w-full px-4">
           <Question>Two quick things about your <span className="text-gold font-medium">channels</span>.</Question>
           <DimLabel>These decide whether your week includes an email and a YouTube video alongside the posts.</DimLabel>
           <GoldLabel>Do you have an email list?</GoldLabel>
           <div className="flex flex-col gap-2 mb-5">
-            <OptionButton selected={hasList === true} onClick={() => { setHasList(true) }}>Yes<span className="block text-zinc-600 text-[12.5px] mt-1">Even a small one — your week gets one email to keep it warm</span></OptionButton>
-            <OptionButton selected={hasList === false} onClick={() => { setHasList(false) }}>Not yet<span className="block text-zinc-600 text-[12.5px] mt-1">Your posts will route people toward starting one</span></OptionButton>
+            <OptionButton selected={hasList === true} onClick={() => { setHasList(true) }}>Yes<span className="block text-zinc-500 text-xs mt-1 font-normal">Even a small one — your week gets one email to keep it warm</span></OptionButton>
+            <OptionButton selected={hasList === false} onClick={() => { setHasList(false) }}>Not yet<span className="block text-zinc-500 text-xs mt-1 font-normal">Your posts will route people toward starting one</span></OptionButton>
           </div>
           <GoldLabel>Are you making YouTube videos?</GoldLabel>
           <div className="flex flex-col gap-2">
-            <OptionButton selected={doesYT === true} onClick={() => { setDoesYT(true) }}>Yes<span className="block text-zinc-600 text-[12.5px] mt-1">Your week gets one deep video — the full version of a topic, for people who already follow you</span></OptionButton>
-            <OptionButton selected={doesYT === false} onClick={() => { setDoesYT(false) }}>Not yet<span className="block text-zinc-600 text-[12.5px] mt-1">Posts and email carry the trust work for now</span></OptionButton>
+            <OptionButton selected={doesYT === true} onClick={() => { setDoesYT(true) }}>Yes<span className="block text-zinc-500 text-xs mt-1 font-normal">Your week gets one deep video</span></OptionButton>
+            <OptionButton selected={doesYT === false} onClick={() => { setDoesYT(false) }}>Not yet<span className="block text-zinc-500 text-xs mt-1 font-normal">Posts and email carry the trust work for now</span></OptionButton>
           </div>
           <div className="flex justify-end mt-6">
             <Btn gold onClick={async () => {
@@ -1287,7 +1309,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               setAfterChannels('home')
             }}>Done →</Btn>
           </div>
-        </main>
+        </div>
       </div>
     )
   }
@@ -1296,9 +1318,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'home') {
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <button onClick={() => router.push('/client')} className="text-zinc-500 hover:text-white text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-1 transition">
             <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
             Dashboard
@@ -1403,9 +1423,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               </div>
             </div>
           )}
-        </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1413,9 +1432,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'quick-moment') {
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <Question>What's <span className="text-gold font-medium">actually happened</span>?</Question>
           <DimLabel>Real content starts with real life.</DimLabel>
           {log.length > 0 && (
@@ -1438,8 +1455,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             ))}
           </div>
           <div className="mt-6"><GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn></div>
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1449,9 +1465,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     const typeId = screen.replace('quick-line-', '')
     const mt = MOMENTS.find(x => x.id === typeId)
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <Question>Tell me in <span className="text-gold font-medium">one line</span>.</Question>
           <DimLabel>{mt.t} — just the bones. We'll flesh it out next.</DimLabel>
           <textarea rows={2} autoFocus value={capLine} onChange={e => setCapLine(e.target.value)}
@@ -1470,8 +1484,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               }
             }}>Next →</Btn>
           </div>
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1485,9 +1498,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       { j: 'sales', t: 'Make a sale', s: 'Warm audience, something to act on' },
     ]
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <Question>This can do <span className="text-gold font-medium">one job</span>. Which?</Question>
           <DimLabel>Based on your stage, I'd point it at "{jobs.find(x => x.j === sug).t}" — but it's your call.</DimLabel>
           <div className="flex flex-col gap-2">
@@ -1511,9 +1522,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             ))}
           </div>
           <div className="mt-6"><GhostBtn onClick={() => setScreen('quick-moment')}>← Back</GhostBtn></div>
-        </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1525,9 +1535,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     const enrichVal = (quickMoment.enrichment || {})[key] || ''
 
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <Question>{q}</Question>
           <DimLabel>{hint}</DimLabel>
           <textarea rows={2} autoFocus defaultValue={enrichVal}
@@ -1540,8 +1548,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <Btn gold onClick={() => advanceEnrich(false)}>{enrichIdx < qs.length - 1 ? 'Next →' : 'Write my post →'}</Btn>
             </div>
           </div>
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1549,21 +1556,16 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'quick-writing') {
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <WritingScreen line={writingLine} label="WRITING YOUR PIECE" />
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
   if (screen === 'quick-result' && quickCard) {
     const card = CARDS[quickCard]
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <GoldLabel>Your piece</GoldLabel>
           <h3 className="text-lg font-display tracking-[0.06em] text-white mb-4">{card.nm.toUpperCase()}</h3>
           <PieceCard
@@ -1589,9 +1591,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           <div className="mt-4">
             <Btn onClick={() => setScreen('home')}>Done</Btn>
           </div>
-        </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1626,9 +1627,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     }
 
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <Question>What are you trying to <span className="text-gold font-medium">achieve</span> with your posting right now?</Question>
           <DimLabel>This shapes how your week splits between reach, trust and sales content.</DimLabel>
           <div className="flex flex-col gap-3">
@@ -1645,9 +1644,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             })}
           </div>
           <div className="mt-6"><GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn></div>
-        </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1656,9 +1654,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   if (screen === 'board') {
     const filled = weekSlots.filter(s => s.moment).length
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <GoldLabel>Your week — shaped by your stage</GoldLabel>
           <Question>Match <span className="text-gold font-medium">moments</span> to the week's posts.</Question>
           <DimLabel>Tap a slot, pick a moment. Or let the tool suggest and adjust from there. Empty slots just get skipped.</DimLabel>
@@ -1731,8 +1727,6 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               }}>Flesh them out →</Btn>
             </div>
           </div>
-        </main>
-
         <BottomSheet open={picker !== null} title={picker !== null ? JOBLONG[weekSlots[picker]?.job] : ''} onClose={() => setPicker(null)}
           subtitle={(weekSlots[picker]?.job === 'email' || weekSlots[picker]?.job === 'longform') ? 'Reusing a moment from a feed post is the smart move here — same material, deeper format.' : undefined}>
           {picker !== null && (() => {
@@ -1766,7 +1760,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             )
           })()}
         </BottomSheet>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1776,12 +1770,9 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     if (weekIdx >= weekPieces.length) {
       doWeekWrite()
       return (
-        <div className="min-h-screen bg-zinc-950 text-white">
-          <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-          <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+        <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
             <WritingScreen label="WRITING YOUR WEEK" />
-          </main>
-        </div>
+        </SidebarLayout>
       )
     }
 
@@ -1809,9 +1800,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
     if (aiQLoading) {
       return (
-        <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-          <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-          <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+        <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
             <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
               Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
             </p>
@@ -1819,15 +1808,12 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <p className="text-sm text-white">{m.line}</p>
             </div>
             <WritingScreen label="TAILORING YOUR QUESTIONS" line="Reading what you wrote and working out what to ask..." />
-          </main>
-        </div>
+        </SidebarLayout>
       )
     }
 
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
             Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
           </p>
@@ -1915,8 +1901,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               {weekIdx < weekPieces.length - 1 ? 'Next post →' : 'Write the week →'}
             </Btn>
           </div>
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1924,12 +1909,9 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'week-writing') {
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <WritingScreen line={writingLine} label={`WRITING POST ${weekIdx + 1} OF ${weekPieces.length}`} />
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -1946,9 +1928,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     }
 
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <GoldLabel>Your week, written</GoldLabel>
           <Question><span className="text-gold font-medium">{finishedCount}</span> posts, ready to go.</Question>
           <DimLabel>Each one from a real moment of yours. Copy them out, or rewrite any that don't sound right.</DimLabel>
@@ -2006,9 +1986,48 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <Btn onClick={() => setScreen('home')}>Done</Btn>
             </div>
           </div>
-        </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
-      </div>
+      </SidebarLayout>
+    )
+  }
+
+  // ── View All Weeks ─────────────────────────────────────────────────────────
+
+  if (screen === 'view-weeks') {
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          <GoldLabel>Past weeks</GoldLabel>
+          <Question>Your content history.</Question>
+          <DimLabel>Tap any week to view and copy the content.</DimLabel>
+          {savedWeeks.length === 0 ? (
+            <div className="border border-dashed border-zinc-700 rounded-lg p-6 text-center text-zinc-500 text-sm">
+              No weeks saved yet. Plan your first week and the content will appear here.
+            </div>
+          ) : (
+            <div className="space-y-2">
+              {savedWeeks.map(w => {
+                const pieces = w.piece_ids || []
+                const date = new Date(w.week_start)
+                const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                const m = w.mix || {}
+                return (
+                  <button key={w.id} onClick={() => navigateTo('view-week', w)}
+                    className="w-full text-left glass-card p-4 transition hover:border-gold/30">
+                    <div className="flex justify-between items-baseline">
+                      <span className="text-sm font-bold text-white">Week of {dateStr}</span>
+                      <span className="text-xs text-zinc-500">{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+                    </div>
+                    <div className="flex gap-3 mt-2 text-xs text-zinc-500">
+                      {m.reach > 0 && <span>{m.reach} reach</span>}
+                      {m.value > 0 && <span>{m.value} trust</span>}
+                      {m.sales > 0 && <span>{m.sales} sales</span>}
+                    </div>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+      </SidebarLayout>
     )
   }
 
@@ -2028,9 +2047,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     }
 
     return (
-      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
-        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn>
           <div className="mt-4 mb-6">
             <GoldLabel>Saved week</GoldLabel>
@@ -2054,8 +2071,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             <Btn gold onClick={copyAllSaved}>Copy the whole week</Btn>
             <Btn onClick={() => setScreen('home')}>Done</Btn>
           </div>
-        </main>
-      </div>
+      </SidebarLayout>
     )
   }
 
@@ -2231,16 +2247,116 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   }
 }
 
-// ── Header ──────────────────────────────────────────────────────────────────
+// ── Sidebar + Layout ────────────────────────────────────────────────────────
 
-function Header({ onHome, onStage }) {
+const NAV_ITEMS = [
+  { id: 'home', label: 'Command Centre', icon: '🏠' },
+  { id: 'quick-moment', label: 'Write One Post', icon: '✍️' },
+  { id: 'week-goal', label: 'Plan My Week', icon: '📅' },
+  { id: 'view-weeks', label: 'Past Weeks', icon: '📚' },
+]
+
+function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage, streakCount, children, router }) {
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+
+  const activeSection = screen === 'home' ? 'home'
+    : screen.startsWith('quick') ? 'quick-moment'
+    : screen.startsWith('week') || screen === 'board' ? 'week-goal'
+    : screen === 'view-weeks' || screen === 'view-week' ? 'view-weeks'
+    : 'home'
+
   return (
-    <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
-      <button onClick={onHome} className="text-zinc-400 hover:text-white">
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-      </button>
-      <span className="text-xs font-bold font-display text-gold uppercase tracking-widest">Content Capture V2</span>
-      <button onClick={onStage} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">Stage</button>
+    <div className="min-h-screen bg-zinc-950 bg-grid text-white">
+      {/* Mobile header */}
+      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
+        <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-zinc-400 hover:text-white">
+          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+        </button>
+        <span className="text-xs font-bold font-display text-gold uppercase tracking-widest">Content Capture</span>
+        <div className="w-6" />
+      </div>
+
+      <div className="flex">
+        {/* Sidebar */}
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 z-30 w-72 h-screen glass-sidebar flex flex-col transition-transform lg:transition-none overflow-y-auto`}>
+          <div className="p-6 border-b border-zinc-800">
+            <h2 className="text-lg font-bold font-display text-white tracking-tight">Content Capture</h2>
+            <p className="text-xs text-zinc-500 mt-1">V2 · Your content system</p>
+            {streakCount > 0 && (
+              <div className="flex items-center gap-2 mt-3 bg-gold/10 rounded-lg px-3 py-2 border border-gold/20">
+                <span className="text-sm">🔥</span>
+                <span className="text-xs font-bold text-gold">{streakCount} day streak</span>
+              </div>
+            )}
+          </div>
+
+          {/* Navigation */}
+          <div className="flex-1 p-4 overflow-y-auto">
+            <p className="px-2 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.25em]">Tools</p>
+            {NAV_ITEMS.map(item => (
+              <button key={item.id} onClick={() => { onNavigate(item.id); setSidebarOpen(false) }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] font-medium transition mb-0.5 ${
+                  activeSection === item.id
+                    ? 'text-gold bg-gold/10 border border-gold/20'
+                    : 'text-zinc-400 hover:text-white hover:bg-zinc-800/50'
+                }`}>
+                <span className="text-sm w-5 text-center">{item.icon}</span>
+                <span className="tracking-wide">{item.label}</span>
+              </button>
+            ))}
+
+            {/* Capture log summary */}
+            <p className="px-2 pt-5 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.25em]">Capture Log</p>
+            <div className="px-2 mb-1">
+              <span className="text-xs text-zinc-500">{log.length} moment{log.length !== 1 ? 's' : ''} logged</span>
+            </div>
+
+            {/* Past weeks */}
+            {savedWeeks.length > 0 && (
+              <>
+                <p className="px-2 pt-5 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.25em]">Recent Weeks</p>
+                {savedWeeks.slice(0, 5).map(w => {
+                  const pieces = w.piece_ids || []
+                  const date = new Date(w.week_start)
+                  const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                  return (
+                    <button key={w.id} onClick={() => { onNavigate('view-week', w); setSidebarOpen(false) }}
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs transition mb-0.5 text-zinc-400 hover:text-white hover:bg-zinc-800/50">
+                      <span className="font-bold">{dateStr}</span>
+                      <span className="text-zinc-600 ml-2">{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+                    </button>
+                  )
+                })}
+              </>
+            )}
+
+            {/* Stage indicator */}
+            {stage && (
+              <>
+                <p className="px-2 pt-5 pb-2 text-[10px] font-bold text-zinc-600 uppercase tracking-[0.25em]">Stage</p>
+                <div className="px-3 py-2">
+                  <span className="text-xs font-bold text-gold">{STAGES.find(s => s.id === stage)?.t}</span>
+                </div>
+              </>
+            )}
+          </div>
+
+          {/* Footer */}
+          <div className="p-4 border-t border-zinc-800">
+            <button onClick={() => router.push('/client')} className="w-full px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">
+              ← Dashboard
+            </button>
+          </div>
+        </aside>
+
+        {/* Overlay for mobile */}
+        {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+
+        {/* Main content */}
+        <main className="flex-1 min-h-screen px-4 py-8 lg:px-12 lg:py-10 max-w-3xl mx-auto w-full">
+          {children}
+        </main>
+      </div>
     </div>
   )
 }
