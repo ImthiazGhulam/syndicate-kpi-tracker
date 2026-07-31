@@ -151,6 +151,52 @@ function getEnrichQuestions(momentType, job) {
 // Legacy accessor for code that just needs type-based questions
 const ENRICH = ENRICH_BASE
 
+// Format options per job — the user picks which format the piece gets written in
+const FORMAT_OPTIONS = {
+  reach: [
+    { id: 'talking-head', label: 'Talking Head Reel', desc: 'You to camera, 30–90 seconds', icon: '🎬' },
+    { id: 'text-reel', label: 'Text Reel', desc: 'B-roll with text overlay, 5–15 seconds', icon: '📱' },
+    { id: 'carousel', label: 'Carousel', desc: '6–8 slides, the save format', icon: '📊' },
+    { id: 'green-screen', label: 'Green Screen', desc: 'You reacting to something on screen', icon: '🟩' },
+    { id: 'skit', label: 'Skit / POV', desc: 'Acted scenario, pattern interrupt', icon: '🎭' },
+  ],
+  value: [
+    { id: 'carousel', label: 'Carousel', desc: '7–10 slides, method or case study', icon: '📊' },
+    { id: 'talking-head', label: 'Talking Head Reel', desc: 'You to camera explaining or proving', icon: '🎬' },
+    { id: 'screen-recording', label: 'Screen Recording', desc: 'Show the work, the tool, the process', icon: '🖥️' },
+    { id: 'story-sequence', label: 'Story Sequence', desc: '3–8 frames to warm audience', icon: '📖' },
+    { id: 'youtube', label: 'YouTube Script', desc: '8–15 min deep video', icon: '▶️' },
+  ],
+  sales: [
+    { id: 'story-sequence', label: 'Story Sequence', desc: '4–6 frames, proof or deadline', icon: '📖' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Direct to followers, 30–60 seconds', icon: '🎬' },
+    { id: 'testimonial', label: 'Testimonial / Screenshot', desc: 'Client result or DM receipt', icon: '💬' },
+    { id: 'carousel', label: 'Case Study Carousel', desc: 'Client transformation slide by slide', icon: '📊' },
+  ],
+  email: [
+    { id: 'story-email', label: 'Story Email', desc: '150–300 words, one lesson, no pitch', icon: '✉️' },
+    { id: 'launch-email', label: 'Launch Email', desc: '50–150 words, fact first, one link', icon: '🚀' },
+  ],
+  longform: [
+    { id: 'youtube', label: 'YouTube Script', desc: '8–15 min deep video', icon: '▶️' },
+  ],
+}
+
+// Map format choice to generation instructions
+const FORMAT_PROMPTS = {
+  'talking-head': { fmt: 'a 30–90 second spoken video script (100–220 words), delivered to camera', out: "Write it as a spoken script. First line: [ON SCREEN: what's visually in frame in second one]. Then the script. Open mid-scene with no introductions. End by turning it onto the viewer, then one button line that loops back to the opening." },
+  'text-reel': { fmt: 'a 5–15 second text-on-screen reel plus caption', out: "Write 'ON SCREEN:' with the single line of text over the footage (fully readable in one glance), then 'B-ROLL:' one line describing ordinary footage from their week, then 'CAPTION:' with 3–5 short lines of context." },
+  'carousel': { fmt: 'a 6–10 slide carousel post', out: "Write it slide by slide: 'SLIDE 1:' etc, under 40 words per slide. Slide 1 is the hook — one claim, one outcome, one tension. One idea per slide. Second-to-last slide turns on the reader. Last slide is the ask. Then 'CAPTION:' with a 2–3 line caption." },
+  'green-screen': { fmt: 'a 30–60 second green screen reaction video script', out: "Write it as a spoken script. First line: [ON SCREEN: the article/screenshot/post being reacted to]. Your first line names what's wrong, surprising or useful. Two or three beats of commentary. The takeaway in your frame, not theirs. Turn and button." },
+  'skit': { fmt: 'a 15–45 second skit or POV video', out: "Write 'ON SCREEN TEXT: POV: {{scenario}}'. Then describe the scene: what happens, played straight. One turn — the exaggeration or reveal. Then 'CAPTION:' landing the real point in one line." },
+  'screen-recording': { fmt: 'a 45–90 second screen recording walkthrough', out: "Write it as a narrated walkthrough. Hook names the outcome first. Then step by step: 'SCREEN: [what's visible]' followed by 'NARRATION: [what you say]' for each step. End on the finished state." },
+  'story-sequence': { fmt: 'a 3–8 frame story sequence', out: "Write it frame by frame: 'FRAME 1:' etc. Frame 1 opens a loop. Each frame earns the tap to the next. Mix media suggestions: [TALKING CLIP], [SCREENSHOT], [TEXT FRAME], [POLL]. Final frame carries the CTA." },
+  'testimonial': { fmt: 'a testimonial or social proof post', out: "Open on the result or strongest line — never 'so tell us about yourself'. Where they were, in their words, one vivid detail. The turn: what changed. Where they are now, with a number. Your frame in the caption: the principle that made the difference." },
+  'youtube': { fmt: 'a script treatment for an 8–15 minute YouTube video', out: "Write '[TITLE:' a plain title for people who already follow]. Then 'OPENING (word for word):' 60–90 seconds spoken. Then 3–5 'SECTION:' blocks with key points and spoken lines. Then 'CLOSE (word for word):' ending that invites onto the email list." },
+  'story-email': { fmt: 'a 150–300 word email', out: "Write 'SUBJECT:' (the moment itself, not the lesson), then the email. Open inside the scene. Tell what happened plainly. Land the one lesson once. Sign off warm. No pitch, no PS with a link." },
+  'launch-email': { fmt: 'a 50–150 word launch email', out: "Write 'SUBJECT:' stating the fact plainly. Then the email: the fact first, the honest reason it exists, one line of proof if given, what changes either side of the line, one link ask stated once. Short sentences." },
+}
+
 const BUILD_LINES = [
   'Reading your moment...', 'Picking the shape...', 'Writing in your voice...', 'Sharpening the hook...', 'Checking the ask matches the job...',
 ]
@@ -723,6 +769,7 @@ export default function ContentCaptureV2Client() {
   const [weekPieces, setWeekPieces] = useState([])
   const [aiQuestions, setAiQuestions] = useState(null)
   const [aiQLoading, setAiQLoading] = useState(false)
+  const [chosenFormats, setChosenFormats] = useState({})
 
   // Modals
   const [modal, setModal] = useState(null)
@@ -1602,14 +1649,27 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             ))}
           </div>
 
+          <div className="mt-6">
+            <GoldLabel>Pick the format</GoldLabel>
+            <DimLabel>How should this piece be built?</DimLabel>
+            <div className="grid grid-cols-2 gap-2">
+              {(FORMAT_OPTIONS[sl.job] || FORMAT_OPTIONS.reach).map(f => (
+                <button key={f.id} onClick={() => setChosenFormats(prev => ({ ...prev, [weekIdx]: f.id }))}
+                  className={`text-left px-3 py-3 rounded-lg border transition ${chosenFormats[weekIdx] === f.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300'}`}>
+                  <span className="text-sm">{f.icon} {f.label}</span>
+                  <span className="block text-xs text-zinc-500 mt-0.5">{f.desc}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => {
               setAiQuestions(null)
               if (weekIdx > 0) { setWeekIdx(weekIdx - 1) }
               else setScreen('board')
             }}>← Back</GhostBtn>
-            <Btn gold onClick={() => {
-              // Collect all answers from this page
+            <Btn gold disabled={!chosenFormats[weekIdx]} onClick={() => {
               const enrichment = { ...(m.enrichment || {}) }
               qs.forEach(([key]) => {
                 const el = document.getElementById(`week-enrich-${weekIdx}-${key}`)
@@ -1832,10 +1892,17 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       setWritingLine(m.line)
       const hasNum = !!(m.enrichment && m.enrichment.num && m.enrichment.num.trim())
       const r = routeMoment(m.type, sl.job, hasNum, stage)
-      const card = CARDS[r.card]
+      const baseCard = CARDS[r.card]
       const arc = pickArc(m.type, m, r.card)
+
+      // Use chosen format if one was picked, otherwise use the routed card
+      const fmt = chosenFormats[i]
+      const fmtPrompt = fmt && FORMAT_PROMPTS[fmt]
+      const card = fmtPrompt ? { ...baseCard, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: (FORMAT_OPTIONS[sl.job] || FORMAT_OPTIONS.reach).find(f => f.id === fmt)?.label || baseCard.nm } : baseCard
+
       sl.cardObj = card
       sl.cardKey = r.card
+      sl.chosenFormat = fmt
       sl.swap = r.swap
       sl.arc = arc
       try {
