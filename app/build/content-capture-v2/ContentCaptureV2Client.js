@@ -99,15 +99,20 @@ const GOALS = [
 function mixFor(stage, n, goal) {
   const stageBase = MIX[stage] || MIX.build
   const noSales = stageBase.sales === 0
-  const base = (goal && goal !== 'default' && GOAL_MIX[goal]) ? GOAL_MIX[goal] : stageBase
+  let base = (goal && goal !== 'default' && GOAL_MIX[goal]) ? GOAL_MIX[goal] : stageBase
+  // If stage forbids sales, redistribute sales share into reach and value proportionally
+  if (noSales && base.sales > 0) {
+    const rv = base.reach + base.value
+    base = { reach: Math.round(base.reach * 100 / rv), value: Math.round(base.value * 100 / rv), sales: 0 }
+  }
   const t = base.reach + base.value + base.sales
+  if (t === 0) return { reach: n, value: 0, sales: 0 }
   const raw = { reach: n * base.reach / t, value: n * base.value / t, sales: n * base.sales / t }
   const out = { reach: Math.floor(raw.reach), value: Math.floor(raw.value), sales: Math.floor(raw.sales) }
   let left = n - (out.reach + out.value + out.sales)
   const rem = [['reach', raw.reach - out.reach], ['value', raw.value - out.value], ['sales', raw.sales - out.sales]].sort((a, b) => b[1] - a[1])
   for (const [k] of rem) { if (left <= 0) break; if (k === 'sales' && noSales) continue; out[k]++; left-- }
   while (left > 0) { out.reach++; left-- }
-  if (noSales) out.sales = 0
   if (n > 0 && out.reach === 0) { out.reach = 1; if (out.value > 0) out.value--; else if (out.sales > 0) out.sales-- }
   return out
 }
