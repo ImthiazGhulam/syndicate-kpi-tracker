@@ -151,35 +151,103 @@ function getEnrichQuestions(momentType, job) {
 // Legacy accessor for code that just needs type-based questions
 const ENRICH = ENRICH_BASE
 
-// Format options per job — the user picks which format the piece gets written in
-const FORMAT_OPTIONS = {
-  reach: [
+// The four content engines
+const ENGINES = [
+  { id: 'story', label: 'Story', desc: 'A moment, a scar, a transformation — builds recognition and belief', icon: '📖' },
+  { id: 'teaching', label: 'Teaching', desc: 'Method, how-to, the mistake and the fix — builds authority', icon: '🎓' },
+  { id: 'proof', label: 'Proof', desc: 'Results, receipts, testimonials — builds certainty', icon: '📊' },
+  { id: 'offer', label: 'Offer', desc: 'The thing for sale, the deadline, the reason now — builds decisions', icon: '🔥' },
+]
+
+// Format matrix: job × engine → available formats (from the playbook spec)
+const FORMAT_MATRIX = {
+  'reach_story': [
     { id: 'talking-head', label: 'Talking Head Reel', desc: 'You to camera, 30–90 seconds', icon: '🎬' },
-    { id: 'text-reel', label: 'Text Reel', desc: 'B-roll with text overlay, 5–15 seconds', icon: '📱' },
+    { id: 'text-reel', label: 'Text Reel', desc: 'B-roll with text overlay', icon: '📱' },
+  ],
+  'reach_teaching': [
     { id: 'carousel', label: 'Carousel', desc: '6–8 slides, the save format', icon: '📊' },
-    { id: 'green-screen', label: 'Green Screen', desc: 'You reacting to something on screen', icon: '🟩' },
-    { id: 'skit', label: 'Skit / POV', desc: 'Acted scenario, pattern interrupt', icon: '🎭' },
+    { id: 'green-screen', label: 'Green Screen / Whiteboard', desc: 'You reacting or explaining on screen', icon: '🟩' },
   ],
-  value: [
-    { id: 'carousel', label: 'Carousel', desc: '7–10 slides, method or case study', icon: '📊' },
-    { id: 'talking-head', label: 'Talking Head Reel', desc: 'You to camera explaining or proving', icon: '🎬' },
+  'reach_proof': [
+    { id: 'text-reel', label: 'Text Reel', desc: 'Number as the hook, b-roll underneath', icon: '📱' },
+  ],
+  'reach_offer': [], // Never — offer content doesn't reach strangers
+  'value_story': [
+    { id: 'carousel', label: 'Carousel', desc: 'Case study or borrowed arc, slide by slide', icon: '📊' },
+    { id: 'youtube', label: 'YouTube Long Form', desc: '8–15 min deep story (Comeback Story format)', icon: '▶️' },
+    { id: 'story-email', label: 'Email', desc: 'Story email to your list', icon: '✉️' },
+  ],
+  'value_teaching': [
+    { id: 'carousel', label: 'Carousel', desc: 'Method or step-by-step, 7–10 slides', icon: '📊' },
+    { id: 'youtube', label: 'YouTube Long Form', desc: 'Full deep-teach video', icon: '▶️' },
     { id: 'screen-recording', label: 'Screen Recording', desc: 'Show the work, the tool, the process', icon: '🖥️' },
-    { id: 'story-sequence', label: 'Story Sequence', desc: '3–8 frames to warm audience', icon: '📖' },
-    { id: 'youtube', label: 'YouTube Script', desc: '8–15 min deep video', icon: '▶️' },
+    { id: 'story-email', label: 'Email', desc: 'Teaching email to your list', icon: '✉️' },
   ],
-  sales: [
-    { id: 'story-sequence', label: 'Story Sequence', desc: '4–6 frames, proof or deadline', icon: '📖' },
-    { id: 'talking-head', label: 'Talking Head', desc: 'Direct to followers, 30–60 seconds', icon: '🎬' },
-    { id: 'testimonial', label: 'Testimonial / Screenshot', desc: 'Client result or DM receipt', icon: '💬' },
+  'value_proof': [
     { id: 'carousel', label: 'Case Study Carousel', desc: 'Client transformation slide by slide', icon: '📊' },
+    { id: 'talking-head', label: 'Receipt Drop Reel', desc: 'Number first, mechanism after', icon: '🎬' },
   ],
-  email: [
+  'value_offer': [
+    { id: 'story-sequence', label: 'Waitlist Story Sequence', desc: '3–5 frames, hand-raise before doors open', icon: '📖' },
+  ],
+  'sales_story': [
+    { id: 'story-sequence', label: 'Story Sequence', desc: 'Compressed arc, 4–6 frames to followers', icon: '📖' },
+  ],
+  'sales_teaching': [], // Never as the lead at BOF
+  'sales_proof': [
+    { id: 'testimonial', label: 'Testimonial / Screenshot', desc: 'Client result, DM receipt, before/after', icon: '💬' },
+    { id: 'carousel', label: 'Case Study Carousel', desc: 'Client transformation as proof', icon: '📊' },
+  ],
+  'sales_offer': [
+    { id: 'story-sequence', label: 'Story Sequence', desc: 'Deadline, countdown, proof + offer', icon: '📖' },
+    { id: 'launch-email', label: 'Launch Email', desc: 'Fact first, one link, short', icon: '🚀' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Direct to followers, sell straight', icon: '🎬' },
+  ],
+  'email_story': [
     { id: 'story-email', label: 'Story Email', desc: '150–300 words, one lesson, no pitch', icon: '✉️' },
-    { id: 'launch-email', label: 'Launch Email', desc: '50–150 words, fact first, one link', icon: '🚀' },
   ],
-  longform: [
-    { id: 'youtube', label: 'YouTube Script', desc: '8–15 min deep video', icon: '▶️' },
+  'email_teaching': [
+    { id: 'story-email', label: 'Teaching Email', desc: 'Method or lesson to your list', icon: '✉️' },
   ],
+  'email_proof': [
+    { id: 'story-email', label: 'Proof Email', desc: 'Client result + one lesson', icon: '✉️' },
+  ],
+  'email_offer': [
+    { id: 'launch-email', label: 'Launch Email', desc: 'Fact first, deadline, one link', icon: '🚀' },
+  ],
+  'longform_story': [
+    { id: 'youtube', label: 'YouTube — Comeback Story', desc: 'Full 7-beat transformation', icon: '▶️' },
+  ],
+  'longform_teaching': [
+    { id: 'youtube', label: 'YouTube — Deep Teach', desc: 'Full method, no gaps, generosity is the engine', icon: '▶️' },
+  ],
+  'longform_proof': [
+    { id: 'youtube', label: 'YouTube — Case Study', desc: 'One client, told properly', icon: '▶️' },
+  ],
+  'longform_offer': [],
+}
+
+// Which engines are available per job (offer never available at TOF)
+function getAvailableEngines(job) {
+  return ENGINES.filter(e => {
+    const key = `${job}_${e.id}`
+    const formats = FORMAT_MATRIX[key]
+    return formats && formats.length > 0
+  })
+}
+
+function getFormatsForJobEngine(job, engine) {
+  return FORMAT_MATRIX[`${job}_${engine}`] || []
+}
+
+// Legacy flat format options for backward compat
+const FORMAT_OPTIONS = {
+  reach: [{ id: 'talking-head', label: 'Talking Head Reel', desc: 'You to camera', icon: '🎬' }, { id: 'text-reel', label: 'Text Reel', desc: 'B-roll with text', icon: '📱' }, { id: 'carousel', label: 'Carousel', desc: '6–8 slides', icon: '📊' }, { id: 'green-screen', label: 'Green Screen', desc: 'Reacting on screen', icon: '🟩' }],
+  value: [{ id: 'carousel', label: 'Carousel', desc: 'Method or case study', icon: '📊' }, { id: 'talking-head', label: 'Talking Head', desc: 'Explaining or proving', icon: '🎬' }, { id: 'youtube', label: 'YouTube', desc: 'Deep video', icon: '▶️' }],
+  sales: [{ id: 'story-sequence', label: 'Story Sequence', desc: 'Proof or deadline', icon: '📖' }, { id: 'talking-head', label: 'Talking Head', desc: 'Direct to followers', icon: '🎬' }, { id: 'testimonial', label: 'Testimonial', desc: 'Client result', icon: '💬' }],
+  email: [{ id: 'story-email', label: 'Story Email', desc: 'One lesson, no pitch', icon: '✉️' }, { id: 'launch-email', label: 'Launch Email', desc: 'Fact first, one link', icon: '🚀' }],
+  longform: [{ id: 'youtube', label: 'YouTube Script', desc: '8–15 min deep video', icon: '▶️' }],
 }
 
 // Map format choice to generation instructions
@@ -799,6 +867,7 @@ export default function ContentCaptureV2Client() {
   const [weekPieces, setWeekPieces] = useState([])
   const [aiQuestions, setAiQuestions] = useState(null)
   const [aiQLoading, setAiQLoading] = useState(false)
+  const [chosenEngines, setChosenEngines] = useState({})
   const [chosenFormats, setChosenFormats] = useState({})
 
   // Saved weeks
@@ -993,24 +1062,26 @@ export default function ContentCaptureV2Client() {
 
   // ── Generation ────────────────────────────────────────────────────────────
 
-  async function generateEnrichQuestions(momentLine, momentType, job) {
+  async function generateEnrichQuestions(momentLine, momentType, job, engine, format) {
     const jobLabel = { reach: 'a post to get noticed by strangers (cold reach)', value: 'a post to build trust with followers (warm audience)', sales: 'a post to sell to warm audience', email: 'an email to their list', longform: 'a YouTube video' }[job] || job
     const typeLabel = TYPESHORT[momentType] || momentType
+    const engineLabel = engine ? (ENGINES.find(e => e.id === engine)?.label || engine) : 'not yet chosen'
+    const formatLabel = format || 'not yet chosen'
     const prompt = `You are inside a content tool. A coach has logged this moment:
 
 "${momentLine}"
 
 Moment type: ${typeLabel}
 This will become: ${jobLabel}
+Content engine: ${engineLabel} (${engine === 'story' ? 'builds recognition and belief through narrative' : engine === 'teaching' ? 'builds authority through method and how-to' : engine === 'proof' ? 'builds certainty through results and receipts' : engine === 'offer' ? 'builds decisions through the thing for sale' : 'to be determined'})
+Format: ${formatLabel}
 
-Generate exactly 3 follow-up questions to extract the detail needed to write this piece. Each question should react to what they actually wrote — reference their specific words, names, or situation.
+Generate exactly 3 follow-up questions to extract the detail needed to write this specific type of piece. Each question should react to what they actually wrote — reference their specific words, names, or situation.
 
 Rules:
-- Questions must be specific to THIS moment, not generic
+- Questions must be specific to THIS moment AND this engine/format combination
+- ${engine === 'story' ? 'Dig for the scene, the emotion, the turning point — stories need vivid detail and a before/after' : engine === 'teaching' ? 'Dig for the method, the step, the mistake — teaching needs the practitioner detail only someone who has done it would know' : engine === 'proof' ? 'Dig for the exact number, the timeline, the starting point — proof needs specific measurable results' : engine === 'offer' ? 'Dig for the deadline, the constraint, the reason now — offer content needs urgency and a clear ask' : 'Ask for the detail that is missing'}
 - Ask for the detail that's missing from what they wrote — don't ask for things they already said
-- One question should dig for a specific number, date, or measurable detail
-- One should dig for a vivid scene, quote, or sensory detail
-- One should dig for the insight, lesson, or change that makes it a story
 - Keep questions short and direct — one line each, like a coach would ask
 - Add a one-line hint under each question
 
@@ -1653,12 +1724,16 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
     const sl = weekPieces[weekIdx]
     const m = sl.moment
+    const currentEngine = chosenEngines[weekIdx]
+    const currentFormat = chosenFormats[weekIdx]
     const fallbackQs = getEnrichQuestions(m.type, sl.job)
+    const bothChosen = currentEngine && currentFormat
 
-    // Generate AI-tailored questions when the post changes
-    if (!aiQuestions && !aiQLoading) {
+    // Generate AI-tailored questions AFTER engine + format are chosen
+    if (bothChosen && !aiQuestions && !aiQLoading) {
       setAiQLoading(true)
-      generateEnrichQuestions(m.line, m.type, sl.job).then(qs => {
+      const fmtLabel = getFormatsForJobEngine(sl.job, currentEngine).find(f => f.id === currentFormat)?.label || currentFormat
+      generateEnrichQuestions(m.line, m.type, sl.job, currentEngine, fmtLabel).then(qs => {
         setAiQuestions(qs)
         setAiQLoading(false)
       }).catch(() => {
@@ -1697,37 +1772,61 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             <p className="text-sm text-white">{m.line}</p>
             <span className="text-xs text-gold/60 uppercase tracking-widest">{TYPESHORT[m.type]}</span>
           </div>
-          <Question>Flesh this one out.</Question>
-          <DimLabel>These questions are based on what you wrote. Answer what you can — skip what doesn't apply.</DimLabel>
-
-          <div className="space-y-4">
-            {qs.map(([key, q, hint], qi) => (
-              <div key={`${weekIdx}-${key}`} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                <label className="block text-sm font-bold text-white mb-1">{q}</label>
-                <p className="text-xs text-zinc-500 mb-2">{hint}</p>
-                <textarea
-                  rows={2}
-                  defaultValue={(m.enrichment || {})[key] || ''}
-                  id={`week-enrich-${weekIdx}-${key}`}
-                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-6">
-            <GoldLabel>Pick the format</GoldLabel>
-            <DimLabel>How should this piece be built?</DimLabel>
-            <div className="grid grid-cols-2 gap-2">
-              {(FORMAT_OPTIONS[sl.job] || FORMAT_OPTIONS.reach).map(f => (
-                <button key={f.id} onClick={() => setChosenFormats(prev => ({ ...prev, [weekIdx]: f.id }))}
-                  className={`text-left px-3 py-3 rounded-lg border transition ${chosenFormats[weekIdx] === f.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300'}`}>
-                  <span className="text-sm">{f.icon} {f.label}</span>
-                  <span className="block text-xs text-zinc-500 mt-0.5">{f.desc}</span>
+          <div className="mt-2">
+            <GoldLabel>What's this piece doing?</GoldLabel>
+            <DimLabel>Pick the engine — then the format options adjust.</DimLabel>
+            <div className="grid grid-cols-2 gap-2 mb-4">
+              {getAvailableEngines(sl.job).map(eng => (
+                <button key={eng.id} onClick={() => { setChosenEngines(prev => ({ ...prev, [weekIdx]: eng.id })); setChosenFormats(prev => { const u = { ...prev }; delete u[weekIdx]; return u }); setAiQuestions(null) }}
+                  className={`text-left px-3 py-3 rounded-lg border transition ${chosenEngines[weekIdx] === eng.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300'}`}>
+                  <span className="text-sm">{eng.icon} {eng.label}</span>
+                  <span className="block text-xs text-zinc-500 mt-0.5">{eng.desc}</span>
                 </button>
               ))}
             </div>
+
+            {chosenEngines[weekIdx] && (
+              <>
+                <GoldLabel>Pick the format</GoldLabel>
+                {(() => {
+                  const formats = getFormatsForJobEngine(sl.job, chosenEngines[weekIdx])
+                  if (formats.length === 0) return <p className="text-sm text-zinc-500">This engine doesn't run at this stage — pick another.</p>
+                  return (
+                    <div className="grid grid-cols-2 gap-2">
+                      {formats.map(f => (
+                        <button key={f.id} onClick={() => { setChosenFormats(prev => ({ ...prev, [weekIdx]: f.id })); setAiQuestions(null) }}
+                          className={`text-left px-3 py-3 rounded-lg border transition ${chosenFormats[weekIdx] === f.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300'}`}>
+                          <span className="text-sm">{f.icon} {f.label}</span>
+                          <span className="block text-xs text-zinc-500 mt-0.5">{f.desc}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )
+                })()}
+              </>
+            )}
           </div>
+
+          {bothChosen && (
+            <div className="mt-6">
+              <GoldLabel>Now flesh it out</GoldLabel>
+              <DimLabel>These questions are tailored to your moment, your engine, and your format. Answer what you can.</DimLabel>
+              <div className="space-y-4">
+                {qs.map(([key, q, hint], qi) => (
+                  <div key={`${weekIdx}-${key}`} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                    <label className="block text-sm font-bold text-white mb-1">{q}</label>
+                    <p className="text-xs text-zinc-500 mb-2">{hint}</p>
+                    <textarea
+                      rows={2}
+                      defaultValue={(m.enrichment || {})[key] || ''}
+                      id={`week-enrich-${weekIdx}-${key}`}
+                      className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => {
@@ -1735,7 +1834,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               if (weekIdx > 0) { setWeekIdx(weekIdx - 1) }
               else setScreen('board')
             }}>← Back</GhostBtn>
-            <Btn gold disabled={!chosenFormats[weekIdx]} onClick={() => {
+            <Btn gold disabled={!bothChosen || !chosenFormats[weekIdx]} onClick={() => {
               const enrichment = { ...(m.enrichment || {}) }
               qs.forEach(([key]) => {
                 const el = document.getElementById(`week-enrich-${weekIdx}-${key}`)
