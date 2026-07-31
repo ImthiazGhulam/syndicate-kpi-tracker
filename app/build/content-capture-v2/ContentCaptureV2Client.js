@@ -538,8 +538,6 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   const [expanded, setExpanded] = useState(false)
   const [capType, setCapType] = useState('client')
   const [capLine, setCapLine] = useState('')
-  const [enrichStep, setEnrichStep] = useState(-1)
-  const [enrichAnswers, setEnrichAnswers] = useState({})
 
   if (moment) {
     return (
@@ -565,10 +563,6 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
       </div>
     )
   }
-
-  // Inline capture flow
-  const qs = getEnrichQuestions(capType, job)
-  const currentQ = qs ? qs[enrichStep] : null
 
   // Sales angle picker for sales slots
   if (job === 'sales' && !salesAngle) {
@@ -596,69 +590,37 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
     )
   }
 
-  // Capture line input
-  if (!capLine.trim() || enrichStep < 0) {
-    return (
-      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
-        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
-        {job === 'sales' && salesAngle && (
-          <p className="text-xs text-zinc-500 mt-1">Selling: {SALES_ANGLES.find(a => a.id === salesAngle)?.t}</p>
-        )}
-        <div className="flex gap-1.5 flex-wrap mt-3 mb-2">
-          {MOMENTS.map(m => (
-            <button key={m.id} onClick={() => setCapType(m.id)}
-              className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition border ${capType === m.id ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>
-              {TYPESHORT[m.id]}
-            </button>
-          ))}
-        </div>
-        <div className="flex gap-2">
-          <input value={capLine} onChange={e => setCapLine(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && capLine.trim()) setEnrichStep(0) }}
-            placeholder="One line — what happened?"
-            className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
-          <Btn gold onClick={() => { if (capLine.trim()) setEnrichStep(0) }}>→</Btn>
-        </div>
-        <button onClick={() => { setExpanded(false); setCapLine('') }} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest mt-2">← Cancel</button>
+  // Capture: type selector + one-line input only — enrichment happens in "Flesh them out"
+  function submit() {
+    if (!capLine.trim()) return
+    onCapture(capType, capLine.trim(), {}, salesAngle)
+    setCapLine('')
+    setExpanded(false)
+  }
+
+  return (
+    <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
+      <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+      {job === 'sales' && salesAngle && (
+        <p className="text-xs text-zinc-500 mt-1">Selling: {SALES_ANGLES.find(a => a.id === salesAngle)?.t}</p>
+      )}
+      <div className="flex gap-1.5 flex-wrap mt-3 mb-2">
+        {MOMENTS.map(m => (
+          <button key={m.id} onClick={() => setCapType(m.id)}
+            className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition border ${capType === m.id ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>
+            {TYPESHORT[m.id]}
+          </button>
+        ))}
       </div>
-    )
-  }
-
-  // Enrichment questions inline
-  if (currentQ && enrichStep < qs.length) {
-    const [key, q, hint] = currentQ
-    return (
-      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
-        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
-        <p className="text-xs text-zinc-500 mt-1 mb-3">{capLine}</p>
-        <p className="text-sm font-bold text-white mb-1">{q}</p>
-        <p className="text-xs text-zinc-500 mb-2">{hint}</p>
-        <input key={`${job}-${enrichStep}`} defaultValue={enrichAnswers[key] || ''} id={`inline-enrich-${job}`} autoFocus
-          onKeyDown={e => { if (e.key === 'Enter') advanceInline(key, false) }}
-          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
-        <div className="flex justify-between mt-2">
-          <button onClick={() => advanceInline(key, true)} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest">Skip</button>
-          <Btn gold onClick={() => advanceInline(key, false)}>{enrichStep < qs.length - 1 ? 'Next' : 'Done'}</Btn>
-        </div>
+      <div className="flex gap-2">
+        <input value={capLine} onChange={e => setCapLine(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit() }}
+          placeholder="One line — what happened?"
+          className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
+        <Btn gold onClick={submit}>→</Btn>
       </div>
-    )
-  }
-
-  return null
-
-  function advanceInline(key, skip) {
-    const val = skip ? '' : (document.getElementById(`inline-enrich-${job}`)?.value?.trim() || '')
-    const updated = { ...enrichAnswers, [key]: val }
-    setEnrichAnswers(updated)
-    if (enrichStep < qs.length - 1) {
-      setEnrichStep(enrichStep + 1)
-    } else {
-      onCapture(capType, capLine.trim(), updated, salesAngle)
-      setCapLine('')
-      setEnrichStep(0)
-      setEnrichAnswers({})
-      setExpanded(false)
-    }
-  }
+      <button onClick={() => { setExpanded(false); setCapLine('') }} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest mt-2">← Cancel</button>
+    </div>
+  )
 }
 
 function DialRing({ pct, color, trackColor, size = 64, stroke = 5 }) {
@@ -1536,31 +1498,11 @@ export default function ContentCaptureV2Client() {
       )
     }
 
-    // Skip moments that already have enrichment filled (captured inline on the board)
     const sl = weekPieces[weekIdx]
     const m = sl.moment
     const qs = getEnrichQuestions(m.type, sl.job)
-    const enrichment = m.enrichment || {}
-    const alreadyEnriched = qs.every(([k]) => enrichment[k] !== undefined && enrichment[k] !== '')
-    if (alreadyEnriched) {
-      // Auto-advance to next piece or start writing
-      if (weekIdx < weekPieces.length - 1) {
-        setTimeout(() => { setWeekIdx(weekIdx + 1); setWeekEnrichIdx(0) }, 0)
-      } else {
-        setTimeout(() => doWeekWrite(), 0)
-      }
-      return (
-        <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-          <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-          <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
-            <WritingScreen label={`SKIPPING — ALREADY ENRICHED (${weekIdx + 1}/${weekPieces.length})`} line={m.line} />
-          </main>
-        </div>
-      )
-    }
-
     const [key, q, hint] = qs[weekEnrichIdx]
-    const enrichVal = enrichment[key] || ''
+    const enrichVal = (m.enrichment || {})[key] || ''
 
     return (
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
