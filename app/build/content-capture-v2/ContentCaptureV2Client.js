@@ -149,13 +149,42 @@ function routeMoment(momId, job, hasNum, userStage) {
   return { card: 'c3' }
 }
 
-function buildPrompt(c, m, redoNote, arc) {
+function buildPrompt(c, m, redoNote, arc, ctx) {
   const e = m.enrichment || {}
   const facts = [`The moment, in their words: "${m.line}"`]
   if (e.scene) facts.push(`The scene: "${e.scene}"`)
   if (e.verb) facts.push(`Said word for word: "${e.verb}"`)
   if (e.num) facts.push(`The number: "${e.num}"`)
   if (e.change) facts.push(`What changed: "${e.change}"`)
+
+  let brandContext = ''
+  if (ctx) {
+    const lines = []
+    if (ctx.positioning) {
+      if (ctx.positioning.worksWithDesc) lines.push(`Who they work with: ${ctx.positioning.worksWithDesc}`)
+      if (ctx.positioning.refuses) lines.push(`Who they refuse: ${ctx.positioning.refuses}`)
+      if (ctx.positioning.brandPromise) lines.push(`Brand promise: ${ctx.positioning.brandPromise}`)
+      if (ctx.positioning.industryDisagreements) lines.push(`Industry disagreements: ${ctx.positioning.industryDisagreements}`)
+    }
+    if (ctx.distinction) {
+      if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
+      if (ctx.distinction.promise) lines.push(`Method promise: ${ctx.distinction.promise}`)
+      if (ctx.distinction.problems.length) lines.push(`Problems solved: ${ctx.distinction.problems.join(', ')}`)
+      if (ctx.distinction.pillars.length) lines.push(`Pillars: ${ctx.distinction.pillars.join(', ')}`)
+    }
+    if (ctx.offer) {
+      if (ctx.offer.offerName) lines.push(`Offer name: ${ctx.offer.offerName}`)
+      if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
+      if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
+      if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
+    }
+    if (ctx.icpPromise) lines.push(`ICP promise: ${ctx.icpPromise}`)
+    if (lines.length > 0) {
+      brandContext = `\nTHIS PERSON'S BRAND AND OFFER (use to guide tone, positioning, and who the content speaks to — weave naturally, never announce):
+${lines.join('\n')}`
+    }
+  }
+
   return `WHAT TO WRITE: ${c.fmt}.
 FORMAT INSTRUCTIONS: ${c.out}
 THE CALL TO ACTION: ${c.cta}
@@ -163,6 +192,7 @@ ${arc ? `
 STORY ARC — ${arc.n}. Follow these beats in this order, one arc only, never blended with another:
 ${arc.beats}
 STORY RULES: The reader or viewer is the hero — the writer is only the guide who was once where they are. Credentials are never announced, only leaked as scenery ("back when I was..." never "as a successful..."). The villain must be a scene, not an abstract noun. The turn back onto the viewer is mandatory — without it, this is just someone talking about themselves.` : ''}
+${brandContext}
 
 THE ONLY FACTS YOU MAY USE:
 ${facts.join('\n')}
@@ -183,26 +213,22 @@ ${redoNote ? `\nTHE LAST DRAFT WASN'T RIGHT: ${redoNote} Take a genuinely differ
 // ── Sub-components ────────────────────────────────────────────────────────────
 
 function GoldLabel({ children }) {
-  return <label className="block text-[10px] font-bold text-gold uppercase tracking-[0.2em] mb-2">{children}</label>
+  return <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">{children}</label>
 }
 
 function DimLabel({ children }) {
-  return <p className="text-zinc-500 text-[13px] mb-5 max-w-xl">{children}</p>
+  return <p className="text-zinc-500 text-sm mb-5 max-w-xl">{children}</p>
 }
 
 function Question({ children }) {
-  return <h2 className="text-xl md:text-2xl font-normal text-white mb-2 leading-tight">{children}</h2>
-}
-
-function GoldBar() {
-  return <div className="w-8 h-px bg-gold mb-5" />
+  return <h1 className="text-2xl font-bold font-display tracking-tight mb-1">{children}</h1>
 }
 
 function OptionButton({ children, sub, selected, onClick }) {
   return (
-    <button onClick={onClick} className={`w-full text-left px-5 py-4 rounded border transition-all text-[15px] font-light leading-snug ${selected ? 'border-gold bg-white/[0.04]' : 'border-white/[0.08] bg-white/[0.02] hover:border-gold/30 hover:bg-white/[0.03]'}`}>
+    <button onClick={onClick} className={`w-full text-left px-4 py-3 rounded-lg text-sm font-bold transition border ${selected ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-900 text-zinc-300 border-zinc-800 hover:border-zinc-600'}`}>
       {children}
-      {sub && <span className="block text-zinc-600 text-[12.5px] mt-1">{sub}</span>}
+      {sub && <span className="block text-zinc-500 text-xs mt-1 font-normal">{sub}</span>}
     </button>
   )
 }
@@ -210,7 +236,7 @@ function OptionButton({ children, sub, selected, onClick }) {
 function Btn({ children, onClick, disabled, gold }) {
   return (
     <button onClick={onClick} disabled={disabled}
-      className={`text-[10.5px] font-mono uppercase tracking-[0.16em] px-5 py-3 rounded border transition-all ${disabled ? 'opacity-30 cursor-not-allowed' : ''} ${gold ? 'border-gold text-gold hover:bg-gold hover:text-zinc-950' : 'border-white/[0.08] text-zinc-400 hover:border-gold/30 hover:text-white'}`}>
+      className={`px-5 py-3 rounded-lg font-bold text-sm uppercase tracking-widest transition ${disabled ? 'opacity-50 cursor-not-allowed' : ''} ${gold ? 'bg-gold hover:bg-gold-light text-zinc-950' : 'bg-zinc-800 text-zinc-300 hover:bg-zinc-700'}`}>
       {children}
     </button>
   )
@@ -218,7 +244,7 @@ function Btn({ children, onClick, disabled, gold }) {
 
 function GhostBtn({ children, onClick }) {
   return (
-    <button onClick={onClick} className="text-[10px] font-mono uppercase tracking-[0.14em] text-zinc-600 hover:text-zinc-400 py-2">
+    <button onClick={onClick} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">
       {children}
     </button>
   )
@@ -226,7 +252,7 @@ function GhostBtn({ children, onClick }) {
 
 function NoteBox({ children, gold }) {
   return (
-    <div className={`border-l-2 ${gold ? 'border-gold' : 'border-white/[0.08]'} px-4 py-3 bg-white/[0.02] text-[13.5px] text-zinc-400 rounded-r mt-3`}>
+    <div className={`border-l-2 ${gold ? 'border-gold' : 'border-zinc-700'} px-4 py-3 bg-zinc-900 text-sm text-zinc-400 rounded-r mt-3`}>
       {children}
     </div>
   )
@@ -234,8 +260,8 @@ function NoteBox({ children, gold }) {
 
 function LogLine({ moment, onDelete }) {
   return (
-    <div className="flex items-center gap-3 bg-white/[0.02] border border-white/[0.08] rounded px-4 py-3 mb-2 text-sm">
-      <span className="font-mono text-[8.5px] tracking-[0.12em] uppercase text-gold/50 min-w-[78px]">{TYPESHORT[moment.type]}</span>
+    <div className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 mb-2 text-sm">
+      <span className="text-xs font-bold text-gold/60 uppercase tracking-widest min-w-[78px]">{TYPESHORT[moment.type]}</span>
       <span className="flex-1 text-white">{moment.line}</span>
       <button onClick={onDelete} className="text-zinc-600 hover:text-white px-1">×</button>
     </div>
@@ -245,9 +271,9 @@ function LogLine({ moment, onDelete }) {
 function WritingScreen({ line, label }) {
   return (
     <div className="text-center py-16">
-      <div className="w-10 h-px bg-gold mx-auto mb-6 animate-pulse" />
-      <p className="font-display text-sm tracking-[0.14em] text-gold mb-3">{label || 'WRITING YOUR PIECE'}</p>
-      {line && <p className="text-zinc-400 text-[13.5px]">{line}</p>}
+      <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+      <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse mb-2">{label || 'WRITING YOUR PIECE'}</p>
+      {line && <p className="text-zinc-500 text-sm">{line}</p>}
     </div>
   )
 }
@@ -265,24 +291,24 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
   function renderPiece(text) {
     if (!text) return <span className="text-zinc-500">This one didn't write. Tap rewrite to try again.</span>
     return text.split(/(\{\{[^}]+\}\})/).map((part, i) =>
-      part.startsWith('{{') ? <span key={i} className="text-gold font-mono text-[12.5px]">{part}</span> : part
+      part.startsWith('{{') ? <span key={i} className="text-gold font-bold text-xs">{part}</span> : part
     )
   }
 
   return (
-    <div className="bg-white/[0.03] border border-gold/20 rounded p-5 mb-3">
+    <div className="glass-card p-5 mb-3">
       <div className="flex justify-between items-baseline mb-3 gap-3 flex-wrap">
-        <h4 className="font-mono text-[9.5px] tracking-[0.18em] uppercase text-gold">{title}</h4>
-        {subtitle && <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-zinc-600">{subtitle}</span>}
+        <h4 className="text-xs font-bold text-gold uppercase tracking-widest">{title}</h4>
+        {subtitle && <span className="text-xs text-zinc-600 uppercase tracking-widest">{subtitle}</span>}
       </div>
-      {swap && <NoteBox gold><span className="text-gold font-medium">One switch made:</span> {swap}</NoteBox>}
-      <div className="text-[14.5px] leading-relaxed whitespace-pre-wrap text-white mt-3">{renderPiece(piece)}</div>
+      {swap && <NoteBox gold><span className="text-gold font-bold">One switch made:</span> {swap}</NoteBox>}
+      <div className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300 mt-3">{renderPiece(piece)}</div>
       {piece && piece.includes('{{') && (
-        <NoteBox gold><span className="text-gold font-medium">The gold gaps are yours.</span> Details you didn't give — nothing was made up. Drop the real thing in and it's done.</NoteBox>
+        <NoteBox gold><span className="text-gold font-bold">The gold gaps are yours.</span> Details you didn't give — nothing was made up. Drop the real thing in and it's done.</NoteBox>
       )}
       {dont && dont.length > 0 && (
         <div className="mt-3">
-          <button onClick={() => setShowDont(!showDont)} className="font-mono text-[10px] tracking-[0.16em] uppercase text-zinc-600 hover:text-zinc-400">
+          <button onClick={() => setShowDont(!showDont)} className="text-xs font-bold uppercase tracking-widest text-zinc-600 hover:text-zinc-400">
             {showDont ? '− ' : '+ '}What to avoid
           </button>
           {showDont && <NoteBox>{dont.map((k, i) => <span key={i}>× {k}<br /></span>)}</NoteBox>}
@@ -301,10 +327,10 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
 function Modal({ open, title, body, options, onClose }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-start justify-center z-50 p-[6vh_18px] overflow-y-auto" onClick={onClose}>
-      <div className="bg-[#121214] border border-gold/20 rounded max-w-[560px] w-full p-7 relative animate-fade-in" onClick={e => e.stopPropagation()}>
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center" onClick={onClose}>
+      <div className="glass-card max-w-[560px] w-full p-7 relative mx-4" onClick={e => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-3 right-4 text-xl text-zinc-600 hover:text-white">×</button>
-        <h3 className="font-display text-sm tracking-[0.1em] text-gold mb-3">{title}</h3>
+        <h3 className="text-lg font-bold font-display tracking-tight text-gold mb-3">{title}</h3>
         <p className="text-sm text-zinc-400 mb-4">{body}</p>
         <div className="flex flex-col gap-2">
           {options.map((opt, i) => (
@@ -319,10 +345,10 @@ function Modal({ open, title, body, options, onClose }) {
 function BottomSheet({ open, title, subtitle, children, onClose }) {
   if (!open) return null
   return (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-end justify-center z-50" onClick={onClose}>
-      <div className="bg-[#121214] border border-gold/20 rounded-t max-w-[680px] w-full p-6 max-h-[70vh] overflow-y-auto animate-fade-in" onClick={e => e.stopPropagation()}>
-        <h3 className="font-mono text-[10px] tracking-[0.18em] uppercase text-gold mb-1">{title}</h3>
-        {subtitle && <p className="text-[12.5px] text-zinc-600 mb-4">{subtitle}</p>}
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-end justify-center" onClick={onClose}>
+      <div className="bg-zinc-950 border-t border-gold/20 rounded-t-xl max-w-[680px] w-full p-6 max-h-[70vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <GoldLabel>{title}</GoldLabel>
+        {subtitle && <p className="text-xs text-zinc-500 mb-4">{subtitle}</p>}
         {children}
       </div>
     </div>
@@ -331,18 +357,18 @@ function BottomSheet({ open, title, subtitle, children, onClose }) {
 
 function SlotCard({ job, day, moment, onPick }) {
   return (
-    <div className={`bg-white/[0.02] border ${moment ? 'border-white/[0.08]' : 'border-white/[0.06]'} rounded px-4 py-3 mb-2 transition`}>
+    <div className={`rounded-lg border p-4 mb-2 transition ${moment ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-900/50 border-zinc-800/50'}`}>
       <div className="flex justify-between items-baseline mb-1">
-        <span className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-gold">{JOBNAMES[job]}</span>
-        <span className="font-mono text-[9px] tracking-[0.12em] uppercase text-zinc-600">{day}</span>
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        <span className="text-xs text-zinc-600 uppercase tracking-widest">{day}</span>
       </div>
       {moment ? (
         <>
-          <p className="text-sm text-white py-1">{moment.line}</p>
-          <button onClick={onPick} className="font-mono text-[9.5px] tracking-[0.12em] uppercase text-gold/50 hover:text-gold pt-1">Change moment</button>
+          <p className="text-sm text-zinc-300 py-1">{moment.line}</p>
+          <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest pt-1">Change moment</button>
         </>
       ) : (
-        <button onClick={onPick} className="font-mono text-[9.5px] tracking-[0.12em] uppercase text-gold/50 hover:text-gold py-2">+ Pick a moment</button>
+        <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest py-2">+ Pick a moment</button>
       )}
     </div>
   )
@@ -350,14 +376,14 @@ function SlotCard({ job, day, moment, onPick }) {
 
 function Stepper({ label, note, value, onMinus, onPlus, minDisabled, maxDisabled }) {
   return (
-    <div className="bg-white/[0.02] border border-white/[0.08] rounded px-4 py-3 mb-2 flex items-center justify-between gap-3">
+    <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 mb-2 flex items-center justify-between gap-3">
       <div>
-        <span className="font-mono text-[9.5px] tracking-[0.16em] uppercase text-gold">{label}</span>
-        <div className="text-[12px] text-zinc-600 mt-1">{note}</div>
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{label}</span>
+        <div className="text-xs text-zinc-500 mt-1">{note}</div>
       </div>
       <div className="flex items-center gap-3">
         <Btn onClick={onMinus} disabled={minDisabled}>−</Btn>
-        <span className="font-display text-lg text-gold min-w-[16px] text-center">{value}</span>
+        <span className="font-display text-lg font-bold text-gold min-w-[16px] text-center">{value}</span>
         <Btn onClick={onPlus} disabled={maxDisabled}>+</Btn>
       </div>
     </div>
@@ -410,6 +436,9 @@ export default function ContentCaptureV2Client() {
   const [writing, setWriting] = useState(false)
   const [writingLine, setWritingLine] = useState('')
 
+  // Playbook data (loaded once for AI context)
+  const [playbookContext, setPlaybookContext] = useState(null)
+
   const saveTimer = useRef(null)
 
   // ── Auth + Load ───────────────────────────────────────────────────────────
@@ -436,6 +465,48 @@ export default function ContentCaptureV2Client() {
       // Load capture log
       const { data: logData } = await supabase.from('cc_capture_log').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
       if (logData) setLog(logData)
+
+      // Load playbook data for AI context
+      const [ppRes, deRes, soRes] = await Promise.all([
+        supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle(),
+        supabase.from('distinction_engine').select('*').eq('client_id', client.id).maybeSingle(),
+        supabase.from('offer_playbooks').select('*').eq('client_id', client.id).maybeSingle(),
+      ])
+      const ctx = {}
+      if (ppRes.data) {
+        const pp = ppRes.data
+        const star = pp.brand_star || {}
+        ctx.positioning = {
+          worksWithDesc: star.specific_description || '',
+          refuses: star.refuse || '',
+          industryDisagreements: star.disagreements || '',
+          brandPromise: star.brand_promise || '',
+        }
+      }
+      if (deRes.data) {
+        const de = deRes.data
+        ctx.distinction = {
+          engineName: de.engine_name || '',
+          problems: [de.problem_1, de.problem_2, de.problem_3].filter(Boolean),
+          pillars: [de.pillar_1, de.pillar_2, de.pillar_3].filter(Boolean),
+          promise: de.promise || '',
+        }
+      }
+      if (soRes.data) {
+        const so = soRes.data
+        const bb = so.bang_bang_data || {}
+        const icp = so.icp_data || {}
+        ctx.offer = {
+          offerName: bb.name || '',
+          corePromise: bb.promise || '',
+          whoItsFor: bb.who_for || '',
+          whoItsNotFor: bb.who_not_for || '',
+          price: bb.price || '',
+          guarantee: bb.guarantee_detail || '',
+        }
+        if (icp.promise) ctx.icpPromise = icp.promise
+      }
+      if (Object.keys(ctx).length > 0) setPlaybookContext(ctx)
 
       setLoading(false)
       if (profile && profile.stage && profile.has_list !== null) {
@@ -476,7 +547,7 @@ export default function ContentCaptureV2Client() {
   // ── Generation ────────────────────────────────────────────────────────────
 
   async function generate(card, moment, redoNote, arc) {
-    const prompt = buildPrompt(card, moment, redoNote, arc)
+    const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext)
     const res = await fetch('/api/generate-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -552,9 +623,9 @@ export default function ContentCaptureV2Client() {
 
   if (screen === 'stage') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={stage ? () => setScreen('home') : null} onStage={() => {}} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <Question>Where's your <span className="text-gold font-medium">business at</span> right now?</Question>
           <DimLabel>One tap. This quietly shapes what your week looks like and what the tool suggests. Change it any time up top.</DimLabel>
           <div className="flex flex-col gap-2">
@@ -576,9 +647,9 @@ export default function ContentCaptureV2Client() {
 
   if (screen === 'channels') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={stage ? () => setScreen('home') : null} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <Question>Two quick things about your <span className="text-gold font-medium">channels</span>.</Question>
           <DimLabel>These decide whether your week includes an email and a YouTube video alongside the posts.</DimLabel>
           <GoldLabel>Do you have an email list?</GoldLabel>
@@ -609,18 +680,18 @@ export default function ContentCaptureV2Client() {
 
   if (screen === 'home') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <GoldBar />
           <GoldLabel>The Motherboard · Content system</GoldLabel>
           <Question>What do you want to <span className="text-gold font-medium">do</span>?</Question>
 
           <div className="flex flex-col gap-3 mb-7">
             <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setScreen('quick-moment') }}
-              className="text-left bg-white/[0.02] border border-white/[0.08] rounded p-5 transition hover:border-gold hover:bg-white/[0.03] hover:-translate-y-px hover:shadow-lg">
-              <p className="font-display text-[13px] tracking-[0.1em] text-gold mb-1">WRITE ONE POST NOW</p>
-              <p className="text-[13.5px] text-zinc-400">Something happened — turn it into content in two minutes.</p>
+              className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
+              <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">WRITE ONE POST NOW</p>
+              <p className="text-sm text-zinc-500">Something happened — turn it into content in two minutes.</p>
             </button>
             <button onClick={() => {
               if (log.length === 0) {
@@ -630,9 +701,9 @@ export default function ContentCaptureV2Client() {
               const slots = buildWeekSlots()
               setWeekSlots(slots); setWeekIdx(0); setWeekEnrichIdx(0); setScreen('board')
             }}
-              className="text-left bg-white/[0.02] border border-white/[0.08] rounded p-5 transition hover:border-gold hover:bg-white/[0.03] hover:-translate-y-px hover:shadow-lg">
-              <p className="font-display text-[13px] tracking-[0.1em] text-gold mb-1">PLAN MY WEEK</p>
-              <p className="text-[13.5px] text-zinc-400">
+              className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
+              <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">PLAN MY WEEK</p>
+              <p className="text-sm text-zinc-500">
                 {pieceCount} posts this week ({mix.reach} to get noticed, {mix.value} to build trust{mix.sales ? `, ${mix.sales} to sell` : ''})
                 {hasList && emailCount ? `, plus ${emailCount === 1 ? 'an email' : emailCount + ' emails'} to your list` : ''}
                 {doesYT && ytCount ? `, plus ${ytCount === 1 ? 'a YouTube video' : ytCount + ' YouTube videos'}` : ''}.
@@ -645,7 +716,7 @@ export default function ContentCaptureV2Client() {
           <div className="flex gap-1.5 flex-wrap mb-2">
             {MOMENTS.map(m => (
               <button key={m.id} onClick={() => setCapType(m.id)}
-                className={`border rounded px-2.5 py-1.5 font-mono text-[9px] tracking-[0.1em] uppercase transition ${capType === m.id ? 'border-gold text-gold' : 'border-white/[0.08] text-zinc-400'}`}>
+                className={`px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition border ${capType === m.id ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-900 text-zinc-400 border-zinc-800 hover:border-zinc-600'}`}>
                 {TYPESHORT[m.id]}
               </button>
             ))}
@@ -653,13 +724,13 @@ export default function ContentCaptureV2Client() {
           <div className="flex gap-2 mt-2">
             <input value={capLine} onChange={e => setCapLine(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') handleAddLog() }}
               placeholder='"Sarah said she finally trusts her bank app."'
-              className="flex-1 px-4 py-3 bg-white/[0.02] border border-white/[0.08] rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-[14.5px] font-light" />
+              className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
             <Btn gold onClick={handleAddLog}>Log</Btn>
           </div>
 
           <div className="mt-4">
             {log.length === 0 ? (
-              <div className="border border-dashed border-white/[0.08] rounded p-6 text-center text-zinc-600 text-[13.5px]">
+              <div className="border border-dashed border-zinc-700 rounded-lg p-6 text-center text-zinc-500 text-sm">
                 Nothing logged yet. One line a day is the whole habit — the tool builds from these.
               </div>
             ) : (
@@ -676,9 +747,9 @@ export default function ContentCaptureV2Client() {
 
   if (screen === 'quick-moment') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <Question>What's <span className="text-gold font-medium">actually happened</span>?</Question>
           <DimLabel>Real content starts with real life.</DimLabel>
           {log.length > 0 && (
@@ -687,7 +758,7 @@ export default function ContentCaptureV2Client() {
               <div className="flex flex-col gap-2 mb-5">
                 {log.map(m => (
                   <OptionButton key={m.id} onClick={() => { setQuickMoment(m); setScreen('quick-job') }}>
-                    <span className="block font-mono text-[8.5px] tracking-[0.1em] uppercase text-gold/50 mb-1">{TYPESHORT[m.type]}</span>
+                    <span className="block text-xs font-bold uppercase tracking-widest text-gold/60 mb-1">{TYPESHORT[m.type]}</span>
                     {m.line}
                   </OptionButton>
                 ))}
@@ -712,14 +783,14 @@ export default function ContentCaptureV2Client() {
     const typeId = screen.replace('quick-line-', '')
     const mt = MOMENTS.find(x => x.id === typeId)
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <Question>Tell me in <span className="text-gold font-medium">one line</span>.</Question>
           <DimLabel>{mt.t} — just the bones. We'll flesh it out next.</DimLabel>
           <textarea rows={2} autoFocus value={capLine} onChange={e => setCapLine(e.target.value)}
             placeholder="e.g. Sarah told me she finally trusts the number in her bank app."
-            className="w-full px-4 py-3 bg-white/[0.02] border border-white/[0.08] rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-[14.5px] font-light resize-none" />
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => { setCapLine(''); setScreen('quick-moment') }}>← Back</GhostBtn>
             <Btn gold onClick={async () => {
@@ -748,9 +819,9 @@ export default function ContentCaptureV2Client() {
       { j: 'sales', t: 'Make a sale', s: 'Warm audience, something to act on' },
     ]
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <Question>This can do <span className="text-gold font-medium">one job</span>. Which?</Question>
           <DimLabel>Based on your stage, I'd point it at "{jobs.find(x => x.j === sug).t}" — but it's your call.</DimLabel>
           <div className="flex flex-col gap-2">
@@ -788,18 +859,18 @@ export default function ContentCaptureV2Client() {
     const enrichVal = (quickMoment.enrichment || {})[key] || ''
 
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <Question>{q}</Question>
           <DimLabel>{hint}</DimLabel>
           <textarea rows={2} autoFocus defaultValue={enrichVal}
             id="enrich-input"
-            className="w-full px-4 py-3 bg-white/[0.02] border border-white/[0.08] rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-[14.5px] font-light resize-none" />
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => { if (enrichIdx > 0) setEnrichIdx(enrichIdx - 1); else setScreen('quick-job') }}>← Back</GhostBtn>
             <div className="flex gap-3 items-center">
-              <button onClick={() => advanceEnrich(true)} className="font-mono text-[10px] tracking-[0.14em] uppercase text-zinc-600 hover:text-zinc-400">Skip</button>
+              <button onClick={() => advanceEnrich(true)} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">Skip</button>
               <Btn gold onClick={() => advanceEnrich(false)}>{enrichIdx < qs.length - 1 ? 'Next →' : 'Write my post →'}</Btn>
             </div>
           </div>
@@ -812,9 +883,9 @@ export default function ContentCaptureV2Client() {
 
   if (screen === 'quick-writing') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <WritingScreen line={writingLine} label="WRITING YOUR PIECE" />
         </main>
       </div>
@@ -824,9 +895,9 @@ export default function ContentCaptureV2Client() {
   if (screen === 'quick-result' && quickCard) {
     const card = CARDS[quickCard]
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <GoldLabel>Your piece</GoldLabel>
           <h3 className="text-lg font-display tracking-[0.06em] text-white mb-4">{card.nm.toUpperCase()}</h3>
           <PieceCard
@@ -863,9 +934,9 @@ export default function ContentCaptureV2Client() {
   if (screen === 'board') {
     const filled = weekSlots.filter(s => s.moment).length
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <GoldLabel>Your week — shaped by your stage</GoldLabel>
           <Question>Match <span className="text-gold font-medium">moments</span> to the week's posts.</Question>
           <DimLabel>Tap a slot, pick a moment. Or let the tool suggest and adjust from there. Empty slots just get skipped.</DimLabel>
@@ -915,7 +986,7 @@ export default function ContentCaptureV2Client() {
                     updated[picker].moment = m
                     setWeekSlots(updated); setPicker(null)
                   }}>
-                    <span className="block font-mono text-[8.5px] tracking-[0.1em] uppercase text-gold/50 mb-1">{TYPESHORT[m.type]}</span>
+                    <span className="block text-xs font-bold uppercase tracking-widest text-gold/60 mb-1">{TYPESHORT[m.type]}</span>
                     {m.line}
                   </OptionButton>
                 ))}
@@ -925,7 +996,7 @@ export default function ContentCaptureV2Client() {
                 </div>
               </div>
             ) : (
-              <div className="border border-dashed border-white/[0.08] rounded p-6 text-center text-zinc-600 text-[13.5px]">
+              <div className="border border-dashed border-zinc-700 rounded-lg p-6 text-center text-zinc-500 text-sm">
                 Every logged moment is already placed. Log another from the home screen, or leave this slot empty.
               </div>
             )
@@ -943,7 +1014,7 @@ export default function ContentCaptureV2Client() {
       return (
         <div className="min-h-screen bg-zinc-950 text-white">
           <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-          <main className="max-w-[680px] mx-auto px-5 py-8">
+          <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
             <WritingScreen label="WRITING YOUR WEEK" />
           </main>
         </div>
@@ -957,17 +1028,17 @@ export default function ContentCaptureV2Client() {
     const enrichVal = (m.enrichment || {})[key] || ''
 
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
-          <p className="font-mono text-[10px] tracking-[0.16em] uppercase text-gold/50 mb-4">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+          <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-4">
             Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
           </p>
           <p className="text-zinc-600 text-[13px] mb-2">{m.line}</p>
           <Question>{q}</Question>
           <DimLabel>{hint}</DimLabel>
           <textarea rows={2} autoFocus defaultValue={enrichVal} id="week-enrich-input"
-            className="w-full px-4 py-3 bg-white/[0.02] border border-white/[0.08] rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-[14.5px] font-light resize-none" />
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => {
               if (weekEnrichIdx > 0) setWeekEnrichIdx(weekEnrichIdx - 1)
@@ -975,7 +1046,7 @@ export default function ContentCaptureV2Client() {
               else setScreen('board')
             }}>← Back</GhostBtn>
             <div className="flex gap-3 items-center">
-              <button onClick={() => advanceWeekEnrich(true)} className="font-mono text-[10px] tracking-[0.14em] uppercase text-zinc-600 hover:text-zinc-400">Skip</button>
+              <button onClick={() => advanceWeekEnrich(true)} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">Skip</button>
               <Btn gold onClick={() => advanceWeekEnrich(false)}>
                 {weekEnrichIdx < qs.length - 1 ? 'Next →' : (weekIdx < weekPieces.length - 1 ? 'Next post →' : 'Write the week →')}
               </Btn>
@@ -990,9 +1061,9 @@ export default function ContentCaptureV2Client() {
 
   if (screen === 'week-writing') {
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <WritingScreen line={writingLine} label={`WRITING POST ${weekIdx + 1} OF ${weekPieces.length}`} />
         </main>
       </div>
@@ -1012,9 +1083,9 @@ export default function ContentCaptureV2Client() {
     }
 
     return (
-      <div className="min-h-screen bg-zinc-950 text-white">
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
-        <main className="max-w-[680px] mx-auto px-5 py-8">
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <GoldLabel>Your week, written</GoldLabel>
           <Question><span className="text-gold font-medium">{finishedCount}</span> posts, ready to go.</Question>
           <DimLabel>Each one from a real moment of yours. Copy them out, or rewrite any that don't sound right.</DimLabel>
@@ -1224,16 +1295,12 @@ export default function ContentCaptureV2Client() {
 
 function Header({ onHome, onStage }) {
   return (
-    <header className="border-b border-white/[0.06] bg-zinc-950/90 sticky top-0 z-40">
-      <div className="max-w-[680px] mx-auto px-5 py-4 flex items-center justify-between">
-        <button onClick={onHome} className="font-display text-[12px] font-bold tracking-[0.18em]">
-          CONTENT CAPTURE<span className="text-gold">™</span>
-          <span className="font-mono text-[8px] tracking-[0.2em] text-zinc-950 bg-gold rounded px-1.5 py-0.5 ml-1.5 align-[2px]">V2</span>
-        </button>
-        <button onClick={onStage} className="font-mono text-[9px] tracking-[0.16em] uppercase text-zinc-600 hover:text-zinc-400 px-2 py-1 border border-transparent rounded hover:border-white/[0.08]">
-          My stage
-        </button>
-      </div>
-    </header>
+    <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
+      <button onClick={onHome} className="text-zinc-400 hover:text-white">
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+      </button>
+      <span className="text-xs font-bold font-display text-gold uppercase tracking-widest">Content Capture V2</span>
+      <button onClick={onStage} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">Stage</button>
+    </div>
   )
 }
