@@ -748,11 +748,17 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   }
 
   // Capture: type selector + one-line input only — enrichment happens in "Flesh them out"
-  function submit() {
-    if (!capLine.trim()) return
-    onCapture(capType, capLine.trim(), {}, salesAngle)
+  const [saving, setSaving] = useState(false)
+  async function submit() {
+    if (!capLine.trim() || saving) return
+    setSaving(true)
+    const line = capLine.trim()
+    const type = capType
+    const angle = salesAngle
+    await onCapture(type, line, {}, angle)
     setCapLine('')
     setExpanded(false)
+    setSaving(false)
   }
 
   return (
@@ -773,7 +779,7 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
         <input value={capLine} onChange={e => setCapLine(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') submit() }}
           placeholder="One line — what happened?"
           className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
-        <Btn gold onClick={submit}>→</Btn>
+        <Btn gold onClick={submit} disabled={saving}>{saving ? '...' : '→'}</Btn>
       </div>
       <button onClick={() => { setExpanded(false); setCapLine('') }} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest mt-2">← Cancel</button>
     </div>
@@ -1741,17 +1747,36 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
                     offerContext={playbookContext?.offer}
                     onCapture={async (type, line, enrichment, angle) => {
-                      const entry = await addLogEntry(type, line)
-                      if (entry) {
-                        entry.enrichment = enrichment || {}
-                        if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
-                        setLog(prev => [entry, ...prev])
+                      try {
+                        const entry = await addLogEntry(type, line)
+                        if (entry) {
+                          entry.enrichment = enrichment || {}
+                          if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
+                          setLog(prev => [entry, ...prev])
+                          setWeekSlots(prev => {
+                            const updated = [...prev]
+                            updated[item.i] = { ...updated[item.i], moment: entry }
+                            return updated
+                          })
+                          if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
+                        } else {
+                          // addLogEntry returned null — save failed. Assign a local-only moment so the slot still fills.
+                          const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
+                          setWeekSlots(prev => {
+                            const updated = [...prev]
+                            updated[item.i] = { ...updated[item.i], moment: localMoment }
+                            return updated
+                          })
+                        }
+                      } catch (err) {
+                        console.error('Capture failed:', err)
+                        // Still assign locally so the user doesn't lose their input
+                        const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
                         setWeekSlots(prev => {
                           const updated = [...prev]
-                          updated[item.i] = { ...updated[item.i], moment: entry }
+                          updated[item.i] = { ...updated[item.i], moment: localMoment }
                           return updated
                         })
-                        if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
                       }
                     }} />
                 )
