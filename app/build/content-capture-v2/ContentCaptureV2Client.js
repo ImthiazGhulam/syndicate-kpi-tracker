@@ -484,7 +484,7 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
         <p className="text-xs text-zinc-500 mt-1 mb-3">{capLine}</p>
         <p className="text-sm font-bold text-white mb-1">{q}</p>
         <p className="text-xs text-zinc-500 mb-2">{hint}</p>
-        <input defaultValue={enrichAnswers[key] || ''} id={`inline-enrich-${job}`} autoFocus
+        <input key={`${job}-${enrichStep}`} defaultValue={enrichAnswers[key] || ''} id={`inline-enrich-${job}`} autoFocus
           onKeyDown={e => { if (e.key === 'Enter') advanceInline(key, false) }}
           className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
         <div className="flex justify-between mt-2">
