@@ -171,7 +171,7 @@ function routeMoment(momId, job, hasNum, userStage) {
   return { card: 'c3' }
 }
 
-function buildPrompt(c, m, redoNote, arc, ctx) {
+function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
   const e = m.enrichment || {}
   const facts = [`The moment, in their words: "${m.line}"`]
   if (e.scene) facts.push(`The scene: "${e.scene}"`)
@@ -179,69 +179,95 @@ function buildPrompt(c, m, redoNote, arc, ctx) {
   if (e.num) facts.push(`The number: "${e.num}"`)
   if (e.change) facts.push(`What changed: "${e.change}"`)
 
+  // Selective context injection based on card type
+  const isStory = ['c1', 'c7', 'c11', 'c13'].includes(cardKey)
+  const isReach = ['c1', 'c2', 'c3', 'c4'].includes(cardKey)
+  const isValue = ['c6', 'c7', 'c9', 'c11', 'c12', 'c13'].includes(cardKey)
+  const isSales = ['c14', 'c15', 'c16', 'c17', 'c18'].includes(cardKey)
+  const isYouTube = cardKey === 'c9'
+  const isObjection = cardKey === 'c15'
+
   let brandContext = ''
   let voiceOverride = ''
   if (ctx) {
     const lines = []
-    if (ctx.positioning) {
+
+    // REACH cards: Brand Star positioning (who they serve, contrarian belief, personality)
+    if (isReach && ctx.positioning) {
       if (ctx.positioning.worksWithDesc) lines.push(`Who they work with: ${ctx.positioning.worksWithDesc}`)
       if (ctx.positioning.refuses) lines.push(`Who they refuse: ${ctx.positioning.refuses}`)
-      if (ctx.positioning.notFor) lines.push(`Not for: ${ctx.positioning.notFor}`)
       if (ctx.positioning.contrarian) lines.push(`Contrarian belief: ${ctx.positioning.contrarian}`)
       if (ctx.positioning.whatYouDo) lines.push(`What they do: ${ctx.positioning.whatYouDo}`)
       if (ctx.positioning.sector) lines.push(`Sector: ${ctx.positioning.sector}`)
       if (ctx.positioning.personality) lines.push(`Brand personality: ${ctx.positioning.personality}`)
     }
-    if (ctx.distinction) {
-      if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
-      if (ctx.distinction.promise) lines.push(`Method promise: ${ctx.distinction.promise}`)
-      if (ctx.distinction.problems.length) lines.push(`Problems solved: ${ctx.distinction.problems.join(', ')}`)
-      if (ctx.distinction.pillars.length) lines.push(`Pillars: ${ctx.distinction.pillars.join(', ')}`)
+
+    // VALUE cards: Distinction Engine + Remarkable
+    if (isValue) {
+      if (ctx.distinction) {
+        if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
+        if (ctx.distinction.promise) lines.push(`Method promise: ${ctx.distinction.promise}`)
+        if (ctx.distinction.problems.length) lines.push(`Problems solved: ${ctx.distinction.problems.join(', ')}`)
+        if (ctx.distinction.pillars.length) lines.push(`Pillars: ${ctx.distinction.pillars.join(', ')}`)
+      }
+      if (ctx.remarkable) {
+        if (ctx.remarkable.differentiator) lines.push(`Key differentiator: ${ctx.remarkable.differentiator}`)
+        if (ctx.remarkable.mechanism) lines.push(`Mechanism: ${ctx.remarkable.mechanism}`)
+      }
     }
-    if (ctx.offer) {
-      if (ctx.offer.offerName) lines.push(`Offer name: ${ctx.offer.offerName}`)
-      if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
-      if (ctx.offer.price) lines.push(`Offer price: £${ctx.offer.price}`)
-      if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
-      if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
-      if (ctx.offer.guaranteeType) lines.push(`Guarantee: ${ctx.offer.guaranteeType}${ctx.offer.guarantee ? ' — ' + ctx.offer.guarantee : ''}`)
-      if (ctx.offer.scarcity) lines.push(`Scarcity: ${ctx.offer.scarcity}`)
-      if (ctx.offer.deliveryModel) lines.push(`Delivery: ${ctx.offer.deliveryModel}`)
-      if (ctx.offer.resultsNumbers) lines.push(`Results numbers: ${ctx.offer.resultsNumbers}`)
-      if (ctx.offer.bigNames) lines.push(`Notable clients: ${ctx.offer.bigNames}`)
-      if (ctx.offer.continuityOffer) lines.push(`After the programme: ${ctx.offer.continuityOffer}`)
-      if (ctx.offer.ctaAction) lines.push(`CTA: ${ctx.offer.ctaAction}`)
-      if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}${ctx.offer.dipPrice ? ' — £' + ctx.offer.dipPrice : ''}`)
-      if (ctx.offer.dipPromise) lines.push(`Micro offer promise: ${ctx.offer.dipPromise}`)
-      if (ctx.offer.dipProblem) lines.push(`Micro offer solves: ${ctx.offer.dipProblem}`)
-      if (ctx.offer.dipBridge) lines.push(`Bridge to main offer: ${ctx.offer.dipBridge}`)
-    }
-    if (ctx.icp) {
-      if (ctx.icp.promise) lines.push(`ICP promise: ${ctx.icp.promise}`)
-      if (ctx.icp.dreamOutcome) lines.push(`Their dream outcome: ${ctx.icp.dreamOutcome}`)
-      if (ctx.icp.specificDescription) lines.push(`Ideal client: ${ctx.icp.specificDescription}`)
-      if (ctx.icp.pains) lines.push(`Their core pains: ${ctx.icp.pains}`)
-      if (ctx.icp.realObjections) lines.push(`Common objections: ${ctx.icp.realObjections}`)
-      if (ctx.icp.costOfInaction) lines.push(`Cost of doing nothing: ${ctx.icp.costOfInaction}`)
-      if (ctx.icp.triggerMoment) lines.push(`What makes them act: ${ctx.icp.triggerMoment}`)
-    }
-    if (ctx.programmeDuration) lines.push(`Programme duration: ${ctx.programmeDuration}`)
-    if (ctx.hero) {
+
+    // STORY cards: Hero data
+    if (isStory && ctx.hero) {
       if (ctx.hero.origin) lines.push(`Origin story: ${ctx.hero.origin}`)
+      if (ctx.hero.turningPoint) lines.push(`Turning point: ${ctx.hero.turningPoint}`)
       if (ctx.hero.gift) lines.push(`What they give clients: ${ctx.hero.gift}`)
       if (ctx.hero.why) lines.push(`Their why: ${ctx.hero.why}`)
       if (ctx.hero.identityLabel) lines.push(`Identity label: ${ctx.hero.identityLabel}`)
     }
-    if (ctx.remarkable) {
-      if (ctx.remarkable.differentiator) lines.push(`Key differentiator: ${ctx.remarkable.differentiator}`)
-      if (ctx.remarkable.mechanism) lines.push(`Mechanism: ${ctx.remarkable.mechanism}`)
-      if (ctx.remarkable.provocation) lines.push(`Provocation: ${ctx.remarkable.provocation}`)
+
+    // SALES cards: full Sold Out context (ICP, Bang Bang, Dip)
+    if (isSales) {
+      if (ctx.offer) {
+        if (ctx.offer.offerName) lines.push(`Offer name: ${ctx.offer.offerName}`)
+        if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
+        if (ctx.offer.price) lines.push(`Offer price: £${ctx.offer.price}`)
+        if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
+        if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
+        if (ctx.offer.guaranteeType) lines.push(`Guarantee: ${ctx.offer.guaranteeType}${ctx.offer.guarantee ? ' — ' + ctx.offer.guarantee : ''}`)
+        if (ctx.offer.scarcity) lines.push(`Scarcity: ${ctx.offer.scarcity}`)
+        if (ctx.offer.deliveryModel) lines.push(`Delivery: ${ctx.offer.deliveryModel}`)
+        if (ctx.offer.resultsNumbers) lines.push(`Results numbers: ${ctx.offer.resultsNumbers}`)
+        if (ctx.offer.bigNames) lines.push(`Notable clients: ${ctx.offer.bigNames}`)
+        if (ctx.offer.continuityOffer) lines.push(`After the programme: ${ctx.offer.continuityOffer}`)
+        if (ctx.offer.ctaAction) lines.push(`CTA: ${ctx.offer.ctaAction}`)
+        if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}${ctx.offer.dipPrice ? ' — £' + ctx.offer.dipPrice : ''}`)
+        if (ctx.offer.dipPromise) lines.push(`Micro offer promise: ${ctx.offer.dipPromise}`)
+        if (ctx.offer.dipProblem) lines.push(`Micro offer solves: ${ctx.offer.dipProblem}`)
+        if (ctx.offer.dipBridge) lines.push(`Bridge to main offer: ${ctx.offer.dipBridge}`)
+      }
+      if (ctx.icp) {
+        if (ctx.icp.pains) lines.push(`Their core pains: ${ctx.icp.pains}`)
+        if (ctx.icp.costOfInaction) lines.push(`Cost of doing nothing: ${ctx.icp.costOfInaction}`)
+        if (ctx.icp.triggerMoment) lines.push(`What makes them act: ${ctx.icp.triggerMoment}`)
+        // Objection post gets the full objections list verbatim
+        if (isObjection && ctx.icp.realObjections) lines.push(`Real objections heard from this audience (use verbatim): ${ctx.icp.realObjections}`)
+      }
+      if (ctx.programmeDuration) lines.push(`Programme duration: ${ctx.programmeDuration}`)
     }
+
+    // YouTube (c9) exception: gets method + offer name only for the soft close-mention
+    if (isYouTube && ctx.offer) {
+      if (ctx.offer.offerName) lines.push(`Offer name (for the single soft mention at the close only): ${ctx.offer.offerName}`)
+    }
+
     if (lines.length > 0) {
-      brandContext = `\nTHIS PERSON'S BRAND AND OFFER (use to guide tone, positioning, and who the content speaks to — weave naturally, never announce):
-${lines.join('\n')}`
+      const header = isSales
+        ? `\nTHIS PERSON'S BRAND AND OFFER (use to shape the selling — reference the offer, price, proof and objections directly):`
+        : `\nTHIS PERSON'S BRAND CONTEXT (use to guide tone and positioning — do NOT mention any offer, programme name, or price):`
+      brandContext = `${header}\n${lines.join('\n')}`
     }
-    // Voice profile from Premium Position
+
+    // Voice profile — ALWAYS injected, every card
     if (ctx.voice) {
       const vl = []
       if (ctx.voice.directness) vl.push(`Directness: ${ctx.voice.directness}`)
@@ -847,8 +873,8 @@ export default function ContentCaptureV2Client() {
 
   // ── Generation ────────────────────────────────────────────────────────────
 
-  async function generate(card, moment, redoNote, arc) {
-    const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext)
+  async function generate(card, moment, redoNote, arc, cardKey) {
+    const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext, cardKey)
     const res = await fetch('/api/generate-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1529,10 +1555,10 @@ export default function ContentCaptureV2Client() {
                 const cardKey = stage === 'launch' ? 'c17' : 'c13'
                 setScreen('week-writing'); setWritingLine(sl.moment.line)
                 try {
-                  const piece = await generate(CARDS[cardKey], sl.moment, null, null)
+                  const piece = await generate(CARDS[cardKey], sl.moment, null, null, cardKey)
                   setWeekPieces(prev => {
                     const updated = [...prev]
-                    updated.splice(i + 1, 0, { job: 'email', day: 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], piece, swap: null, arc: null })
+                    updated.splice(i + 1, 0, { job: 'email', day: 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece, swap: null, arc: null })
                     return updated
                   })
                 } catch {}
@@ -1541,10 +1567,10 @@ export default function ContentCaptureV2Client() {
               onToYT={sl.job !== 'longform' && doesYT ? async () => {
                 setScreen('week-writing'); setWritingLine(sl.moment.line)
                 try {
-                  const piece = await generate(CARDS.c9, sl.moment, null, null)
+                  const piece = await generate(CARDS.c9, sl.moment, null, null, 'c9')
                   setWeekPieces(prev => {
                     const updated = [...prev]
-                    updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, piece, swap: null, arc: null })
+                    updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece, swap: null, arc: null })
                     return updated
                   })
                 } catch {}
@@ -1611,7 +1637,7 @@ export default function ContentCaptureV2Client() {
     setWritingLine(`${card.nm}${arc ? ' — ' + arc.n + ' shape' : ''} — from your moment, your words, your numbers.`)
 
     try {
-      const piece = await generate(card, m, redoNote, arc)
+      const piece = await generate(card, m, redoNote, arc, r.card)
       setQuickPiece(piece)
     } catch {
       setQuickPiece(null)
@@ -1624,7 +1650,7 @@ export default function ContentCaptureV2Client() {
     setScreen('quick-writing')
     setWritingLine(quickMoment.line)
     try {
-      const piece = await generate(card, quickMoment, null, null)
+      const piece = await generate(card, quickMoment, null, null, cardKey)
       setQuickCard(cardKey)
       setQuickRoute({})
       setQuickPiece(piece)
@@ -1695,10 +1721,11 @@ export default function ContentCaptureV2Client() {
       const card = CARDS[r.card]
       const arc = pickArc(m.type, m, r.card)
       sl.cardObj = card
+      sl.cardKey = r.card
       sl.swap = r.swap
       sl.arc = arc
       try {
-        sl.piece = await generate(card, m, null, arc)
+        sl.piece = await generate(card, m, null, arc, r.card)
       } catch {
         sl.piece = null
       }
@@ -1712,7 +1739,7 @@ export default function ContentCaptureV2Client() {
     setScreen('week-writing')
     setWritingLine(sl.moment.line)
     try {
-      sl.piece = await generate(sl.cardObj, sl.moment, redoNote, sl.arc)
+      sl.piece = await generate(sl.cardObj, sl.moment, redoNote, sl.arc, sl.cardKey)
     } catch {}
     setWeekPieces([...weekPieces])
     setScreen('week-review')
