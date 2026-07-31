@@ -2268,7 +2268,7 @@ function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage,
   return (
     <div className="min-h-screen bg-zinc-950 bg-grid text-white">
       {/* Mobile header */}
-      <div className="lg:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
+      <div className="md:hidden flex items-center justify-between px-4 py-3 border-b border-zinc-800 bg-zinc-950 sticky top-0 z-40">
         <button onClick={() => setSidebarOpen(!sidebarOpen)} className="text-zinc-400 hover:text-white">
           <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
         </button>
@@ -2278,7 +2278,7 @@ function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage,
 
       <div className="flex">
         {/* Sidebar */}
-        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:sticky top-0 left-0 z-30 w-72 h-screen glass-sidebar flex flex-col transition-transform lg:transition-none overflow-y-auto`}>
+        <aside className={`${sidebarOpen ? 'translate-x-0' : '-translate-x-full'} md:translate-x-0 fixed md:sticky top-0 left-0 z-30 w-72 h-screen glass-sidebar flex flex-col transition-transform md:transition-none overflow-y-auto`}>
           <div className="p-6 border-b border-zinc-800">
             <h2 className="text-lg font-bold font-display text-white tracking-tight">Content Capture</h2>
             <p className="text-xs text-zinc-500 mt-1">V2 · Your content system</p>
@@ -2350,7 +2350,7 @@ function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage,
         </aside>
 
         {/* Overlay for mobile */}
-        {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 lg:hidden" onClick={() => setSidebarOpen(false)} />}
+        {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-20 md:hidden" onClick={() => setSidebarOpen(false)} />}
 
         {/* Main content */}
         <main className="flex-1 min-h-screen px-4 py-8 lg:px-12 lg:py-10 max-w-3xl mx-auto w-full">
