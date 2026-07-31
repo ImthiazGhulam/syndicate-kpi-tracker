@@ -1536,11 +1536,31 @@ export default function ContentCaptureV2Client() {
       )
     }
 
+    // Skip moments that already have enrichment filled (captured inline on the board)
     const sl = weekPieces[weekIdx]
     const m = sl.moment
     const qs = getEnrichQuestions(m.type, sl.job)
+    const enrichment = m.enrichment || {}
+    const alreadyEnriched = qs.every(([k]) => enrichment[k] !== undefined && enrichment[k] !== '')
+    if (alreadyEnriched) {
+      // Auto-advance to next piece or start writing
+      if (weekIdx < weekPieces.length - 1) {
+        setTimeout(() => { setWeekIdx(weekIdx + 1); setWeekEnrichIdx(0) }, 0)
+      } else {
+        setTimeout(() => doWeekWrite(), 0)
+      }
+      return (
+        <div className="min-h-screen bg-zinc-950 bg-grid text-white">
+          <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
+          <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+            <WritingScreen label={`SKIPPING — ALREADY ENRICHED (${weekIdx + 1}/${weekPieces.length})`} line={m.line} />
+          </main>
+        </div>
+      )
+    }
+
     const [key, q, hint] = qs[weekEnrichIdx]
-    const enrichVal = (m.enrichment || {})[key] || ''
+    const enrichVal = enrichment[key] || ''
 
     return (
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
