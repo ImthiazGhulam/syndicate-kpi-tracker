@@ -801,6 +801,10 @@ export default function ContentCaptureV2Client() {
   const [aiQLoading, setAiQLoading] = useState(false)
   const [chosenFormats, setChosenFormats] = useState({})
 
+  // Saved weeks
+  const [savedWeeks, setSavedWeeks] = useState([])
+  const [viewingWeek, setViewingWeek] = useState(null)
+
   // Modals
   const [modal, setModal] = useState(null)
   const [picker, setPicker] = useState(null)
@@ -844,6 +848,10 @@ export default function ContentCaptureV2Client() {
       const { data: logData, error: logError } = await supabase.from('cc_capture_log').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
       if (logError) console.warn('cc_capture_log table may not exist yet:', logError.message)
       if (logData) setLog(logData)
+
+      // Load saved weeks
+      const { data: weeksData } = await supabase.from('cc_weeks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(20)
+      if (weeksData) setSavedWeeks(weeksData)
 
       // Load playbook data for AI context
       const [ppRes, deRes, soRes] = await Promise.all([
@@ -1233,6 +1241,34 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               log.map(m => <LogLine key={m.id} moment={m} onDelete={() => deleteLogEntry(m.id)} />)
             )}
           </div>
+
+          {savedWeeks.length > 0 && (
+            <div className="mt-8">
+              <GoldLabel>Past weeks</GoldLabel>
+              <div className="space-y-2">
+                {savedWeeks.map(w => {
+                  const pieces = w.piece_ids || []
+                  const date = new Date(w.week_start)
+                  const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+                  const m = w.mix || {}
+                  return (
+                    <button key={w.id} onClick={() => { setViewingWeek(w); setScreen('view-week') }}
+                      className="w-full text-left glass-card p-4 transition hover:border-gold/30">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-sm font-bold text-white">Week of {dateStr}</span>
+                        <span className="text-xs text-zinc-500">{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex gap-3 mt-2 text-xs text-zinc-500">
+                        {m.reach > 0 && <span>{m.reach} reach</span>}
+                        {m.value > 0 && <span>{m.value} trust</span>}
+                        {m.sales > 0 && <span>{m.sales} sales</span>}
+                      </div>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
       </div>
@@ -1801,12 +1837,62 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             />
           ))}
 
-          <div className="flex gap-3 mt-6">
-            <Btn gold onClick={copyAll}>Copy the whole week</Btn>
-            <Btn onClick={() => setScreen('home')}>Done</Btn>
+          <div className="flex justify-between mt-6">
+            <GhostBtn onClick={() => setScreen('board')}>← Back to board</GhostBtn>
+            <div className="flex gap-3">
+              <Btn gold onClick={copyAll}>Copy the whole week</Btn>
+              <Btn onClick={() => setScreen('home')}>Done</Btn>
+            </div>
           </div>
         </main>
         <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
+      </div>
+    )
+  }
+
+  // ── View Saved Week ────────────────────────────────────────────────────────
+
+  if (screen === 'view-week' && viewingWeek) {
+    const pieces = viewingWeek.piece_ids || []
+    const date = new Date(viewingWeek.week_start)
+    const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+    const m = viewingWeek.mix || {}
+
+    function copyAllSaved() {
+      const txt = pieces.filter(p => p.piece).map(p =>
+        `=== ${(p.day || '').toUpperCase()} — ${(JOBNAMES[p.job] || p.job || '').toUpperCase()} — ${p.format || ''} ===\n\n${p.piece}`
+      ).join('\n\n\n')
+      if (navigator.clipboard) navigator.clipboard.writeText(txt)
+    }
+
+    return (
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
+        <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+          <GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn>
+          <div className="mt-4 mb-6">
+            <GoldLabel>Saved week</GoldLabel>
+            <Question>Week of {dateStr}</Question>
+            <div className="flex gap-3 mt-1 text-xs text-zinc-500">
+              <span>{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+              {m.reach > 0 && <span>· {m.reach} reach</span>}
+              {m.value > 0 && <span>· {m.value} trust</span>}
+              {m.sales > 0 && <span>· {m.sales} sales</span>}
+            </div>
+          </div>
+
+          {pieces.map((p, i) => (
+            <PieceCard key={i}
+              title={`${p.day || ''} · ${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
+              piece={p.piece}
+            />
+          ))}
+
+          <div className="flex gap-3 mt-6">
+            <Btn gold onClick={copyAllSaved}>Copy the whole week</Btn>
+            <Btn onClick={() => setScreen('home')}>Done</Btn>
+          </div>
+        </main>
       </div>
     )
   }
@@ -1942,6 +2028,32 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       }
     }
     setWeekPieces(pieces)
+
+    // Save the week to Supabase
+    if (clientId) {
+      const now = new Date()
+      const monday = new Date(now)
+      monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
+      const weekStart = monday.toISOString().split('T')[0]
+
+      const weekData = {
+        client_id: clientId,
+        week_start: weekStart,
+        mix: { reach: mix.reach, value: mix.value, sales: mix.sales, goal: weekGoal },
+        piece_ids: pieces.map(sl => ({
+          day: sl.day,
+          job: sl.job,
+          format: sl.chosenFormat || sl.cardObj?.nm || '',
+          momentLine: sl.moment?.line || '',
+          momentType: sl.moment?.type || '',
+          piece: sl.piece || '',
+          cardKey: sl.cardKey || '',
+        })),
+      }
+      const { data: savedWeek } = await supabase.from('cc_weeks').insert(weekData).select().single()
+      if (savedWeek) setSavedWeeks(prev => [savedWeek, ...prev])
+    }
+
     setScreen('week-review')
   }
 
