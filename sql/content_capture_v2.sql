@@ -38,7 +38,7 @@ CREATE POLICY "Service role full access on cc_profiles"
 CREATE TABLE IF NOT EXISTS cc_capture_log (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   client_id UUID NOT NULL REFERENCES clients(id) ON DELETE CASCADE,
-  type TEXT NOT NULL CHECK (type IN ('client','receipt','question','personal','industry','bts')),
+  type TEXT NOT NULL CHECK (type IN ('client','receipt','question','personal','industry','pov','bts')),
   line TEXT NOT NULL,
   enrichment JSONB DEFAULT '{}'::jsonb,
   used_at TIMESTAMPTZ,

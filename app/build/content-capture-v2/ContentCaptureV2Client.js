@@ -28,10 +28,11 @@ const MOMENTS = [
   { id: 'question', t: 'I keep getting asked something', s: 'A question or objection from DMs, calls or comments' },
   { id: 'personal', t: 'Something from my own story', s: 'A mistake, a low point, a lesson, a memory' },
   { id: 'industry', t: 'Something in my industry is wrong', s: 'Advice everyone repeats that I disagree with' },
+  { id: 'pov', t: 'A POV or hypothetical', s: '"If I wanted to X..." / "I want to achieve X" / flip the desired result on its head' },
   { id: 'bts', t: "Something I'm doing this week", s: "What I'm building, running or fixing" },
 ]
 
-const TYPESHORT = { client: 'Client', receipt: 'Result', question: 'Question', personal: 'My story', industry: 'Industry', bts: 'This week' }
+const TYPESHORT = { client: 'Client', receipt: 'Result', question: 'Question', personal: 'My story', industry: 'Industry', pov: 'POV', bts: 'This week' }
 
 const JOBNAMES = { reach: 'Get noticed', value: 'Build trust', sales: 'Make a sale', email: 'Email your list', longform: 'Go deeper on YouTube' }
 const JOBLONG = { reach: 'a post to get noticed by new people', value: 'a post that builds trust with followers', sales: 'a post that sells to your warm audience', email: "this week's email to your list", longform: "this week's YouTube video — the deep version of a topic" }
@@ -77,6 +78,7 @@ const ENRICH_BASE = {
   question: [['verb', 'What do they ask, word for word?', 'The exact phrasing is your opening line.'], ['scene', 'When did it last come up?', 'The DM, the call, the comment.'], ['change', 'Your honest answer in one line?', "The short version you'd give a mate."]],
   personal: [['scene', 'Take me to the moment — where were you?', 'Present tense if you can. The room, the day.'], ['num', 'Any numbers or dates in it?', 'The year, the figure, the cost. Skip if not.'], ['change', 'What changed after?', 'The before and the after, however small.']],
   industry: [['verb', "What's the advice everyone repeats?", "Their words, the way it's always said."], ['change', 'What do you believe instead?', 'Your actual position, one line.'], ['num', 'A result that backs you up?', "Honest answer — skip if not yet."]],
+  pov: [['scene', "What's the hypothetical — what would you do or want to achieve?", 'The POV setup: "If I wanted to..." or "I want to..." — state the goal or the inverse.'], ['change', "What would actually need to happen to get there?", 'The real steps, not the obvious answer. What would most people miss?'], ['num', 'Any numbers or proof to ground it?', 'A real example, a client result, a timeframe that makes it concrete. Skip if purely hypothetical.']],
   bts: [['scene', 'What are you working on this week?', 'The thing itself, plainly.'], ['change', "What will be different when it's done?", 'For you or for them.'], ['num', 'Any numbers attached?', 'Dates, counts, targets. Skip if not.']],
 }
 
@@ -119,6 +121,11 @@ function getEnrichQuestions(momentType, job) {
         ['change', 'What do most people get wrong about this?', 'The reframe — the thing they haven\'t considered.'],
         ['scene', 'Can you show a real example of the right approach?', 'A client, a number, a before/after that proves the reframe.'],
       ]
+      case 'pov': return [
+        ['scene', "What's the POV — what goal or scenario are you setting up?", 'State the hypothetical clearly: "If I wanted to..." or "I want to achieve..."'],
+        ['change', 'What would you actually need to do — step by step?', 'The real method, not the obvious answer. What would most people miss or do wrong?'],
+        ['num', 'Can you ground it with a real example or result?', 'A client who did this, a number that proves it, a timeline that makes it tangible.'],
+      ]
       case 'bts': return [
         ['scene', 'What exactly are you building or doing?', 'The specific task, plainly described.'],
         ['change', 'What will this change for your clients?', 'The outcome they care about, not the feature.'],
@@ -143,6 +150,11 @@ function getEnrichQuestions(momentType, job) {
       ['verb', "What's the advice everyone repeats?", "Their words, the way it's always said. The more recognisable, the better the pattern interrupt."],
       ['change', 'What do you believe instead?', 'Your actual position, one line. The bet against the crowd.'],
       ['num', 'A result that backs you up?', "Without a number, this is just an opinion. With one, it's proof."],
+    ]
+    case 'pov': return [
+      ['scene', "What's the POV — what would someone need to do or want to achieve?", '"If I wanted to hit 10k months" or "If I want to never worry about leads again" — state the goal or flip the desired result.'],
+      ['change', "What's the real answer most people wouldn't think of?", 'The non-obvious step, the counterintuitive move. This is the scroll-stopper.'],
+      ['num', 'Any proof you can anchor it with?', 'A client who did exactly this, a number, a timeframe. Makes a hypothetical feel real.'],
     ]
     default: return ENRICH_BASE[momentType] || ENRICH_BASE.client
   }
@@ -374,6 +386,7 @@ function routeMoment(momId, job, hasNum, userStage) {
     if (hasNum) return { card: 'c1' }
     return { card: 'c2', swap: "No result attached to the disagreement yet, so this runs as a problem-naming post. Get the receipt and it becomes a far stronger \"I did the opposite\" story." }
   }
+  if (momId === 'pov') return { card: 'c2' }
   if (momId === 'receipt') return { card: 'c4' }
   if (momId === 'question') return { card: 'c3' }
   if (momId === 'client') return { card: 'c4' }
