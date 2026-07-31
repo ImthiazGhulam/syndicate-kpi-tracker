@@ -720,7 +720,6 @@ export default function ContentCaptureV2Client() {
   const [weekSlots, setWeekSlots] = useState([])
   const [salesAngles, setSalesAngles] = useState({})
   const [weekIdx, setWeekIdx] = useState(0)
-  const [weekEnrichIdx, setWeekEnrichIdx] = useState(0)
   const [weekPieces, setWeekPieces] = useState([])
 
   // Modals
@@ -1501,33 +1500,58 @@ export default function ContentCaptureV2Client() {
     const sl = weekPieces[weekIdx]
     const m = sl.moment
     const qs = getEnrichQuestions(m.type, sl.job)
-    const [key, q, hint] = qs[weekEnrichIdx]
-    const enrichVal = (m.enrichment || {})[key] || ''
 
     return (
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
         <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
-          <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-4">
+          <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
             Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
           </p>
-          <p className="text-zinc-600 text-[13px] mb-2">{m.line}</p>
-          <Question>{q}</Question>
-          <DimLabel>{hint}</DimLabel>
-          <textarea rows={2} autoFocus defaultValue={enrichVal} id="week-enrich-input"
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+          <div className="glass-card p-4 mb-6">
+            <p className="text-sm text-white">{m.line}</p>
+            <span className="text-xs text-gold/60 uppercase tracking-widest">{TYPESHORT[m.type]}</span>
+          </div>
+          <Question>Flesh this one out.</Question>
+          <DimLabel>Answer what you can — skip what doesn't apply. All answers stay on this page.</DimLabel>
+
+          <div className="space-y-4">
+            {qs.map(([key, q, hint], qi) => (
+              <div key={`${weekIdx}-${key}`} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
+                <label className="block text-sm font-bold text-white mb-1">{q}</label>
+                <p className="text-xs text-zinc-500 mb-2">{hint}</p>
+                <textarea
+                  rows={2}
+                  defaultValue={(m.enrichment || {})[key] || ''}
+                  id={`week-enrich-${weekIdx}-${key}`}
+                  className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
+                />
+              </div>
+            ))}
+          </div>
+
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => {
-              if (weekEnrichIdx > 0) setWeekEnrichIdx(weekEnrichIdx - 1)
-              else if (weekIdx > 0) { setWeekIdx(weekIdx - 1); setWeekEnrichIdx(getEnrichQuestions(weekPieces[weekIdx - 1].moment.type, weekPieces[weekIdx - 1].job).length - 1) }
+              if (weekIdx > 0) { setWeekIdx(weekIdx - 1) }
               else setScreen('board')
             }}>← Back</GhostBtn>
-            <div className="flex gap-3 items-center">
-              <button onClick={() => advanceWeekEnrich(true)} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">Skip</button>
-              <Btn gold onClick={() => advanceWeekEnrich(false)}>
-                {weekEnrichIdx < qs.length - 1 ? 'Next →' : (weekIdx < weekPieces.length - 1 ? 'Next post →' : 'Write the week →')}
-              </Btn>
-            </div>
+            <Btn gold onClick={() => {
+              // Collect all answers from this page
+              const enrichment = { ...(m.enrichment || {}) }
+              qs.forEach(([key]) => {
+                const el = document.getElementById(`week-enrich-${weekIdx}-${key}`)
+                if (el) enrichment[key] = el.value.trim()
+              })
+              m.enrichment = enrichment
+              updateLogEntry(m.id, enrichment)
+              if (weekIdx < weekPieces.length - 1) {
+                setWeekIdx(weekIdx + 1)
+              } else {
+                doWeekWrite()
+              }
+            }}>
+              {weekIdx < weekPieces.length - 1 ? 'Next post →' : 'Write the week →'}
+            </Btn>
           </div>
         </main>
       </div>
@@ -1723,24 +1747,6 @@ export default function ContentCaptureV2Client() {
     setWeekSlots(buildWeekSlots())
   }
 
-  async function advanceWeekEnrich(skip) {
-    const sl = weekPieces[weekIdx]
-    const m = sl.moment
-    const qs = getEnrichQuestions(m.type, sl.job)
-    const [key] = qs[weekEnrichIdx]
-    const val = skip ? '' : (document.getElementById('week-enrich-input')?.value?.trim() || '')
-    m.enrichment = { ...(m.enrichment || {}), [key]: val }
-    await updateLogEntry(m.id, m.enrichment)
-
-    if (weekEnrichIdx < qs.length - 1) {
-      setWeekEnrichIdx(weekEnrichIdx + 1)
-    } else if (weekIdx < weekPieces.length - 1) {
-      setWeekIdx(weekIdx + 1)
-      setWeekEnrichIdx(0)
-    } else {
-      doWeekWrite()
-    }
-  }
 
   async function doWeekWrite() {
     setScreen('week-writing')
