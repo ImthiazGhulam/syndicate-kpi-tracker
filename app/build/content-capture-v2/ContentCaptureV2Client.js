@@ -377,23 +377,140 @@ function BottomSheet({ open, title, subtitle, children, onClose }) {
   )
 }
 
-function SlotCard({ job, day, moment, onPick }) {
-  return (
-    <div className={`rounded-lg border p-4 mb-2 transition ${moment ? 'bg-zinc-900 border-zinc-800' : 'bg-zinc-900/50 border-zinc-800/50'}`}>
-      <div className="flex justify-between items-baseline mb-1">
+const SALES_ANGLES = [
+  { id: 'main-offer', t: 'My main offer', s: 'Your core programme' },
+  { id: 'micro-offer', t: 'My micro offer / The Dip', s: 'Lower-barrier entry product' },
+  { id: 'seasonal', t: 'Seasonal or event-based', s: 'Black Friday, New Year, back to school, etc.' },
+  { id: 'new-launch', t: 'Something brand new', s: 'A new offer or programme launching' },
+  { id: 'waitlist', t: 'Waitlist / coming soon', s: 'Building interest before doors open' },
+  { id: 'testimonial-push', t: 'Proof and social proof', s: 'Client results driving the sale' },
+]
+
+function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSalesAngle, offerContext }) {
+  const [expanded, setExpanded] = useState(false)
+  const [capType, setCapType] = useState('client')
+  const [capLine, setCapLine] = useState('')
+  const [enrichStep, setEnrichStep] = useState(0)
+  const [enrichAnswers, setEnrichAnswers] = useState({})
+
+  if (moment) {
+    return (
+      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-zinc-800">
         <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
-        <span className="text-xs text-zinc-600 uppercase tracking-widest">{day}</span>
+        <p className="text-sm text-zinc-300 py-1">{moment.line}</p>
+        <div className="flex gap-3">
+          <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest pt-1">Change</button>
+          <button onClick={onClear} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest pt-1">Clear</button>
+        </div>
       </div>
-      {moment ? (
-        <>
-          <p className="text-sm text-zinc-300 py-1">{moment.line}</p>
-          <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest pt-1">Change moment</button>
-        </>
-      ) : (
-        <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest py-2">+ Pick a moment</button>
-      )}
-    </div>
-  )
+    )
+  }
+
+  if (!expanded) {
+    return (
+      <div className="rounded-lg border p-4 mb-2 bg-zinc-900/50 border-zinc-800/50">
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        <div className="flex gap-2 mt-2">
+          <button onClick={() => setExpanded(true)} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest">+ Capture here</button>
+          <button onClick={onPick} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest">Pick from log</button>
+        </div>
+      </div>
+    )
+  }
+
+  // Inline capture flow
+  const qs = ENRICH[capType]
+  const currentQ = qs ? qs[enrichStep] : null
+
+  // Sales angle picker for sales slots
+  if (job === 'sales' && !salesAngle) {
+    return (
+      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        <p className="text-sm text-zinc-400 mt-2 mb-3">What are you selling in this post?</p>
+        {offerContext && (offerContext.offerName || offerContext.dipName) && (
+          <div className="bg-zinc-800/50 rounded-lg p-3 mb-3 border border-zinc-700/50">
+            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">From your playbooks</span>
+            {offerContext.offerName && <p className="text-xs text-zinc-300 mt-1">Main offer: <span className="text-gold">{offerContext.offerName}</span>{offerContext.price ? ` — £${offerContext.price}` : ''}</p>}
+            {offerContext.dipName && <p className="text-xs text-zinc-300 mt-1">Micro offer: <span className="text-gold">{offerContext.dipName}</span>{offerContext.dipPrice ? ` — £${offerContext.dipPrice}` : ''}</p>}
+          </div>
+        )}
+        <div className="flex flex-col gap-2">
+          {SALES_ANGLES.map(a => (
+            <button key={a.id} onClick={() => onSalesAngle(a.id)} className="text-left px-3 py-2 rounded-lg text-sm border bg-zinc-800 border-zinc-700 hover:border-zinc-600 transition">
+              <span className="font-bold text-white">{a.t}</span>
+              <span className="block text-xs text-zinc-500">{a.s}</span>
+            </button>
+          ))}
+        </div>
+        <button onClick={() => setExpanded(false)} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest mt-3">← Cancel</button>
+      </div>
+    )
+  }
+
+  // Capture line input
+  if (!capLine.trim() || enrichStep < 0) {
+    return (
+      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        {job === 'sales' && salesAngle && (
+          <p className="text-xs text-zinc-500 mt-1">Selling: {SALES_ANGLES.find(a => a.id === salesAngle)?.t}</p>
+        )}
+        <div className="flex gap-1.5 flex-wrap mt-3 mb-2">
+          {MOMENTS.map(m => (
+            <button key={m.id} onClick={() => setCapType(m.id)}
+              className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition border ${capType === m.id ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>
+              {TYPESHORT[m.id]}
+            </button>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <input value={capLine} onChange={e => setCapLine(e.target.value)} onKeyDown={e => { if (e.key === 'Enter' && capLine.trim()) setEnrichStep(0) }}
+            placeholder="One line — what happened?"
+            className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
+          <Btn gold onClick={() => { if (capLine.trim()) setEnrichStep(0) }}>→</Btn>
+        </div>
+        <button onClick={() => { setExpanded(false); setCapLine('') }} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest mt-2">← Cancel</button>
+      </div>
+    )
+  }
+
+  // Enrichment questions inline
+  if (currentQ && enrichStep < qs.length) {
+    const [key, q, hint] = currentQ
+    return (
+      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
+        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        <p className="text-xs text-zinc-500 mt-1 mb-3">{capLine}</p>
+        <p className="text-sm font-bold text-white mb-1">{q}</p>
+        <p className="text-xs text-zinc-500 mb-2">{hint}</p>
+        <input defaultValue={enrichAnswers[key] || ''} id={`inline-enrich-${job}`} autoFocus
+          onKeyDown={e => { if (e.key === 'Enter') advanceInline(key, false) }}
+          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm" />
+        <div className="flex justify-between mt-2">
+          <button onClick={() => advanceInline(key, true)} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest">Skip</button>
+          <Btn gold onClick={() => advanceInline(key, false)}>{enrichStep < qs.length - 1 ? 'Next' : 'Done'}</Btn>
+        </div>
+      </div>
+    )
+  }
+
+  return null
+
+  function advanceInline(key, skip) {
+    const val = skip ? '' : (document.getElementById(`inline-enrich-${job}`)?.value?.trim() || '')
+    const updated = { ...enrichAnswers, [key]: val }
+    setEnrichAnswers(updated)
+    if (enrichStep < qs.length - 1) {
+      setEnrichStep(enrichStep + 1)
+    } else {
+      onCapture(capType, capLine.trim(), updated, salesAngle)
+      setCapLine('')
+      setEnrichStep(0)
+      setEnrichAnswers({})
+      setExpanded(false)
+    }
+  }
 }
 
 function DialRing({ pct, color, trackColor, size = 64, stroke = 5 }) {
@@ -491,6 +608,7 @@ export default function ContentCaptureV2Client() {
   // Weekly mode
   const [weekGoal, setWeekGoal] = useState(null)
   const [weekSlots, setWeekSlots] = useState([])
+  const [salesAngles, setSalesAngles] = useState({})
   const [weekIdx, setWeekIdx] = useState(0)
   const [weekEnrichIdx, setWeekEnrichIdx] = useState(0)
   const [weekPieces, setWeekPieces] = useState([])
@@ -569,6 +687,7 @@ export default function ContentCaptureV2Client() {
         const so = soRes.data
         const bb = so.bang_bang_data || {}
         const icp = so.icp_data || {}
+        const dip = so.dip_data || {}
         ctx.offer = {
           offerName: bb.name || '',
           corePromise: bb.promise || '',
@@ -576,6 +695,9 @@ export default function ContentCaptureV2Client() {
           whoItsNotFor: bb.who_not_for || '',
           price: bb.price || '',
           guarantee: bb.guarantee_detail || '',
+          dipName: dip.name || '',
+          dipPrice: dip.price || '',
+          dipPromise: dip.promise || '',
         }
         if (icp.promise) ctx.icpPromise = icp.promise
       }
@@ -1127,7 +1249,24 @@ export default function ContentCaptureV2Client() {
                     <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{item.day}</span>
                   </div>
                 ) : (
-                  <SlotCard key={item.i} job={item.sl.job} day="" moment={item.sl.moment} onPick={() => setPicker(item.i)} />
+                  <SlotCard key={item.i} job={item.sl.job} moment={item.sl.moment}
+                    onPick={() => setPicker(item.i)}
+                    onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
+                    salesAngle={salesAngles[item.i]}
+                    onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
+                    offerContext={playbookContext?.offer}
+                    onCapture={async (type, line, enrichment, angle) => {
+                      const entry = await addLogEntry(type, line)
+                      if (entry) {
+                        entry.enrichment = enrichment
+                        await updateLogEntry(entry.id, enrichment)
+                        setLog(prev => [entry, ...prev])
+                        const updated = [...weekSlots]
+                        updated[item.i].moment = entry
+                        if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
+                        setWeekSlots(updated)
+                      }
+                    }} />
                 )
               )
             })()}
