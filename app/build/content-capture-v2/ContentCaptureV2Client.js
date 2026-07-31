@@ -445,6 +445,7 @@ export default function ContentCaptureV2Client() {
 
   useEffect(() => {
     async function init() {
+      try {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user) { router.push('/login'); return }
       const { data: client } = await supabase.from('clients').select('id').eq('email', user.email).maybeSingle()
@@ -452,7 +453,8 @@ export default function ContentCaptureV2Client() {
       setClientId(client.id)
 
       // Load profile
-      const { data: profile } = await supabase.from('cc_profiles').select('*').eq('client_id', client.id).maybeSingle()
+      const { data: profile, error: profileError } = await supabase.from('cc_profiles').select('*').eq('client_id', client.id).maybeSingle()
+      if (profileError) console.warn('cc_profiles table may not exist yet:', profileError.message)
       if (profile) {
         setStage(profile.stage)
         setHasList(profile.has_list)
@@ -463,7 +465,8 @@ export default function ContentCaptureV2Client() {
       }
 
       // Load capture log
-      const { data: logData } = await supabase.from('cc_capture_log').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
+      const { data: logData, error: logError } = await supabase.from('cc_capture_log').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
+      if (logError) console.warn('cc_capture_log table may not exist yet:', logError.message)
       if (logData) setLog(logData)
 
       // Load playbook data for AI context
@@ -514,6 +517,11 @@ export default function ContentCaptureV2Client() {
       } else if (profile && profile.stage) {
         setScreen('channels')
       } else {
+        setScreen('stage')
+      }
+      } catch (err) {
+        console.error('Content Capture V2 init error:', err)
+        setLoading(false)
         setScreen('stage')
       }
     }
