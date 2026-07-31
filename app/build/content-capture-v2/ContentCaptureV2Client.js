@@ -10,6 +10,7 @@ const STAGES = [
   { id: 'start', t: 'Just getting going', s: 'Small audience, building from scratch' },
   { id: 'build', t: 'Growing steadily', s: 'Audience and results coming in, nothing on sale right now' },
   { id: 'launch', t: 'Selling right now', s: 'Doors are open or opening — a launch is on' },
+  { id: 'recovery', t: 'Recovery after a launch', s: 'Doors just closed — rebuild trust, no selling for a couple of weeks' },
   { id: 'ever', t: 'Always open', s: 'People can join my offer any time' },
 ]
 
@@ -17,6 +18,7 @@ const MIX = {
   start: { reach: 3, value: 2, sales: 0 },
   build: { reach: 2, value: 2, sales: 1 },
   launch: { reach: 1, value: 1, sales: 3 },
+  recovery: { reach: 55, value: 45, sales: 0 },
   ever: { reach: 2, value: 2, sales: 1 },
 }
 
@@ -906,7 +908,7 @@ export default function ContentCaptureV2Client() {
   // ── Quick Mode: Job Selection ─────────────────────────────────────────────
 
   if (screen === 'quick-job') {
-    const sug = ({ start: 'reach', build: 'value', launch: 'sales', ever: 'value' })[stage] || 'reach'
+    const sug = ({ start: 'reach', build: 'value', launch: 'sales', recovery: 'reach', ever: 'value' })[stage] || 'reach'
     const jobs = [
       { j: 'reach', t: 'Get noticed', s: "Reach new people who don't know you" },
       { j: 'value', t: 'Build trust', s: 'Turn followers into believers' },

@@ -6,7 +6,7 @@
 -- ============================================================
 CREATE TABLE IF NOT EXISTS cc_profiles (
   client_id UUID PRIMARY KEY REFERENCES clients(id) ON DELETE CASCADE,
-  stage TEXT NOT NULL DEFAULT 'start' CHECK (stage IN ('start','build','launch','ever')),
+  stage TEXT NOT NULL DEFAULT 'start' CHECK (stage IN ('start','build','launch','recovery','ever')),
   has_list BOOLEAN DEFAULT FALSE,
   does_yt BOOLEAN DEFAULT FALSE,
   pieces_per_week INTEGER DEFAULT NULL,
