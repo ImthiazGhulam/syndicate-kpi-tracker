@@ -721,6 +721,8 @@ export default function ContentCaptureV2Client() {
   const [salesAngles, setSalesAngles] = useState({})
   const [weekIdx, setWeekIdx] = useState(0)
   const [weekPieces, setWeekPieces] = useState([])
+  const [aiQuestions, setAiQuestions] = useState(null)
+  const [aiQLoading, setAiQLoading] = useState(false)
 
   // Modals
   const [modal, setModal] = useState(null)
@@ -905,6 +907,45 @@ export default function ContentCaptureV2Client() {
   }, [clientId])
 
   // ── Generation ────────────────────────────────────────────────────────────
+
+  async function generateEnrichQuestions(momentLine, momentType, job) {
+    const jobLabel = { reach: 'a post to get noticed by strangers (cold reach)', value: 'a post to build trust with followers (warm audience)', sales: 'a post to sell to warm audience', email: 'an email to their list', longform: 'a YouTube video' }[job] || job
+    const typeLabel = TYPESHORT[momentType] || momentType
+    const prompt = `You are inside a content tool. A coach has logged this moment:
+
+"${momentLine}"
+
+Moment type: ${typeLabel}
+This will become: ${jobLabel}
+
+Generate exactly 3 follow-up questions to extract the detail needed to write this piece. Each question should react to what they actually wrote — reference their specific words, names, or situation.
+
+Rules:
+- Questions must be specific to THIS moment, not generic
+- Ask for the detail that's missing from what they wrote — don't ask for things they already said
+- One question should dig for a specific number, date, or measurable detail
+- One should dig for a vivid scene, quote, or sensory detail
+- One should dig for the insight, lesson, or change that makes it a story
+- Keep questions short and direct — one line each, like a coach would ask
+- Add a one-line hint under each question
+
+Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] where key is one of: scene, verb, num, change. Nothing else — no markdown, no explanation.`
+
+    try {
+      const res = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+      const data = await res.json()
+      if (!res.ok) return null
+      const parsed = JSON.parse(data.content)
+      if (Array.isArray(parsed) && parsed.length === 3) return parsed
+      return null
+    } catch {
+      return null
+    }
+  }
 
   async function generate(card, moment, redoNote, arc, cardKey) {
     const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext, cardKey)
@@ -1499,7 +1540,38 @@ export default function ContentCaptureV2Client() {
 
     const sl = weekPieces[weekIdx]
     const m = sl.moment
-    const qs = getEnrichQuestions(m.type, sl.job)
+    const fallbackQs = getEnrichQuestions(m.type, sl.job)
+
+    // Generate AI-tailored questions when the post changes
+    if (!aiQuestions && !aiQLoading) {
+      setAiQLoading(true)
+      generateEnrichQuestions(m.line, m.type, sl.job).then(qs => {
+        setAiQuestions(qs)
+        setAiQLoading(false)
+      }).catch(() => {
+        setAiQuestions(null)
+        setAiQLoading(false)
+      })
+    }
+
+    const qs = aiQuestions || fallbackQs
+
+    if (aiQLoading) {
+      return (
+        <div className="min-h-screen bg-zinc-950 bg-grid text-white">
+          <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
+          <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+            <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
+              Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
+            </p>
+            <div className="glass-card p-4 mb-6">
+              <p className="text-sm text-white">{m.line}</p>
+            </div>
+            <WritingScreen label="TAILORING YOUR QUESTIONS" line="Reading what you wrote and working out what to ask..." />
+          </main>
+        </div>
+      )
+    }
 
     return (
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
@@ -1513,7 +1585,7 @@ export default function ContentCaptureV2Client() {
             <span className="text-xs text-gold/60 uppercase tracking-widest">{TYPESHORT[m.type]}</span>
           </div>
           <Question>Flesh this one out.</Question>
-          <DimLabel>Answer what you can — skip what doesn't apply. All answers stay on this page.</DimLabel>
+          <DimLabel>These questions are based on what you wrote. Answer what you can — skip what doesn't apply.</DimLabel>
 
           <div className="space-y-4">
             {qs.map(([key, q, hint], qi) => (
@@ -1532,6 +1604,7 @@ export default function ContentCaptureV2Client() {
 
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => {
+              setAiQuestions(null)
               if (weekIdx > 0) { setWeekIdx(weekIdx - 1) }
               else setScreen('board')
             }}>← Back</GhostBtn>
@@ -1544,6 +1617,7 @@ export default function ContentCaptureV2Client() {
               })
               m.enrichment = enrichment
               updateLogEntry(m.id, enrichment)
+              setAiQuestions(null)
               if (weekIdx < weekPieces.length - 1) {
                 setWeekIdx(weekIdx + 1)
               } else {
