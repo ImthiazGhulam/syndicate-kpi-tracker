@@ -692,7 +692,41 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   const [expanded, setExpanded] = useState(false)
   const [capType, setCapType] = useState('client')
   const [capLine, setCapLine] = useState('')
+  const [saving, setSaving] = useState(false)
 
+  // Sales angle dropdown — builds options from SALES_ANGLES + playbook data
+  function SalesDropdown() {
+    if (job !== 'sales') return null
+    return (
+      <div className="mb-2">
+        <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-1">Selling</label>
+        <select value={salesAngle || ''} onChange={e => onSalesAngle(e.target.value)}
+          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm focus:outline-none focus:ring-1 focus:ring-gold transition appearance-none cursor-pointer"
+          style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23C9A84C' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}>
+          <option value="">— What are you selling? —</option>
+          {offerContext?.offerName && <option value="main-offer">{offerContext.offerName}{offerContext.price ? ` — £${offerContext.price}` : ''}</option>}
+          {offerContext?.dipName && <option value="micro-offer">{offerContext.dipName}{offerContext.dipPrice ? ` — £${offerContext.dipPrice}` : ''}</option>}
+          {(!offerContext?.offerName) && <option value="main-offer">My main offer</option>}
+          {(!offerContext?.dipName) && <option value="micro-offer">My micro offer / The Dip</option>}
+          <option value="seasonal">Seasonal or event-based</option>
+          <option value="new-launch">Something brand new</option>
+          <option value="waitlist">Waitlist / coming soon</option>
+          <option value="testimonial-push">Proof and social proof</option>
+        </select>
+      </div>
+    )
+  }
+
+  async function submit() {
+    if (!capLine.trim() || saving) return
+    setSaving(true)
+    await onCapture(capType, capLine.trim(), {}, salesAngle)
+    setCapLine('')
+    setExpanded(false)
+    setSaving(false)
+  }
+
+  // Filled state — moment assigned
   if (moment) {
     return (
       <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/30">
@@ -701,6 +735,7 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
           <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
         </div>
         <p className="text-sm text-zinc-300 py-1">{moment.line}</p>
+        <SalesDropdown />
         <div className="flex gap-3">
           <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest pt-1">Change</button>
           <button onClick={onClear} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest pt-1">Clear</button>
@@ -709,10 +744,12 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
     )
   }
 
+  // Collapsed state — no moment
   if (!expanded) {
     return (
       <div className="rounded-lg border p-4 mb-2 bg-zinc-900/50 border-zinc-800/50">
         <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        <SalesDropdown />
         <div className="flex gap-2 mt-2">
           <button onClick={() => setExpanded(true)} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest">+ Capture here</button>
           <button onClick={onPick} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest">Pick from log</button>
@@ -721,53 +758,12 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
     )
   }
 
-  // Sales angle picker for sales slots
-  if (job === 'sales' && !salesAngle) {
-    return (
-      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
-        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
-        <p className="text-sm text-zinc-400 mt-2 mb-3">What are you selling in this post?</p>
-        {offerContext && (offerContext.offerName || offerContext.dipName) && (
-          <div className="bg-zinc-800/50 rounded-lg p-3 mb-3 border border-zinc-700/50">
-            <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">From your playbooks</span>
-            {offerContext.offerName && <p className="text-xs text-zinc-300 mt-1">Main offer: <span className="text-gold">{offerContext.offerName}</span>{offerContext.price ? ` — £${offerContext.price}` : ''}</p>}
-            {offerContext.dipName && <p className="text-xs text-zinc-300 mt-1">Micro offer: <span className="text-gold">{offerContext.dipName}</span>{offerContext.dipPrice ? ` — £${offerContext.dipPrice}` : ''}</p>}
-          </div>
-        )}
-        <div className="flex flex-col gap-2">
-          {SALES_ANGLES.map(a => (
-            <button key={a.id} onClick={() => onSalesAngle(a.id)} className="text-left px-3 py-2 rounded-lg text-sm border bg-zinc-800 border-zinc-700 hover:border-zinc-600 transition">
-              <span className="font-bold text-white">{a.t}</span>
-              <span className="block text-xs text-zinc-500">{a.s}</span>
-            </button>
-          ))}
-        </div>
-        <button onClick={() => setExpanded(false)} className="text-xs font-bold text-zinc-600 hover:text-zinc-400 uppercase tracking-widest mt-3">← Cancel</button>
-      </div>
-    )
-  }
-
-  // Capture: type selector + one-line input only — enrichment happens in "Flesh them out"
-  const [saving, setSaving] = useState(false)
-  async function submit() {
-    if (!capLine.trim() || saving) return
-    setSaving(true)
-    const line = capLine.trim()
-    const type = capType
-    const angle = salesAngle
-    await onCapture(type, line, {}, angle)
-    setCapLine('')
-    setExpanded(false)
-    setSaving(false)
-  }
-
+  // Expanded state — capture input
   return (
     <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/20">
       <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
-      {job === 'sales' && salesAngle && (
-        <p className="text-xs text-zinc-500 mt-1">Selling: {SALES_ANGLES.find(a => a.id === salesAngle)?.t}</p>
-      )}
-      <div className="flex gap-1.5 flex-wrap mt-3 mb-2">
+      <SalesDropdown />
+      <div className="flex gap-1.5 flex-wrap mt-2 mb-2">
         {MOMENTS.map(m => (
           <button key={m.id} onClick={() => setCapType(m.id)}
             className={`px-2 py-1 rounded text-[10px] font-bold uppercase tracking-widest transition border ${capType === m.id ? 'bg-gold/10 text-gold border-gold/30' : 'bg-zinc-800 text-zinc-500 border-zinc-700 hover:border-zinc-600'}`}>
