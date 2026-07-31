@@ -1439,7 +1439,7 @@ export default function ContentCaptureV2Client() {
               <Btn gold disabled={!filled} onClick={() => {
                 const assigned = weekSlots.filter(s => s.moment)
                 setWeekPieces(assigned)
-                setWeekIdx(0); setWeekEnrichIdx(0); setScreen('week-enrich')
+                setWeekIdx(0); setScreen('week-enrich')
               }}>Flesh them out →</Btn>
             </div>
           </div>
