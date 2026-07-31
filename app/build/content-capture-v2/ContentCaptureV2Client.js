@@ -602,7 +602,7 @@ function WritingScreen({ line, label }) {
   )
 }
 
-function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onToEmail, onToYT }) {
+function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onToEmail, onToYT, onChangeFormat, formatOptions }) {
   const [copied, setCopied] = useState(false)
   const [showDont, setShowDont] = useState(false)
 
@@ -641,8 +641,9 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
       <div className="flex gap-2 mt-4 flex-wrap">
         <Btn gold onClick={onCopy || handleCopy} disabled={!piece}>{copied ? 'Copied' : 'Copy it'}</Btn>
         {onRewrite && <Btn onClick={onRewrite}>Rewrite it</Btn>}
-        {onToEmail && <Btn onClick={onToEmail}>→ Email version</Btn>}
-        {onToYT && <Btn onClick={onToYT}>→ YouTube version</Btn>}
+        {onChangeFormat && <Btn onClick={onChangeFormat}>Change format</Btn>}
+        {onToEmail && <Btn onClick={onToEmail}>→ Email</Btn>}
+        {onToYT && <Btn onClick={onToYT}>→ YouTube</Btn>}
       </div>
     </div>
   )
@@ -1786,6 +1787,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <Btn onClick={() => { setWeekSlots(suggestFill([...weekSlots])) }}>Suggest for me</Btn>
               <Btn gold disabled={!filled} onClick={() => {
                 const assigned = weekSlots.filter(s => s.moment)
+                console.log('Fleshing out:', assigned.length, 'of', weekSlots.length, 'slots. Jobs:', assigned.map(s => s.job))
                 setWeekPieces(assigned)
                 setWeekIdx(0); setChosenEngines({}); setChosenFormats({}); setAiQuestions(null); setScreen('week-enrich')
               }}>Flesh them out ({filled}/{weekSlots.length}) →</Btn>
@@ -2017,6 +2019,36 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     ["Doesn't sound like me — plainer", () => { setModal(null); rewriteWeekPiece(i, "Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
                     ['Just try a different angle', () => { setModal(null); rewriteWeekPiece(i, 'Take a completely different angle on the same moment.') }],
                   ],
+                })
+              }}
+              onChangeFormat={() => {
+                const engine = sl.chosenEngine || (sl.arc ? 'story' : 'teaching')
+                const availableEngines = getAvailableEngines(sl.job)
+                setModal({
+                  title: 'Change the format',
+                  body: 'Pick a new engine and format — the piece will be rewritten.',
+                  options: availableEngines.flatMap(eng => {
+                    const formats = getFormatsForJobEngine(sl.job, eng.id)
+                    return formats.map(f => ([
+                      `${eng.icon} ${eng.label} → ${f.label}`,
+                      async () => {
+                        setModal(null)
+                        const fmtPrompt = FORMAT_PROMPTS[f.id]
+                        if (!fmtPrompt) return
+                        const newCard = { ...sl.cardObj, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label }
+                        setScreen('week-writing'); setWritingLine(sl.moment.line)
+                        try {
+                          const piece = await generate(newCard, sl.moment, null, sl.arc, sl.cardKey)
+                          setWeekPieces(prev => {
+                            const updated = [...prev]
+                            updated[i] = { ...updated[i], piece, cardObj: newCard, chosenFormat: f.id, chosenEngine: eng.id }
+                            return updated
+                          })
+                        } catch {}
+                        setScreen('week-review')
+                      }
+                    ]))
+                  }),
                 })
               }}
               onToEmail={sl.job !== 'email' && hasList ? async () => {
