@@ -13,6 +13,7 @@ CREATE TABLE IF NOT EXISTS cc_profiles (
   email_count INTEGER DEFAULT NULL,
   yt_count INTEGER DEFAULT NULL,
   voice_corrections JSONB DEFAULT '[]'::jsonb,
+  voice_samples JSONB DEFAULT '[]'::jsonb,
   created_at TIMESTAMPTZ DEFAULT now(),
   updated_at TIMESTAMPTZ DEFAULT now()
 );

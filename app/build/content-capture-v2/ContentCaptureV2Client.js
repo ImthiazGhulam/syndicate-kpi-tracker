@@ -497,7 +497,25 @@ ${vl.join('\n')}`
     }
   }
 
-  return `WHAT TO WRITE: ${c.fmt}.
+  // Build voice samples section if available
+  let voiceSamples = ''
+  if (ctx && ctx.voiceSamples && ctx.voiceSamples.length > 0) {
+    voiceSamples = `\nTHEIR ACTUAL WRITING — match this voice exactly. Study the sentence length, the word choices, the rhythm, the attitude. Your output must read like they wrote it:
+${ctx.voiceSamples.map((s, i) => `--- SAMPLE ${i + 1} ---\n${s}`).join('\n\n')}\n--- END SAMPLES ---`
+  }
+
+  return `${voiceOverride}
+${voiceSamples}
+
+VOICE BASELINE (the samples and profile above override these where they conflict):
+- British English. Like a voice note to a mate, not a marketing piece.
+- Short sentences punch. Longer ones build tension when they need to. Vary deliberately.
+- Connect with: but / so / which is why / problem was. Never: "and then", "however", "moreover".
+- Specifics over adjectives. £4,215 not "great results". March 2024 not "recently".
+- The reader finishes confronted by themselves, not impressed by the writer.
+- End mid-thought or with a gut punch. Never wrap up neatly.
+
+WHAT TO WRITE: ${c.fmt}.
 FORMAT INSTRUCTIONS: ${c.out}
 THE CALL TO ACTION: ${c.cta}
 ${arc ? `
@@ -510,17 +528,6 @@ THE ONLY FACTS YOU MAY USE:
 ${facts.join('\n')}
 
 ABSOLUTE RULE — NO INVENTION: never invent names, numbers, results, dates, clients or details not in the facts above. If a detail is genuinely needed but missing, write a placeholder in this exact form: {{WHAT'S NEEDED}}. Two honest placeholders beat one invented fact.
-${voiceOverride}
-
-VOICE (non-negotiable baseline — the person's voice profile above takes priority where it specifies something different):
-- British English. Sounds like a voice note to a mate, not a crafted marketing piece.
-- Vary sentence length deliberately — short punches, the occasional longer one that builds. No droning.
-- No em-dashes. No "It's not X. It's Y." constructions. No three-part parallel lists.
-- No memo words: never "however", "therefore", "moreover", "furthermore", "additionally".
-- Connect beats with tension and consequence: but / so / which is why / problem was. "And then" is banned — if it fits a gap, that gap carries no story.
-- Specifics over adjectives. Use their exact words and numbers wherever given.
-- The reader should finish confronted by themselves, not impressed by the writer.
-- If the voice profile says they use specific phrases, work those in naturally. If it says they'd never use certain phrases, avoid them completely.
 ${redoNote ? `\nTHE LAST DRAFT WASN'T RIGHT: ${redoNote} Take a genuinely different angle.` : ''}`
 }
 
@@ -767,6 +774,46 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   )
 }
 
+function VoiceCalibration({ samples, onSave }) {
+  const [open, setOpen] = useState(false)
+  const [drafts, setDrafts] = useState(samples.length > 0 ? [...samples] : ['', '', ''])
+
+  if (!open) {
+    return (
+      <div className="mt-6">
+        <button onClick={() => { setDrafts(samples.length > 0 ? [...samples] : ['', '', '']); setOpen(true) }}
+          className={`w-full text-left glass-card p-4 transition hover:border-gold/30 ${samples.length > 0 ? '' : 'border-dashed border-gold/20'}`}>
+          <GoldLabel>Your voice</GoldLabel>
+          {samples.length > 0 && samples.some(s => s.trim()) ? (
+            <p className="text-xs text-zinc-400">{samples.filter(s => s.trim()).length} writing sample{samples.filter(s => s.trim()).length !== 1 ? 's' : ''} saved — the AI writes in your voice. Tap to edit.</p>
+          ) : (
+            <p className="text-xs text-zinc-500">Paste 2-3 pieces of content you've actually written. The AI will match your voice instead of sounding generic.</p>
+          )}
+        </button>
+      </div>
+    )
+  }
+
+  return (
+    <div className="mt-6 glass-card p-5">
+      <GoldLabel>Train your voice</GoldLabel>
+      <p className="text-xs text-zinc-500 mb-4">Paste 2-3 captions, emails, or posts you've written yourself. These teach the AI how you actually sound — not how coaches "should" sound.</p>
+      {drafts.map((d, i) => (
+        <div key={i} className="mb-3">
+          <label className="text-xs text-zinc-500 mb-1 block">Sample {i + 1}</label>
+          <textarea rows={4} value={d} onChange={e => { const u = [...drafts]; u[i] = e.target.value; setDrafts(u) }}
+            placeholder={i === 0 ? "Paste a caption or post you wrote..." : "Another one — the more variety, the better the match..."}
+            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+        </div>
+      ))}
+      <div className="flex gap-3 mt-2">
+        <Btn gold onClick={() => { onSave(drafts.filter(d => d.trim())); setOpen(false) }}>Save voice samples</Btn>
+        <Btn onClick={() => setOpen(false)}>Cancel</Btn>
+      </div>
+    </div>
+  )
+}
+
 function DialRing({ pct, color, trackColor, size = 64, stroke = 5 }) {
   const [animated, setAnimated] = useState(0)
   const radius = (size - stroke) / 2
@@ -887,6 +934,7 @@ export default function ContentCaptureV2Client() {
 
   // Playbook data (loaded once for AI context)
   const [playbookContext, setPlaybookContext] = useState(null)
+  const [voiceSamples, setVoiceSamples] = useState([])
 
   const saveTimer = useRef(null)
 
@@ -921,6 +969,9 @@ export default function ContentCaptureV2Client() {
       // Load saved weeks
       const { data: weeksData } = await supabase.from('cc_weeks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(20)
       if (weeksData) setSavedWeeks(weeksData)
+
+      // Load voice samples from profile
+      if (profile && profile.voice_samples) setVoiceSamples(profile.voice_samples)
 
       // Load playbook data for AI context
       const [ppRes, deRes, soRes] = await Promise.all([
@@ -1104,7 +1155,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   }
 
   async function generate(card, moment, redoNote, arc, cardKey) {
-    const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext, cardKey)
+    const ctxWithSamples = playbookContext ? { ...playbookContext, voiceSamples } : { voiceSamples }
+    const prompt = buildPrompt(card, moment, redoNote, arc, ctxWithSamples, cardKey)
     const res = await fetch('/api/generate-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1312,6 +1364,11 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               log.map(m => <LogLine key={m.id} moment={m} onDelete={() => deleteLogEntry(m.id)} />)
             )}
           </div>
+
+          <VoiceCalibration samples={voiceSamples} onSave={async (samples) => {
+            setVoiceSamples(samples)
+            await saveProfile({ voice_samples: samples })
+          }} />
 
           {savedWeeks.length > 0 && (
             <div className="mt-8">
