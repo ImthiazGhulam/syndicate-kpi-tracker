@@ -389,24 +389,44 @@ function SlotCard({ job, day, moment, onPick }) {
   )
 }
 
+function DialRing({ pct, color, trackColor, size = 64, stroke = 5 }) {
+  const [animated, setAnimated] = useState(0)
+  const radius = (size - stroke) / 2
+  const circ = 2 * Math.PI * radius
+  const offset = circ - (circ * animated / 100)
+
+  useEffect(() => {
+    const t = setTimeout(() => setAnimated(pct), 50)
+    return () => clearTimeout(t)
+  }, [pct])
+
+  return (
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={trackColor} strokeWidth={stroke} />
+      <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke={color} strokeWidth={stroke}
+        strokeDasharray={circ} strokeDashoffset={offset} strokeLinecap="round"
+        style={{ transition: 'stroke-dashoffset 0.8s ease-out' }} />
+    </svg>
+  )
+}
+
 function MixDials({ reach, value, sales, total }) {
   const pct = (v) => total > 0 ? Math.round((v / total) * 100) : 0
   const items = [
-    { label: 'Reach', count: reach, color: 'bg-emerald-500', track: 'bg-emerald-500/20' },
-    { label: 'Trust', count: value, color: 'bg-blue-500', track: 'bg-blue-500/20' },
-    { label: 'Sales', count: sales, color: 'bg-gold', track: 'bg-gold/20' },
+    { label: 'Reach', count: reach, color: '#10b981', track: 'rgba(16,185,129,0.15)' },
+    { label: 'Trust', count: value, color: '#3b82f6', track: 'rgba(59,130,246,0.15)' },
+    { label: 'Sales', count: sales, color: '#C9A84C', track: 'rgba(201,168,76,0.15)' },
   ]
   return (
-    <div className="flex gap-4">
+    <div className="flex justify-around items-center">
       {items.map(it => (
-        <div key={it.label} className="flex-1">
-          <div className="flex justify-between items-baseline mb-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{it.label}</span>
-            <span className="text-[10px] font-bold text-zinc-400">{it.count}</span>
+        <div key={it.label} className="flex flex-col items-center gap-1">
+          <div className="relative">
+            <DialRing pct={pct(it.count)} color={it.color} trackColor={it.track} size={56} stroke={4} />
+            <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-white">{pct(it.count)}%</span>
           </div>
-          <div className={`h-1.5 rounded-full ${it.track} overflow-hidden`}>
-            <div className={`h-full rounded-full ${it.color} transition-all duration-300`} style={{ width: `${pct(it.count)}%` }} />
-          </div>
+          <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{it.label}</span>
+          <span className="text-xs font-bold text-zinc-400">{it.count} post{it.count !== 1 ? 's' : ''}</span>
         </div>
       ))}
     </div>
