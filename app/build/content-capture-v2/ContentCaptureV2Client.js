@@ -70,7 +70,8 @@ const ARCS = {
   receipt: { n: 'Receipt Drop', beats: "(1) The receipt in sentence one. (2) 'Here's why.' (3) The mechanism in two or three concrete beats. (4) The takeaway. (5) Turn on the viewer. (6) Button that loops back to the number." },
 }
 
-const ENRICH = {
+// Base enrichment questions per moment type — used as fallback
+const ENRICH_BASE = {
   client: [['scene', 'Paint the scene — what actually happened?', 'Where were you, what was said, what did you see.'], ['verb', 'What did they actually say, word for word?', 'The exact line. Skip if nothing was said.'], ['num', 'Is there a number in it?', 'A figure, a timeframe, a count. Skip if not.']],
   receipt: [['num', "What's the exact number?", 'Exact beats rounded. £4,215 beats £4K.'], ['scene', "What's the story behind it?", 'Where did this start, what was it before.'], ['change', 'The one thing that made the difference?', 'One move, not the whole method.']],
   question: [['verb', 'What do they ask, word for word?', 'The exact phrasing is your opening line.'], ['scene', 'When did it last come up?', 'The DM, the call, the comment.'], ['change', 'Your honest answer in one line?', "The short version you'd give a mate."]],
@@ -78,6 +79,77 @@ const ENRICH = {
   industry: [['verb', "What's the advice everyone repeats?", "Their words, the way it's always said."], ['change', 'What do you believe instead?', 'Your actual position, one line.'], ['num', 'A result that backs you up?', "Honest answer — skip if not yet."]],
   bts: [['scene', 'What are you working on this week?', 'The thing itself, plainly.'], ['change', "What will be different when it's done?", 'For you or for them.'], ['num', 'Any numbers attached?', 'Dates, counts, targets. Skip if not.']],
 }
+
+// Job-adapted enrichment — different questions depending on whether reach, value, or sales
+function getEnrichQuestions(momentType, job) {
+  if (job === 'sales') {
+    switch (momentType) {
+      case 'client': return [
+        ['scene', 'What happened with this client?', 'The situation, the struggle, or the win — the part a prospect would see themselves in.'],
+        ['num', "What's the measurable result?", 'Revenue, timeline, percentage — the number that proves it worked.'],
+        ['change', 'What would they say to someone on the fence?', "The line they'd use to describe the change, in their words."],
+      ]
+      case 'receipt': return [
+        ['num', "What's the exact number?", 'Exact beats rounded. £4,215 beats £4K.'],
+        ['scene', 'Whose result is this, and where did they start?', 'Name (or anonymised), and what life looked like before.'],
+        ['change', 'What about your offer made this result possible?', 'The specific thing in your programme that drove it.'],
+      ]
+      case 'question': return [
+        ['verb', 'What objection or question did they raise?', 'Their exact words — this becomes the opening line.'],
+        ['scene', 'What context were they in when they asked?', 'DM, call, comment — and what stage of buying were they at.'],
+        ['change', 'What fact about your offer dissolves this objection?', 'The specific mechanic or guarantee that changes the calculation.'],
+      ]
+      default: return ENRICH_BASE[momentType] || ENRICH_BASE.client
+    }
+  }
+  if (job === 'value') {
+    switch (momentType) {
+      case 'client': return [
+        ['scene', 'Walk me through what happened — the before and the turn.', 'The scene where things changed for them. One vivid detail beats a summary.'],
+        ['verb', 'What did they actually say?', 'The exact line — this carries the emotion the method description never can.'],
+        ['change', 'What principle or step made the difference?', 'The one thing from your method that unlocked it — not the whole system, the lever.'],
+      ]
+      case 'receipt': return [
+        ['num', "What's the exact number?", 'Exact beats rounded. £4,215 beats £4K.'],
+        ['change', "What's the mechanism behind this result?", "Not 'consistency' — the actual move. What did you or they do differently."],
+        ['scene', 'What was the situation before this number existed?', 'The contrast is what makes the result land.'],
+      ]
+      case 'question': return [
+        ['verb', 'What do they ask, word for word?', 'The exact phrasing is your opening line.'],
+        ['change', 'What do most people get wrong about this?', 'The reframe — the thing they haven\'t considered.'],
+        ['scene', 'Can you show a real example of the right approach?', 'A client, a number, a before/after that proves the reframe.'],
+      ]
+      case 'bts': return [
+        ['scene', 'What exactly are you building or doing?', 'The specific task, plainly described.'],
+        ['change', 'What will this change for your clients?', 'The outcome they care about, not the feature.'],
+        ['num', 'Any numbers — timeline, count, target?', 'Skip if not.'],
+      ]
+      default: return ENRICH_BASE[momentType] || ENRICH_BASE.client
+    }
+  }
+  // Reach (default) — designed for cold audience, pattern interrupt, relatability
+  switch (momentType) {
+    case 'client': return [
+      ['scene', 'Paint the scene — what actually happened?', 'Where were you, what was said, what did you see. Cold audiences need the movie, not the summary.'],
+      ['verb', 'What did they actually say, word for word?', 'The exact line — this is what stops the scroll.'],
+      ['num', 'Is there a number in it?', 'A figure, a timeframe, a count. Skip if not.'],
+    ]
+    case 'personal': return [
+      ['scene', 'Take me to the moment — where were you?', 'Present tense if you can. The room, the day, the feeling. Strangers need to see the scene.'],
+      ['num', 'Any numbers or dates in it?', 'The year, the figure, the cost. Specifics stop scrollers.'],
+      ['change', 'What changed after?', 'The before and the after — the contrast is what makes a stranger care.'],
+    ]
+    case 'industry': return [
+      ['verb', "What's the advice everyone repeats?", "Their words, the way it's always said. The more recognisable, the better the pattern interrupt."],
+      ['change', 'What do you believe instead?', 'Your actual position, one line. The bet against the crowd.'],
+      ['num', 'A result that backs you up?', "Without a number, this is just an opinion. With one, it's proof."],
+    ]
+    default: return ENRICH_BASE[momentType] || ENRICH_BASE.client
+  }
+}
+
+// Legacy accessor for code that just needs type-based questions
+const ENRICH = ENRICH_BASE
 
 const BUILD_LINES = [
   'Reading your moment...', 'Picking the shape...', 'Writing in your voice...', 'Sharpening the hook...', 'Checking the ask matches the job...',
@@ -495,7 +567,7 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   }
 
   // Inline capture flow
-  const qs = ENRICH[capType]
+  const qs = getEnrichQuestions(capType, job)
   const currentQ = qs ? qs[enrichStep] : null
 
   // Sales angle picker for sales slots
@@ -1199,7 +1271,7 @@ export default function ContentCaptureV2Client() {
   // ── Quick Mode: Enrichment ────────────────────────────────────────────────
 
   if (screen === 'quick-enrich' && quickMoment) {
-    const qs = ENRICH[quickMoment.type]
+    const qs = getEnrichQuestions(quickMoment.type, quickJob)
     const [key, q, hint] = qs[enrichIdx]
     const enrichVal = (quickMoment.enrichment || {})[key] || ''
 
@@ -1466,7 +1538,7 @@ export default function ContentCaptureV2Client() {
 
     const sl = weekPieces[weekIdx]
     const m = sl.moment
-    const qs = ENRICH[m.type]
+    const qs = getEnrichQuestions(m.type, sl.job)
     const [key, q, hint] = qs[weekEnrichIdx]
     const enrichVal = (m.enrichment || {})[key] || ''
 
@@ -1485,7 +1557,7 @@ export default function ContentCaptureV2Client() {
           <div className="flex justify-between mt-6">
             <GhostBtn onClick={() => {
               if (weekEnrichIdx > 0) setWeekEnrichIdx(weekEnrichIdx - 1)
-              else if (weekIdx > 0) { setWeekIdx(weekIdx - 1); setWeekEnrichIdx(ENRICH[weekPieces[weekIdx - 1].moment.type].length - 1) }
+              else if (weekIdx > 0) { setWeekIdx(weekIdx - 1); setWeekEnrichIdx(getEnrichQuestions(weekPieces[weekIdx - 1].moment.type, weekPieces[weekIdx - 1].job).length - 1) }
               else setScreen('board')
             }}>← Back</GhostBtn>
             <div className="flex gap-3 items-center">
@@ -1609,7 +1681,7 @@ export default function ContentCaptureV2Client() {
   }
 
   async function advanceEnrich(skip) {
-    const qs = ENRICH[quickMoment.type]
+    const qs = getEnrichQuestions(quickMoment.type, quickJob)
     const [key] = qs[enrichIdx]
     const val = skip ? '' : (document.getElementById('enrich-input')?.value?.trim() || '')
     const updated = { ...quickMoment, enrichment: { ...(quickMoment.enrichment || {}), [key]: val } }
@@ -1692,7 +1764,7 @@ export default function ContentCaptureV2Client() {
   async function advanceWeekEnrich(skip) {
     const sl = weekPieces[weekIdx]
     const m = sl.moment
-    const qs = ENRICH[m.type]
+    const qs = getEnrichQuestions(m.type, sl.job)
     const [key] = qs[weekEnrichIdx]
     const val = skip ? '' : (document.getElementById('week-enrich-input')?.value?.trim() || '')
     m.enrichment = { ...(m.enrichment || {}), [key]: val }
