@@ -755,9 +755,19 @@ export default function ContentCaptureV2Client() {
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
         <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+          <button onClick={() => router.push('/client')} className="text-zinc-500 hover:text-white text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-1 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            Dashboard
+          </button>
           <div className="w-8 h-px bg-gold mb-4" />
           <GoldLabel>The Motherboard · Content system</GoldLabel>
           <Question>What do you want to <span className="text-gold font-medium">do</span>?</Question>
+          {stage && (
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xs text-zinc-500">Stage: <span className="text-gold font-bold">{STAGES.find(s => s.id === stage)?.t}</span></span>
+              <button onClick={() => { setAfterChannels('home'); setScreen('stage') }} className="text-xs text-gold/60 hover:text-gold underline">Change</button>
+            </div>
+          )}
 
           <div className="flex flex-col gap-3 mb-7">
             <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setScreen('quick-moment') }}
@@ -1083,9 +1093,27 @@ export default function ContentCaptureV2Client() {
           </div>
 
           <div className="mt-2">
-            {weekSlots.map((sl, i) => (
-              <SlotCard key={i} job={sl.job} day={sl.day} moment={sl.moment} onPick={() => setPicker(i)} />
-            ))}
+            {(() => {
+              const grouped = []
+              let lastDay = null
+              weekSlots.forEach((sl, i) => {
+                const dayBase = sl.day.split(' · ')[0]
+                if (dayBase !== lastDay) {
+                  grouped.push({ type: 'day', day: dayBase })
+                  lastDay = dayBase
+                }
+                grouped.push({ type: 'slot', sl, i })
+              })
+              return grouped.map((item, gi) =>
+                item.type === 'day' ? (
+                  <div key={'day-' + gi} className="mt-4 mb-2 first:mt-0">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{item.day}</span>
+                  </div>
+                ) : (
+                  <SlotCard key={item.i} job={item.sl.job} day="" moment={item.sl.moment} onPick={() => setPicker(item.i)} />
+                )
+              )
+            })()}
           </div>
 
           <div className="flex justify-between mt-6">
