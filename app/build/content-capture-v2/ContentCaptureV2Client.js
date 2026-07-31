@@ -180,13 +180,17 @@ function buildPrompt(c, m, redoNote, arc, ctx) {
   if (e.change) facts.push(`What changed: "${e.change}"`)
 
   let brandContext = ''
+  let voiceOverride = ''
   if (ctx) {
     const lines = []
     if (ctx.positioning) {
       if (ctx.positioning.worksWithDesc) lines.push(`Who they work with: ${ctx.positioning.worksWithDesc}`)
       if (ctx.positioning.refuses) lines.push(`Who they refuse: ${ctx.positioning.refuses}`)
-      if (ctx.positioning.brandPromise) lines.push(`Brand promise: ${ctx.positioning.brandPromise}`)
-      if (ctx.positioning.industryDisagreements) lines.push(`Industry disagreements: ${ctx.positioning.industryDisagreements}`)
+      if (ctx.positioning.notFor) lines.push(`Not for: ${ctx.positioning.notFor}`)
+      if (ctx.positioning.contrarian) lines.push(`Contrarian belief: ${ctx.positioning.contrarian}`)
+      if (ctx.positioning.whatYouDo) lines.push(`What they do: ${ctx.positioning.whatYouDo}`)
+      if (ctx.positioning.sector) lines.push(`Sector: ${ctx.positioning.sector}`)
+      if (ctx.positioning.personality) lines.push(`Brand personality: ${ctx.positioning.personality}`)
     }
     if (ctx.distinction) {
       if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
@@ -199,11 +203,36 @@ function buildPrompt(c, m, redoNote, arc, ctx) {
       if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
       if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
       if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
+      if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}`)
+      if (ctx.offer.dipPromise) lines.push(`Micro offer promise: ${ctx.offer.dipPromise}`)
+    }
+    if (ctx.hero) {
+      if (ctx.hero.origin) lines.push(`Origin story: ${ctx.hero.origin}`)
+      if (ctx.hero.gift) lines.push(`What they give clients: ${ctx.hero.gift}`)
+      if (ctx.hero.why) lines.push(`Their why: ${ctx.hero.why}`)
+      if (ctx.hero.identityLabel) lines.push(`Identity label: ${ctx.hero.identityLabel}`)
+    }
+    if (ctx.remarkable) {
+      if (ctx.remarkable.differentiator) lines.push(`Key differentiator: ${ctx.remarkable.differentiator}`)
+      if (ctx.remarkable.mechanism) lines.push(`Mechanism: ${ctx.remarkable.mechanism}`)
+      if (ctx.remarkable.provocation) lines.push(`Provocation: ${ctx.remarkable.provocation}`)
     }
     if (ctx.icpPromise) lines.push(`ICP promise: ${ctx.icpPromise}`)
     if (lines.length > 0) {
       brandContext = `\nTHIS PERSON'S BRAND AND OFFER (use to guide tone, positioning, and who the content speaks to — weave naturally, never announce):
 ${lines.join('\n')}`
+    }
+    // Voice profile from Premium Position
+    if (ctx.voice) {
+      const vl = []
+      if (ctx.voice.directness) vl.push(`Directness: ${ctx.voice.directness}`)
+      if (ctx.voice.formality) vl.push(`Formality: ${ctx.voice.formality}`)
+      if (ctx.voice.phrasesUse) vl.push(`Phrases they actually use: ${ctx.voice.phrasesUse}`)
+      if (ctx.voice.phrasesAvoid) vl.push(`Phrases they would NEVER use: ${ctx.voice.phrasesAvoid}`)
+      if (vl.length > 0) {
+        voiceOverride = `\nTHIS PERSON'S VOICE PROFILE (override the generic voice rules below with these specifics — this is how they actually talk):
+${vl.join('\n')}`
+      }
     }
   }
 
@@ -220,8 +249,9 @@ THE ONLY FACTS YOU MAY USE:
 ${facts.join('\n')}
 
 ABSOLUTE RULE — NO INVENTION: never invent names, numbers, results, dates, clients or details not in the facts above. If a detail is genuinely needed but missing, write a placeholder in this exact form: {{WHAT'S NEEDED}}. Two honest placeholders beat one invented fact.
+${voiceOverride}
 
-VOICE (non-negotiable):
+VOICE (non-negotiable baseline — the person's voice profile above takes priority where it specifies something different):
 - British English. Sounds like a voice note to a mate, not a crafted marketing piece.
 - Vary sentence length deliberately — short punches, the occasional longer one that builds. No droning.
 - No em-dashes. No "It's not X. It's Y." constructions. No three-part parallel lists.
@@ -229,6 +259,7 @@ VOICE (non-negotiable):
 - Connect beats with tension and consequence: but / so / which is why / problem was. "And then" is banned — if it fits a gap, that gap carries no story.
 - Specifics over adjectives. Use their exact words and numbers wherever given.
 - The reader should finish confronted by themselves, not impressed by the writer.
+- If the voice profile says they use specific phrases, work those in naturally. If it says they'd never use certain phrases, avoid them completely.
 ${redoNote ? `\nTHE LAST DRAFT WASN'T RIGHT: ${redoNote} Take a genuinely different angle.` : ''}`
 }
 
@@ -390,7 +421,7 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   const [expanded, setExpanded] = useState(false)
   const [capType, setCapType] = useState('client')
   const [capLine, setCapLine] = useState('')
-  const [enrichStep, setEnrichStep] = useState(0)
+  const [enrichStep, setEnrichStep] = useState(-1)
   const [enrichAnswers, setEnrichAnswers] = useState({})
 
   if (moment) {
@@ -667,11 +698,37 @@ export default function ContentCaptureV2Client() {
       if (ppRes.data) {
         const pp = ppRes.data
         const star = pp.brand_star || {}
+        const hero = pp.hero || {}
+        const remarkable = pp.remarkable || {}
+        const tone = star.tone || {}
         ctx.positioning = {
           worksWithDesc: star.specific_description || '',
           refuses: star.refuse || '',
-          industryDisagreements: star.disagreements || '',
-          brandPromise: star.brand_promise || '',
+          notFor: star.not_for || '',
+          contrarian: star.contrarian_belief || '',
+          whatYouDo: star.what_you_do || '',
+          sector: star.sector || '',
+          personality: Array.isArray(star.personality) ? star.personality.join(', ') : '',
+        }
+        ctx.voice = {
+          directness: tone.directness || '',
+          formality: tone.formality || '',
+          phrasesUse: tone.phrases_use || '',
+          phrasesAvoid: tone.phrases_avoid || '',
+        }
+        ctx.hero = {
+          origin: hero.origin || '',
+          turningPoint: hero.turning_point || '',
+          lesson: hero.lesson || '',
+          gift: hero.gift || '',
+          why: hero.why || '',
+          identityLabel: hero.identity_label || '',
+        }
+        ctx.remarkable = {
+          category: remarkable.category || '',
+          mechanism: remarkable.mechanism || '',
+          differentiator: remarkable.differentiator || '',
+          provocation: remarkable.provocation || '',
         }
       }
       if (deRes.data) {
