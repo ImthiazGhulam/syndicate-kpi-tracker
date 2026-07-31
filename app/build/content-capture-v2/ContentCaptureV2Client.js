@@ -310,32 +310,26 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
   if (ctx) {
     const lines = []
 
-    // REACH cards: Brand Star positioning (who they serve, contrarian belief, personality)
-    if (isReach && ctx.positioning) {
-      if (ctx.positioning.worksWithDesc) lines.push(`Who they work with: ${ctx.positioning.worksWithDesc}`)
-      if (ctx.positioning.refuses) lines.push(`Who they refuse: ${ctx.positioning.refuses}`)
-      if (ctx.positioning.contrarian) lines.push(`Contrarian belief: ${ctx.positioning.contrarian}`)
-      if (ctx.positioning.whatYouDo) lines.push(`What they do: ${ctx.positioning.whatYouDo}`)
-      if (ctx.positioning.sector) lines.push(`Sector: ${ctx.positioning.sector}`)
-      if (ctx.positioning.personality) lines.push(`Brand personality: ${ctx.positioning.personality}`)
-    }
-
-    // VALUE cards: Distinction Engine + Remarkable
-    if (isValue) {
-      if (ctx.distinction) {
-        if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
-        if (ctx.distinction.promise) lines.push(`Method promise: ${ctx.distinction.promise}`)
-        if (ctx.distinction.problems.length) lines.push(`Problems solved: ${ctx.distinction.problems.join(', ')}`)
-        if (ctx.distinction.pillars.length) lines.push(`Pillars: ${ctx.distinction.pillars.join(', ')}`)
+    // ── PREMIUM POSITION: Brand Star — reach (full), value (lighter), sales (who it's not for) ──
+    if (ctx.positioning) {
+      if (isReach || isValue) {
+        if (ctx.positioning.worksWithDesc) lines.push(`Who they work with: ${ctx.positioning.worksWithDesc}`)
+        if (ctx.positioning.refuses) lines.push(`Who they refuse: ${ctx.positioning.refuses}`)
+        if (ctx.positioning.contrarian) lines.push(`Contrarian belief: ${ctx.positioning.contrarian}`)
+        if (ctx.positioning.sector) lines.push(`Sector: ${ctx.positioning.sector}`)
+        if (ctx.positioning.personality) lines.push(`Brand personality: ${ctx.positioning.personality}`)
       }
-      if (ctx.remarkable) {
-        if (ctx.remarkable.differentiator) lines.push(`Key differentiator: ${ctx.remarkable.differentiator}`)
-        if (ctx.remarkable.mechanism) lines.push(`Mechanism: ${ctx.remarkable.mechanism}`)
+      if (isReach) {
+        if (ctx.positioning.whatYouDo) lines.push(`What they do: ${ctx.positioning.whatYouDo}`)
+      }
+      if (isSales) {
+        if (ctx.positioning.refuses) lines.push(`Who they refuse (use as a filter): ${ctx.positioning.refuses}`)
+        if (ctx.positioning.worksWithDesc) lines.push(`Who they work with: ${ctx.positioning.worksWithDesc}`)
       }
     }
 
-    // STORY cards: Hero data
-    if (isStory && ctx.hero) {
+    // ── PREMIUM POSITION: Hero — reach (personal stories), value (depth), not sales ──
+    if ((isReach || isValue || isStory) && ctx.hero) {
       if (ctx.hero.origin) lines.push(`Origin story: ${ctx.hero.origin}`)
       if (ctx.hero.turningPoint) lines.push(`Turning point: ${ctx.hero.turningPoint}`)
       if (ctx.hero.gift) lines.push(`What they give clients: ${ctx.hero.gift}`)
@@ -343,37 +337,73 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
       if (ctx.hero.identityLabel) lines.push(`Identity label: ${ctx.hero.identityLabel}`)
     }
 
-    // SALES cards: full Sold Out context (ICP, Bang Bang, Dip)
-    if (isSales) {
-      if (ctx.offer) {
-        if (ctx.offer.offerName) lines.push(`Offer name: ${ctx.offer.offerName}`)
-        if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
-        if (ctx.offer.price) lines.push(`Offer price: £${ctx.offer.price}`)
-        if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
-        if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
-        if (ctx.offer.guaranteeType) lines.push(`Guarantee: ${ctx.offer.guaranteeType}${ctx.offer.guarantee ? ' — ' + ctx.offer.guarantee : ''}`)
-        if (ctx.offer.scarcity) lines.push(`Scarcity: ${ctx.offer.scarcity}`)
-        if (ctx.offer.deliveryModel) lines.push(`Delivery: ${ctx.offer.deliveryModel}`)
-        if (ctx.offer.resultsNumbers) lines.push(`Results numbers: ${ctx.offer.resultsNumbers}`)
-        if (ctx.offer.bigNames) lines.push(`Notable clients: ${ctx.offer.bigNames}`)
-        if (ctx.offer.continuityOffer) lines.push(`After the programme: ${ctx.offer.continuityOffer}`)
-        if (ctx.offer.ctaAction) lines.push(`CTA: ${ctx.offer.ctaAction}`)
-        if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}${ctx.offer.dipPrice ? ' — £' + ctx.offer.dipPrice : ''}`)
-        if (ctx.offer.dipPromise) lines.push(`Micro offer promise: ${ctx.offer.dipPromise}`)
-        if (ctx.offer.dipProblem) lines.push(`Micro offer solves: ${ctx.offer.dipProblem}`)
-        if (ctx.offer.dipBridge) lines.push(`Bridge to main offer: ${ctx.offer.dipBridge}`)
-      }
-      if (ctx.icp) {
-        if (ctx.icp.pains) lines.push(`Their core pains: ${ctx.icp.pains}`)
-        if (ctx.icp.costOfInaction) lines.push(`Cost of doing nothing: ${ctx.icp.costOfInaction}`)
-        if (ctx.icp.triggerMoment) lines.push(`What makes them act: ${ctx.icp.triggerMoment}`)
-        // Objection post gets the full objections list verbatim
-        if (isObjection && ctx.icp.realObjections) lines.push(`Real objections heard from this audience (use verbatim): ${ctx.icp.realObjections}`)
-      }
-      if (ctx.programmeDuration) lines.push(`Programme duration: ${ctx.programmeDuration}`)
+    // ── PREMIUM POSITION: Remarkable — value + sales (mechanism is proof) ──
+    if ((isValue || isSales) && ctx.remarkable) {
+      if (ctx.remarkable.differentiator) lines.push(`Key differentiator: ${ctx.remarkable.differentiator}`)
+      if (ctx.remarkable.mechanism) lines.push(`Mechanism: ${ctx.remarkable.mechanism}`)
+      if (isValue && ctx.remarkable.provocation) lines.push(`Provocation: ${ctx.remarkable.provocation}`)
     }
 
-    // YouTube (c9) exception: gets method + offer name only for the soft close-mention
+    // ── DISTINCTION ENGINE — reach (problems only), value (full), sales (method name + promise) ──
+    if (ctx.distinction) {
+      if (isReach) {
+        if (ctx.distinction.problems.length) lines.push(`Problems their audience faces (use to name the pain, never teach the system): ${ctx.distinction.problems.join(', ')}`)
+      }
+      if (isValue) {
+        if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
+        if (ctx.distinction.promise) lines.push(`Method promise: ${ctx.distinction.promise}`)
+        if (ctx.distinction.problems.length) lines.push(`Problems solved: ${ctx.distinction.problems.join(', ')}`)
+        if (ctx.distinction.pillars.length) lines.push(`Pillars: ${ctx.distinction.pillars.join(', ')}`)
+      }
+      if (isSales) {
+        if (ctx.distinction.engineName) lines.push(`Method name: ${ctx.distinction.engineName}`)
+        if (ctx.distinction.promise) lines.push(`Method promise: ${ctx.distinction.promise}`)
+      }
+    }
+
+    // ── SOLD OUT ICP — reach (pains, dream outcome, trigger), value (+ objections, cost of inaction), sales (full) ──
+    if (ctx.icp) {
+      if (isReach) {
+        if (ctx.icp.pains) lines.push(`Their core pains (this is their language — use it to name what they feel): ${ctx.icp.pains}`)
+        if (ctx.icp.dreamOutcome) lines.push(`Their dream outcome: ${ctx.icp.dreamOutcome}`)
+        if (ctx.icp.triggerMoment) lines.push(`What makes them finally act: ${ctx.icp.triggerMoment}`)
+      }
+      if (isValue) {
+        if (ctx.icp.pains) lines.push(`Their core pains: ${ctx.icp.pains}`)
+        if (ctx.icp.dreamOutcome) lines.push(`Their dream outcome: ${ctx.icp.dreamOutcome}`)
+        if (ctx.icp.triggerMoment) lines.push(`What makes them act: ${ctx.icp.triggerMoment}`)
+        if (ctx.icp.realObjections) lines.push(`Common objections (use as teaching material — the things everyone thinks): ${ctx.icp.realObjections}`)
+        if (ctx.icp.costOfInaction) lines.push(`Cost of doing nothing: ${ctx.icp.costOfInaction}`)
+      }
+      if (isSales) {
+        if (ctx.icp.pains) lines.push(`Their core pains: ${ctx.icp.pains}`)
+        if (ctx.icp.dreamOutcome) lines.push(`Their dream outcome: ${ctx.icp.dreamOutcome}`)
+        if (ctx.icp.costOfInaction) lines.push(`Cost of doing nothing: ${ctx.icp.costOfInaction}`)
+        if (ctx.icp.triggerMoment) lines.push(`What makes them act: ${ctx.icp.triggerMoment}`)
+        if (isObjection && ctx.icp.realObjections) lines.push(`Real objections heard from this audience (use verbatim): ${ctx.icp.realObjections}`)
+      }
+    }
+
+    // ── SOLD OUT OFFER — sales only (full Bang Bang + Dip), YouTube (offer name for soft close) ──
+    if (isSales && ctx.offer) {
+      if (ctx.offer.offerName) lines.push(`Offer name: ${ctx.offer.offerName}`)
+      if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
+      if (ctx.offer.price) lines.push(`Offer price: £${ctx.offer.price}`)
+      if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
+      if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
+      if (ctx.offer.guaranteeType) lines.push(`Guarantee: ${ctx.offer.guaranteeType}${ctx.offer.guarantee ? ' — ' + ctx.offer.guarantee : ''}`)
+      if (ctx.offer.scarcity) lines.push(`Scarcity: ${ctx.offer.scarcity}`)
+      if (ctx.offer.deliveryModel) lines.push(`Delivery: ${ctx.offer.deliveryModel}`)
+      if (ctx.offer.resultsNumbers) lines.push(`Results numbers: ${ctx.offer.resultsNumbers}`)
+      if (ctx.offer.bigNames) lines.push(`Notable clients: ${ctx.offer.bigNames}`)
+      if (ctx.offer.continuityOffer) lines.push(`After the programme: ${ctx.offer.continuityOffer}`)
+      if (ctx.offer.ctaAction) lines.push(`CTA: ${ctx.offer.ctaAction}`)
+      if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}${ctx.offer.dipPrice ? ' — £' + ctx.offer.dipPrice : ''}`)
+      if (ctx.offer.dipPromise) lines.push(`Micro offer promise: ${ctx.offer.dipPromise}`)
+      if (ctx.offer.dipProblem) lines.push(`Micro offer solves: ${ctx.offer.dipProblem}`)
+      if (ctx.offer.dipBridge) lines.push(`Bridge to main offer: ${ctx.offer.dipBridge}`)
+      if (ctx.programmeDuration) lines.push(`Programme duration: ${ctx.programmeDuration}`)
+    }
     if (isYouTube && ctx.offer) {
       if (ctx.offer.offerName) lines.push(`Offer name (for the single soft mention at the close only): ${ctx.offer.offerName}`)
     }
@@ -381,7 +411,7 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
     if (lines.length > 0) {
       const header = isSales
         ? `\nTHIS PERSON'S BRAND AND OFFER (use to shape the selling — reference the offer, price, proof and objections directly):`
-        : `\nTHIS PERSON'S BRAND CONTEXT (use to guide tone and positioning — do NOT mention any offer, programme name, or price):`
+        : `\nTHIS PERSON'S BRAND CONTEXT (use to guide tone, positioning, and who the content speaks to — do NOT mention any offer name, programme name, or price):`
       brandContext = `${header}\n${lines.join('\n')}`
     }
 
