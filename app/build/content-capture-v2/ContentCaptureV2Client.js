@@ -1218,7 +1218,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   // ── Derived values ────────────────────────────────────────────────────────
 
   const baseN = stage ? (MIX[stage] || MIX.build).reach + (MIX[stage] || MIX.build).value + (MIX[stage] || MIX.build).sales : 5
-  const pieceCount = piecesN || baseN
+  const pieceCount = (piecesN && piecesN >= 3) ? piecesN : baseN
   const emailCount = emailN !== null ? emailN : (hasList ? 1 : 0)
   const ytCount = ytN !== null ? ytN : (doesYT ? 1 : 0)
   const mix = mixFor(stage, pieceCount, weekGoal)
@@ -1698,7 +1698,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           <DimLabel>Tap a slot, pick a moment. Or let the tool suggest and adjust from there. Empty slots just get skipped.</DimLabel>
 
           <Stepper label="Feed posts" note={pieceCount === baseN ? 'The pace your stage suggests' : pieceCount > baseN ? 'Above your stage\'s pace' : 'A lighter week'}
-            value={pieceCount} onMinus={() => changePieceCount(-1)} onPlus={() => changePieceCount(1)} minDisabled={pieceCount <= 1} maxDisabled={pieceCount >= 21} />
+            value={pieceCount} onMinus={() => changePieceCount(-1)} onPlus={() => changePieceCount(1)} minDisabled={pieceCount <= 3} maxDisabled={pieceCount >= 21} />
           {hasList && (
             <Stepper label="Emails to your list" note={emailCount === 1 ? 'One a week keeps it warm' : emailCount === 0 ? 'Skipping the list this week' : 'More than one needs genuinely separate moments'}
               value={emailCount} onMinus={() => changeEmailCount(-1)} onPlus={() => changeEmailCount(1)} minDisabled={emailCount <= 0} maxDisabled={emailCount >= 7} />
@@ -1761,8 +1761,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <Btn gold disabled={!filled} onClick={() => {
                 const assigned = weekSlots.filter(s => s.moment)
                 setWeekPieces(assigned)
-                setWeekIdx(0); setScreen('week-enrich')
-              }}>Flesh them out →</Btn>
+                setWeekIdx(0); setChosenEngines({}); setChosenFormats({}); setAiQuestions(null); setScreen('week-enrich')
+              }}>Flesh them out ({filled}/{weekSlots.length}) →</Btn>
             </div>
           </div>
         <BottomSheet open={picker !== null} title={picker !== null ? JOBLONG[weekSlots[picker]?.job] : ''} onClose={() => setPicker(null)}
@@ -2282,7 +2282,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   }
 
   function changePieceCount(delta) {
-    const n = Math.max(1, Math.min(21, pieceCount + delta))
+    const n = Math.max(3, Math.min(21, pieceCount + delta))
     setPiecesN(n); saveProfile({ pieces_per_week: n })
     // Rebuild slots with new count — must compute mix inline since state hasn't flushed
     const m = mixFor(stage, n, weekGoal)
