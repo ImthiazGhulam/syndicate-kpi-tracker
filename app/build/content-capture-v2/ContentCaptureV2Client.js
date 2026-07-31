@@ -163,41 +163,57 @@ const ENGINES = [
 const FORMAT_MATRIX = {
   'reach_story': [
     { id: 'talking-head', label: 'Talking Head Reel', desc: 'You to camera, 30–90 seconds', icon: '🎬' },
-    { id: 'text-reel', label: 'Text Reel', desc: 'B-roll with text overlay', icon: '📱' },
+    { id: 'text-reel', label: 'Text Reel', desc: 'B-roll with text overlay, 5–15 seconds', icon: '📱' },
+    { id: 'yap', label: 'Yap / Voice Note Style', desc: 'Unscripted, walking or sat in the car', icon: '🎤' },
+    { id: 'rant', label: 'Rant', desc: 'Higher energy, opinion-led, contrarian', icon: '🔊' },
+    { id: 'skit', label: 'Skit / POV', desc: 'Acted scenario, pattern interrupt', icon: '🎭' },
   ],
   'reach_teaching': [
     { id: 'carousel', label: 'Carousel', desc: '6–8 slides, the save format', icon: '📊' },
     { id: 'green-screen', label: 'Green Screen / Whiteboard', desc: 'You reacting or explaining on screen', icon: '🟩' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Quick teach to camera', icon: '🎬' },
+    { id: 'quote-card', label: 'Quote Card', desc: 'One sharp line, screenshot aesthetic', icon: '💬' },
   ],
   'reach_proof': [
     { id: 'text-reel', label: 'Text Reel', desc: 'Number as the hook, b-roll underneath', icon: '📱' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Quick result to camera', icon: '🎬' },
+    { id: 'before-after', label: 'Before / After', desc: 'Visual transformation or stat comparison', icon: '🔄' },
   ],
   'reach_offer': [], // Never — offer content doesn't reach strangers
   'value_story': [
     { id: 'carousel', label: 'Carousel', desc: 'Case study or borrowed arc, slide by slide', icon: '📊' },
-    { id: 'youtube', label: 'YouTube Long Form', desc: '8–15 min deep story (Comeback Story format)', icon: '▶️' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Story to camera, longer form', icon: '🎬' },
+    { id: 'youtube', label: 'YouTube Long Form', desc: '8–15 min deep story (Comeback Story)', icon: '▶️' },
     { id: 'story-email', label: 'Email', desc: 'Story email to your list', icon: '✉️' },
+    { id: 'voice-note', label: 'Voice Note Style', desc: 'Softest register, like talking to a friend', icon: '🎤' },
   ],
   'value_teaching': [
     { id: 'carousel', label: 'Carousel', desc: 'Method or step-by-step, 7–10 slides', icon: '📊' },
     { id: 'youtube', label: 'YouTube Long Form', desc: 'Full deep-teach video', icon: '▶️' },
     { id: 'screen-recording', label: 'Screen Recording', desc: 'Show the work, the tool, the process', icon: '🖥️' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Method explained to camera', icon: '🎬' },
     { id: 'story-email', label: 'Email', desc: 'Teaching email to your list', icon: '✉️' },
+    { id: 'over-shoulder', label: 'Over the Shoulder', desc: 'Camera on you working, same rules as screen recording', icon: '📹' },
   ],
   'value_proof': [
     { id: 'carousel', label: 'Case Study Carousel', desc: 'Client transformation slide by slide', icon: '📊' },
     { id: 'talking-head', label: 'Receipt Drop Reel', desc: 'Number first, mechanism after', icon: '🎬' },
+    { id: 'screenshot-post', label: 'Screenshot Post', desc: 'DM, payment notification, result — fastest proof', icon: '📸' },
+    { id: 'before-after', label: 'Before / After', desc: 'Visual transformation, works anywhere change is visible', icon: '🔄' },
   ],
   'value_offer': [
     { id: 'story-sequence', label: 'Waitlist Story Sequence', desc: '3–5 frames, hand-raise before doors open', icon: '📖' },
   ],
   'sales_story': [
     { id: 'story-sequence', label: 'Story Sequence', desc: 'Compressed arc, 4–6 frames to followers', icon: '📖' },
+    { id: 'talking-head', label: 'Talking Head', desc: 'Quick story to warm audience', icon: '🎬' },
   ],
   'sales_teaching': [], // Never as the lead at BOF
   'sales_proof': [
-    { id: 'testimonial', label: 'Testimonial / Screenshot', desc: 'Client result, DM receipt, before/after', icon: '💬' },
+    { id: 'testimonial', label: 'Testimonial / Video', desc: 'Client speaking or their results shown', icon: '💬' },
+    { id: 'screenshot-post', label: 'Screenshot / DM Receipt', desc: 'The message, the payment, the proof', icon: '📸' },
     { id: 'carousel', label: 'Case Study Carousel', desc: 'Client transformation as proof', icon: '📊' },
+    { id: 'before-after', label: 'Before / After', desc: 'Visual transformation with the number', icon: '🔄' },
   ],
   'sales_offer': [
     { id: 'story-sequence', label: 'Story Sequence', desc: 'Deadline, countdown, proof + offer', icon: '📖' },
@@ -257,9 +273,16 @@ const FORMAT_PROMPTS = {
   'carousel': { fmt: 'a 6–10 slide carousel post', out: "Write it slide by slide: 'SLIDE 1:' etc, under 40 words per slide. Slide 1 is the hook — one claim, one outcome, one tension. One idea per slide. Second-to-last slide turns on the reader. Last slide is the ask. Then 'CAPTION:' with a 2–3 line caption." },
   'green-screen': { fmt: 'a 30–60 second green screen reaction video script', out: "Write it as a spoken script. First line: [ON SCREEN: the article/screenshot/post being reacted to]. Your first line names what's wrong, surprising or useful. Two or three beats of commentary. The takeaway in your frame, not theirs. Turn and button." },
   'skit': { fmt: 'a 15–45 second skit or POV video', out: "Write 'ON SCREEN TEXT: POV: {{scenario}}'. Then describe the scene: what happens, played straight. One turn — the exaggeration or reveal. Then 'CAPTION:' landing the real point in one line." },
-  'screen-recording': { fmt: 'a 45–90 second screen recording walkthrough', out: "Write it as a narrated walkthrough. Hook names the outcome first. Then step by step: 'SCREEN: [what's visible]' followed by 'NARRATION: [what you say]' for each step. End on the finished state." },
+  'screen-recording': { fmt: 'a 45–90 second screen recording walkthrough', out: "Write it as a narrated walkthrough. Hook names the outcome first. Then step by step: 'SCREEN: [what's visible]' followed by 'NARRATION: [what you say]' for each step. End on the finished state. IMPORTANT: name the specific tool, system, or method step being shown — not vague 'mindset work' but the actual thing on screen." },
+  'over-shoulder': { fmt: 'a 45–90 second over-the-shoulder video script', out: "Write it as a spoken narration over footage of you working. Hook names the outcome. Walk through what you're doing step by step, naming the specific tool, template, or process visible. End on the finished state. Same rules as screen recording but the camera is on you, not the screen." },
   'story-sequence': { fmt: 'a 3–8 frame story sequence', out: "Write it frame by frame: 'FRAME 1:' etc. Frame 1 opens a loop. Each frame earns the tap to the next. Mix media suggestions: [TALKING CLIP], [SCREENSHOT], [TEXT FRAME], [POLL]. Final frame carries the CTA." },
-  'testimonial': { fmt: 'a testimonial or social proof post', out: "Open on the result or strongest line — never 'so tell us about yourself'. Where they were, in their words, one vivid detail. The turn: what changed. Where they are now, with a number. Your frame in the caption: the principle that made the difference." },
+  'testimonial': { fmt: 'a testimonial or social proof post', out: "Open on the result or strongest line — never 'so tell us about yourself'. Where they were, in their words, one vivid detail. The turn: what changed — name the SPECIFIC step, method, or thing inside the programme that made the difference, not vague 'mindset shift'. Where they are now, with a number. Your frame in the caption: the principle that made the difference." },
+  'screenshot-post': { fmt: 'a screenshot/DM receipt post with caption', out: "Write 'SCREENSHOT:' describing what the screenshot shows (the DM, the payment, the message — describe it, don't invent it). Then 'CAPTION:' with 3–5 short lines: who this person is (one line), where they started, the specific thing that changed, and one line that turns it on the reader. Never explain the method — the screenshot IS the proof." },
+  'before-after': { fmt: 'a before/after comparison post with caption', out: "Write 'BEFORE:' one vivid line describing where they were (specific, not 'struggling'). Then 'AFTER:' one vivid line describing where they are now (with a number). Then 'THE CHANGE:' the one specific thing that happened between the two — name the method step, the system, or the decision. Then 'CAPTION:' 3–5 short lines turning it on the reader." },
+  'quote-card': { fmt: 'a single-line quote card with caption', out: "Write 'QUOTE:' one sharp line that could only sit under this person's brand — not a generic motivational quote. It should name a specific truth from their work. Then 'CAPTION:' 2–3 lines expanding on why this matters, grounded in a real moment or client." },
+  'yap': { fmt: 'a 30–90 second unscripted talking video (yap style)', out: "Write it as loose spoken notes — not a polished script. Mark: [SETTING: walking/car/desk]. Then the key beats to hit in order, written as bullet thoughts not full sentences. The structure is held loosely in the head. End with one clear point. This is deliberately casual — sloppy is a brand choice, not laziness." },
+  'rant': { fmt: 'a 30–60 second high-energy opinion video', out: "Write it as a spoken script. Higher energy, opinion-led. Open with the thing that's wrong. Build the case in 3 beats. Land the contrarian position with conviction. Turn on the viewer. This format works because it's genuinely felt — fake outrage reads instantly." },
+  'voice-note': { fmt: 'a 60–90 second voice note style video', out: "Write it as you'd speak into a voice note to a close friend. Softest register. No hook, no structure — just the thought as it came to you. Good for MOF depth. Mark: [TONE: intimate, like 1am voice note]. The lack of polish IS the format." },
   'youtube': { fmt: 'a script treatment for an 8–15 minute YouTube video', out: "Write '[TITLE:' a plain title for people who already follow]. Then 'OPENING (word for word):' 60–90 seconds spoken. Then 3–5 'SECTION:' blocks with key points and spoken lines. Then 'CLOSE (word for word):' ending that invites onto the email list." },
   'story-email': { fmt: 'a 150–300 word email', out: "Write 'SUBJECT:' (the moment itself, not the lesson), then the email. Open inside the scene. Tell what happened plainly. Land the one lesson once. Sign off warm. No pitch, no PS with a link." },
   'launch-email': { fmt: 'a 50–150 word launch email', out: "Write 'SUBJECT:' stating the fact plainly. Then the email: the fact first, the honest reason it exists, one line of proof if given, what changes either side of the line, one link ask stated once. Short sentences." },
@@ -1131,10 +1154,11 @@ Generate exactly 3 follow-up questions to extract the detail needed to write thi
 
 Rules:
 - Questions must be specific to THIS moment AND this engine/format combination
-- ${engine === 'story' ? 'Dig for the scene, the emotion, the turning point — stories need vivid detail and a before/after' : engine === 'teaching' ? 'Dig for the method, the step, the mistake — teaching needs the practitioner detail only someone who has done it would know' : engine === 'proof' ? 'Dig for the exact number, the timeline, the starting point — proof needs specific measurable results' : engine === 'offer' ? 'Dig for the deadline, the constraint, the reason now — offer content needs urgency and a clear ask' : 'Ask for the detail that is missing'}
+- ${engine === 'story' ? 'Dig for the scene, the emotion, the turning point — stories need vivid detail and a before/after. Ask what specifically changed and what caused the change (not "mindset" — the actual step, decision, or system).' : engine === 'teaching' ? 'Dig for the SPECIFIC method, step, tool, or system they used or taught — not vague "mindset work" or "consistency". What exactly did they do? What tool or framework? What was the process step by step? Teaching content needs the practitioner detail that only someone who has actually done it would know.' : engine === 'proof' ? 'Dig for the exact number, the timeline, the starting point, AND what specifically inside their programme or method produced this result — name the system, the step, the tool. "What did you actually change or do that caused this?" not "how did it feel".' : engine === 'offer' ? 'Dig for the deadline, the constraint, the reason now — offer content needs urgency and a clear ask.' : 'Ask for the detail that is missing.'}
+- CRITICAL: always ask what SPECIFICALLY caused the result or change — the exact method step, system, tool, framework, or decision. Never accept "mindset", "consistency", or "hard work" as the answer. Push for the concrete thing they did differently inside their programme.
 - Ask for the detail that's missing from what they wrote — don't ask for things they already said
 - Keep questions short and direct — one line each, like a coach would ask
-- Add a one-line hint under each question
+- Add a one-line hint under each question that guides them toward specifics, not feelings
 
 Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] where key is one of: scene, verb, num, change. Nothing else — no markdown, no explanation.`
 
