@@ -30,29 +30,44 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req) {
   try {
-    const { prompt } = await req.json()
+    const { prompt, voiceContext } = await req.json()
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
     }
 
-    const systemPrompt = `You are a ghostwriter. You disappear completely into the voice of the person you're writing for. Your output must be indistinguishable from something they wrote themselves — not polished, not "content-y", not AI-sounding. Write ONE piece and nothing else — no preamble, no commentary, no markdown, no asterisks. Plain text only.
+    let systemPrompt = `You ghostwrite social content. One piece per request. Plain text only — no preamble, no markdown, no asterisks, no commentary.
 
-CRITICAL — these patterns EXPOSE you as AI. Never use them:
-- Colons to introduce lists ("Here's what I learned:" or "Three things:")
-- "Here's the thing" / "Here's what nobody tells you" / "Let me be honest"
-- "The truth is" / "The reality is" / "Let's be real"
-- Rhetorical questions that immediately answer themselves
-- Em-dashes — like this — anywhere
-- "It's not X. It's Y." constructions
-- Starting consecutive sentences with the same word
+You sound like the person, not like a writer. Not like AI. Not like "content." Like them, on a good day, saying the thing they actually mean.
+
+BANNED (using any of these = failure):
+"Here's the thing" | "Here's what nobody tells you" | "Let me be honest" | "The truth is" | "The reality is" | "Let's be real" | "It's not X. It's Y." | "Game-changer" | "Unlock" | "Journey" | "Navigate" | "Leverage" | "However" | "Moreover" | "Furthermore" | "Additionally" | "In fact"
+
+BANNED PATTERNS:
+- Colons before lists
+- Rhetorical questions that answer themselves in the next line
+- Em-dashes
 - Three-part parallel lists (X, Y, and Z)
-- "However" / "Moreover" / "Furthermore" / "Additionally" / "In fact"
-- "Game-changer" / "Unlock" / "Journey" / "Navigate" / "Leverage"
-- Wrapping up with a neat bow — real posts end mid-thought or with a gut punch, not a summary
-- Any sentence that sounds like it belongs in a LinkedIn post from 2019
+- Starting 2+ sentences the same way
+- Neat summary endings. Real posts end mid-thought or with a gut punch.
+- Any sentence that reads like LinkedIn 2019
 
-Write like a real person texting a mate who happens to be going through the same thing. Messy is better than polished. Blunt is better than clever. Short is better than comprehensive.`
+Instead: short sentences that punch. Occasional long one that builds. "but" and "so" connect thoughts, not "however" and "additionally". Specifics over adjectives. Numbers over claims. End confronting the reader, not impressing them.`
+
+    // Inject voice profile and samples into the system prompt so they shape everything
+    if (voiceContext) {
+      if (voiceContext.voice) {
+        const vl = []
+        if (voiceContext.voice.directness) vl.push(`How direct: ${voiceContext.voice.directness}`)
+        if (voiceContext.voice.formality) vl.push(`Formality: ${voiceContext.voice.formality}`)
+        if (voiceContext.voice.phrasesUse) vl.push(`They say things like: ${voiceContext.voice.phrasesUse}`)
+        if (voiceContext.voice.phrasesAvoid) vl.push(`They would NEVER say: ${voiceContext.voice.phrasesAvoid}`)
+        if (vl.length > 0) systemPrompt += `\n\nTHIS PERSON'S VOICE:\n${vl.join('\n')}`
+      }
+      if (voiceContext.samples && voiceContext.samples.length > 0) {
+        systemPrompt += `\n\nTHEIR ACTUAL WRITING (match this voice — the rhythm, the word choices, the attitude, the sentence length. Your output must be indistinguishable from these):\n${voiceContext.samples.map((s, i) => `---\n${s}\n---`).join('\n')}`
+      }
+    }
 
     const data = await callAnthropicAPI(systemPrompt, prompt)
     const content = data.content?.[0]?.text || ''

@@ -397,7 +397,6 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
   const isObjection = cardKey === 'c15'
 
   let brandContext = ''
-  let voiceOverride = ''
   if (ctx) {
     const lines = []
 
@@ -506,52 +505,20 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
       brandContext = `${header}\n${lines.join('\n')}`
     }
 
-    // Voice profile — ALWAYS injected, every card
-    if (ctx.voice) {
-      const vl = []
-      if (ctx.voice.directness) vl.push(`Directness: ${ctx.voice.directness}`)
-      if (ctx.voice.formality) vl.push(`Formality: ${ctx.voice.formality}`)
-      if (ctx.voice.phrasesUse) vl.push(`Phrases they actually use: ${ctx.voice.phrasesUse}`)
-      if (ctx.voice.phrasesAvoid) vl.push(`Phrases they would NEVER use: ${ctx.voice.phrasesAvoid}`)
-      if (vl.length > 0) {
-        voiceOverride = `\nTHIS PERSON'S VOICE PROFILE (override the generic voice rules below with these specifics — this is how they actually talk):
-${vl.join('\n')}`
-      }
-    }
   }
 
-  // Build voice samples section if available
-  let voiceSamples = ''
-  if (ctx && ctx.voiceSamples && ctx.voiceSamples.length > 0) {
-    voiceSamples = `\nTHEIR ACTUAL WRITING — match this voice exactly. Study the sentence length, the word choices, the rhythm, the attitude. Your output must read like they wrote it:
-${ctx.voiceSamples.map((s, i) => `--- SAMPLE ${i + 1} ---\n${s}`).join('\n\n')}\n--- END SAMPLES ---`
-  }
+  return `Write ${c.fmt}.
 
-  return `${voiceOverride}
-${voiceSamples}
+${c.out}
 
-VOICE BASELINE (the samples and profile above override these where they conflict):
-- British English. Like a voice note to a mate, not a marketing piece.
-- Short sentences punch. Longer ones build tension when they need to. Vary deliberately.
-- Connect with: but / so / which is why / problem was. Never: "and then", "however", "moreover".
-- Specifics over adjectives. £4,215 not "great results". March 2024 not "recently".
-- The reader finishes confronted by themselves, not impressed by the writer.
-- End mid-thought or with a gut punch. Never wrap up neatly.
-
-WHAT TO WRITE: ${c.fmt}.
-FORMAT INSTRUCTIONS: ${c.out}
-THE CALL TO ACTION: ${c.cta}
-${arc ? `
-STORY ARC — ${arc.n}. Follow these beats in this order, one arc only, never blended with another:
-${arc.beats}
-STORY RULES: The reader or viewer is the hero — the writer is only the guide who was once where they are. Credentials are never announced, only leaked as scenery ("back when I was..." never "as a successful..."). The villain must be a scene, not an abstract noun. The turn back onto the viewer is mandatory — without it, this is just someone talking about themselves.` : ''}
+CTA: ${c.cta}
+${arc ? `\nUse the ${arc.n} shape:\n${arc.beats}` : ''}
 ${brandContext}
 
-THE ONLY FACTS YOU MAY USE:
-${facts.join('\n')}
+The moment: ${facts.join('. ')}
 
-ABSOLUTE RULE — NO INVENTION: never invent names, numbers, results, dates, clients or details not in the facts above. If a detail is genuinely needed but missing, write a placeholder in this exact form: {{WHAT'S NEEDED}}. Two honest placeholders beat one invented fact.
-${redoNote ? `\nTHE LAST DRAFT WASN'T RIGHT: ${redoNote} Take a genuinely different angle.` : ''}`
+Only use facts from above. Anything missing: write {{WHAT'S NEEDED}} in gold caps. Never invent.
+${redoNote ? `\nLast draft wasn't right: ${redoNote}` : ''}`
 }
 
 // ── Sub-components ────────────────────────────────────────────────────────────
@@ -1179,12 +1146,14 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   }
 
   async function generate(card, moment, redoNote, arc, cardKey) {
-    const ctxWithSamples = playbookContext ? { ...playbookContext, voiceSamples } : { voiceSamples }
-    const prompt = buildPrompt(card, moment, redoNote, arc, ctxWithSamples, cardKey)
+    const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext, cardKey)
+    const voiceCtx = {}
+    if (playbookContext?.voice) voiceCtx.voice = playbookContext.voice
+    if (voiceSamples && voiceSamples.length > 0) voiceCtx.samples = voiceSamples
     const res = await fetch('/api/generate-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt }),
+      body: JSON.stringify({ prompt, voiceContext: Object.keys(voiceCtx).length > 0 ? voiceCtx : undefined }),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Generation failed')
