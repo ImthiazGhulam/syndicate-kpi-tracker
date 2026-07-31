@@ -768,9 +768,19 @@ export default function ContentCaptureV2Client() {
           <GoldLabel>The Motherboard · Content system</GoldLabel>
           <Question>What do you want to <span className="text-gold font-medium">do</span>?</Question>
           {stage && (
-            <div className="flex items-center gap-2 mb-4">
-              <span className="text-xs text-zinc-500">Stage: <span className="text-gold font-bold">{STAGES.find(s => s.id === stage)?.t}</span></span>
-              <button onClick={() => { setAfterChannels('home'); setScreen('stage') }} className="text-xs text-gold/60 hover:text-gold underline">Change</button>
+            <div className="glass-card p-4 mb-6">
+              <GoldLabel>Your stage</GoldLabel>
+              <select
+                value={stage}
+                onChange={async (e) => { setStage(e.target.value); await saveProfile({ stage: e.target.value }) }}
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white text-sm font-bold focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition appearance-none cursor-pointer"
+                style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%23C9A84C' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 12px center' }}
+              >
+                {STAGES.map(s => (
+                  <option key={s.id} value={s.id}>{s.t}</option>
+                ))}
+              </select>
+              <p className="text-xs text-zinc-500 mt-2">{STAGES.find(s => s.id === stage)?.s}</p>
             </div>
           )}
 
