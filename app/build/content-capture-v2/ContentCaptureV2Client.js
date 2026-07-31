@@ -695,8 +695,11 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
 
   if (moment) {
     return (
-      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-zinc-800">
-        <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+      <div className="rounded-lg border p-4 mb-2 bg-zinc-900 border-gold/30">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="w-2 h-2 rounded-full bg-emerald-500" />
+          <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[job]}</span>
+        </div>
         <p className="text-sm text-zinc-300 py-1">{moment.line}</p>
         <div className="flex gap-3">
           <button onClick={onPick} className="text-xs font-bold text-gold/50 hover:text-gold uppercase tracking-widest pt-1">Change</button>
@@ -1740,13 +1743,15 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     onCapture={async (type, line, enrichment, angle) => {
                       const entry = await addLogEntry(type, line)
                       if (entry) {
-                        entry.enrichment = enrichment
-                        await updateLogEntry(entry.id, enrichment)
+                        entry.enrichment = enrichment || {}
+                        if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
                         setLog(prev => [entry, ...prev])
-                        const updated = [...weekSlots]
-                        updated[item.i].moment = entry
+                        setWeekSlots(prev => {
+                          const updated = [...prev]
+                          updated[item.i] = { ...updated[item.i], moment: entry }
+                          return updated
+                        })
                         if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
-                        setWeekSlots(updated)
                       }
                     }} />
                 )
@@ -1776,16 +1781,20 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <div className="flex flex-col gap-2">
                 {avail.map(m => (
                   <OptionButton key={m.id} onClick={() => {
-                    const updated = [...weekSlots]
-                    updated[picker].moment = m
-                    setWeekSlots(updated); setPicker(null)
+                    const idx = picker
+                    setWeekSlots(prev => {
+                      const updated = [...prev]
+                      updated[idx] = { ...updated[idx], moment: m }
+                      return updated
+                    })
+                    setPicker(null)
                   }}>
                     <span className="block text-xs font-bold uppercase tracking-widest text-gold/60 mb-1">{TYPESHORT[m.type]}</span>
                     {m.line}
                   </OptionButton>
                 ))}
                 <div className="flex gap-3 mt-3">
-                  <Btn onClick={() => { const updated = [...weekSlots]; updated[picker].moment = null; setWeekSlots(updated); setPicker(null) }}>Leave empty</Btn>
+                  <Btn onClick={() => { const idx = picker; setWeekSlots(prev => { const u = [...prev]; u[idx] = { ...u[idx], moment: null }; return u }); setPicker(null) }}>Leave empty</Btn>
                   <Btn onClick={() => setPicker(null)}>Close</Btn>
                 </div>
               </div>
