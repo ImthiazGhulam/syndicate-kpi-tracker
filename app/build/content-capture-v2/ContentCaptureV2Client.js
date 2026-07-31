@@ -691,7 +691,7 @@ export default function ContentCaptureV2Client() {
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
         <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
         <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
-          <GoldBar />
+          <div className="w-8 h-px bg-gold mb-4" />
           <GoldLabel>The Motherboard · Content system</GoldLabel>
           <Question>What do you want to <span className="text-gold font-medium">do</span>?</Question>
 
