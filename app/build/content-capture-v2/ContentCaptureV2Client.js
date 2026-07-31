@@ -777,6 +777,44 @@ function SlotCard({ job, moment, onPick, onCapture, onClear, salesAngle, onSales
   )
 }
 
+function EditablePieceCard({ title, piece, onSave, onDelete }) {
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(piece || '')
+  const [copied, setCopied] = useState(false)
+
+  function handleCopy() {
+    if (piece && navigator.clipboard) navigator.clipboard.writeText(piece)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1400)
+  }
+
+  if (editing) {
+    return (
+      <div className="glass-card p-5 mb-3 border-gold/30">
+        <h4 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">{title}</h4>
+        <textarea rows={10} value={draft} onChange={e => setDraft(e.target.value)}
+          className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+        <div className="flex gap-2 mt-3">
+          <Btn gold onClick={() => { onSave(draft); setEditing(false) }}>Save</Btn>
+          <Btn onClick={() => { setDraft(piece || ''); setEditing(false) }}>Cancel</Btn>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="glass-card p-5 mb-3">
+      <h4 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">{title}</h4>
+      <div className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300">{piece || <span className="text-zinc-500">No content generated.</span>}</div>
+      <div className="flex gap-2 mt-4">
+        <Btn gold onClick={handleCopy} disabled={!piece}>{copied ? 'Copied' : 'Copy'}</Btn>
+        <Btn onClick={() => setEditing(true)}>Edit</Btn>
+        <button onClick={onDelete} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest ml-auto py-3">Delete</button>
+      </div>
+    </div>
+  )
+}
+
 function VoiceCalibration({ samples, onSave }) {
   const [open, setOpen] = useState(false)
   const [drafts, setDrafts] = useState(samples.length > 0 ? [...samples] : ['', '', ''])
@@ -2011,18 +2049,28 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                 const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
                 const m = w.mix || {}
                 return (
-                  <button key={w.id} onClick={() => navigateTo('view-week', w)}
-                    className="w-full text-left glass-card p-4 transition hover:border-gold/30">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-sm font-bold text-white">Week of {dateStr}</span>
-                      <span className="text-xs text-zinc-500">{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+                  <div key={w.id} className="glass-card p-4 transition hover:border-gold/30">
+                    <button onClick={() => navigateTo('view-week', w)} className="w-full text-left">
+                      <div className="flex justify-between items-baseline">
+                        <span className="text-sm font-bold text-white">Week of {dateStr}</span>
+                        <span className="text-xs text-zinc-500">{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex gap-3 mt-2 text-xs text-zinc-500">
+                        {m.reach > 0 && <span>{m.reach} reach</span>}
+                        {m.value > 0 && <span>{m.value} trust</span>}
+                        {m.sales > 0 && <span>{m.sales} sales</span>}
+                      </div>
+                    </button>
+                    <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
+                      <button onClick={() => navigateTo('view-week', w)} className="text-xs font-bold text-gold/60 hover:text-gold uppercase tracking-widest">View</button>
+                      <button onClick={() => navigateTo('edit-week', w)} className="text-xs font-bold text-zinc-500 hover:text-white uppercase tracking-widest">Edit</button>
+                      <button onClick={async () => {
+                        if (!confirm('Delete this week? This cannot be undone.')) return
+                        await supabase.from('cc_weeks').delete().eq('id', w.id)
+                        setSavedWeeks(prev => prev.filter(x => x.id !== w.id))
+                      }} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest ml-auto">Delete</button>
                     </div>
-                    <div className="flex gap-3 mt-2 text-xs text-zinc-500">
-                      {m.reach > 0 && <span>{m.reach} reach</span>}
-                      {m.value > 0 && <span>{m.value} trust</span>}
-                      {m.sales > 0 && <span>{m.sales} sales</span>}
-                    </div>
-                  </button>
+                  </div>
                 )
               })}
             </div>
@@ -2046,9 +2094,35 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       if (navigator.clipboard) navigator.clipboard.writeText(txt)
     }
 
+    async function deleteWeek() {
+      if (!confirm('Delete this week and all its content? This cannot be undone.')) return
+      await supabase.from('cc_weeks').delete().eq('id', viewingWeek.id)
+      setSavedWeeks(prev => prev.filter(x => x.id !== viewingWeek.id))
+      setViewingWeek(null)
+      setScreen('view-weeks')
+    }
+
+    async function deletePiece(idx) {
+      const updated = [...pieces]
+      updated.splice(idx, 1)
+      const newWeek = { ...viewingWeek, piece_ids: updated }
+      await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+      setViewingWeek(newWeek)
+      setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+    }
+
+    async function updatePiece(idx, newText) {
+      const updated = [...pieces]
+      updated[idx] = { ...updated[idx], piece: newText }
+      const newWeek = { ...viewingWeek, piece_ids: updated }
+      await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+      setViewingWeek(newWeek)
+      setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+    }
+
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-          <GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn>
+          <GhostBtn onClick={() => setScreen('view-weeks')}>← All weeks</GhostBtn>
           <div className="mt-4 mb-6">
             <GoldLabel>Saved week</GoldLabel>
             <Question>Week of {dateStr}</Question>
@@ -2061,15 +2135,76 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           </div>
 
           {pieces.map((p, i) => (
-            <PieceCard key={i}
+            <EditablePieceCard key={`${viewingWeek.id}-${i}`}
               title={`${p.day || ''} · ${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
               piece={p.piece}
+              onSave={(newText) => updatePiece(i, newText)}
+              onDelete={() => deletePiece(i)}
             />
           ))}
 
+          <div className="flex justify-between mt-6">
+            <button onClick={deleteWeek} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest">Delete entire week</button>
+            <div className="flex gap-3">
+              <Btn gold onClick={copyAllSaved}>Copy the whole week</Btn>
+              <Btn onClick={() => setScreen('view-weeks')}>Done</Btn>
+            </div>
+          </div>
+      </SidebarLayout>
+    )
+  }
+
+  // ── Edit Week (re-enter the board with existing pieces) ───────────────────
+
+  if (screen === 'edit-week' && viewingWeek) {
+    const pieces = viewingWeek.piece_ids || []
+    const date = new Date(viewingWeek.week_start)
+    const dateStr = date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          <GhostBtn onClick={() => navigateTo('view-week', viewingWeek)}>← Back to week</GhostBtn>
+          <div className="mt-4 mb-6">
+            <GoldLabel>Editing week</GoldLabel>
+            <Question>Week of {dateStr}</Question>
+            <DimLabel>Edit any piece below. Changes save automatically.</DimLabel>
+          </div>
+
+          {pieces.map((p, i) => (
+            <div key={`edit-${viewingWeek.id}-${i}`} className="glass-card p-5 mb-3">
+              <div className="flex justify-between items-baseline mb-3">
+                <h4 className="text-xs font-bold text-gold uppercase tracking-widest">{p.day || ''} · {JOBNAMES[p.job] || p.job || ''} · {p.format || ''}</h4>
+                <button onClick={async () => {
+                  const updated = [...pieces]
+                  updated.splice(i, 1)
+                  const newWeek = { ...viewingWeek, piece_ids: updated }
+                  await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+                  setViewingWeek(newWeek)
+                  setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+                }} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest">Remove</button>
+              </div>
+              {p.momentLine && <p className="text-xs text-zinc-500 mb-2">Moment: {p.momentLine}</p>}
+              <textarea
+                rows={8}
+                defaultValue={p.piece || ''}
+                onBlur={async (e) => {
+                  const val = e.target.value
+                  if (val !== p.piece) {
+                    const updated = [...pieces]
+                    updated[i] = { ...updated[i], piece: val }
+                    const newWeek = { ...viewingWeek, piece_ids: updated }
+                    await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+                    setViewingWeek(newWeek)
+                    setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+                  }
+                }}
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
+              />
+            </div>
+          ))}
+
           <div className="flex gap-3 mt-6">
-            <Btn gold onClick={copyAllSaved}>Copy the whole week</Btn>
-            <Btn onClick={() => setScreen('home')}>Done</Btn>
+            <Btn gold onClick={() => navigateTo('view-week', viewingWeek)}>Done editing</Btn>
           </div>
       </SidebarLayout>
     )
