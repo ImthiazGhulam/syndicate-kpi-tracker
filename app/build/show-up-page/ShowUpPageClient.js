@@ -43,7 +43,7 @@ const DEFAULT_STYLES = {
 
 const CALL_PLATFORMS = ['Zoom', 'Google Meet']
 const CALL_TYPES = ['Strategy Call', 'Discovery Call', 'Consultation', 'Breakthrough Session']
-const LANGUAGES = ['British English', 'American English']
+const LANGUAGES = ['British English', 'American English', 'French']
 
 // ── Sub-components ────────────────────────────────────────────────────────────
 
