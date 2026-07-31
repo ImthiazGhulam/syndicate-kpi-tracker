@@ -81,18 +81,33 @@ const BUILD_LINES = [
   'Reading your moment...', 'Picking the shape...', 'Writing in your voice...', 'Sharpening the hook...', 'Checking the ask matches the job...',
 ]
 
+const GOAL_MIX = {
+  growth: { reach: 60, value: 30, sales: 10 },
+  trust: { reach: 25, value: 60, sales: 15 },
+  conversion: { reach: 15, value: 25, sales: 60 },
+}
+
+const GOALS = [
+  { id: 'growth', t: 'More people finding me', s: 'Growth-weighted week — most posts reach new people' },
+  { id: 'trust', t: 'Turning followers into believers', s: 'Trust-weighted week — most posts deepen belief' },
+  { id: 'conversion', t: 'Driving sales', s: 'Conversion-weighted week — most posts sell to warm audience' },
+  { id: 'default', t: 'Not sure — set it from my stage', s: 'Use the default ratios for your current stage' },
+]
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
-function mixFor(stage, n) {
-  const base = MIX[stage] || MIX.build
+function mixFor(stage, n, goal) {
+  const stageBase = MIX[stage] || MIX.build
+  const noSales = stageBase.sales === 0
+  const base = (goal && goal !== 'default' && GOAL_MIX[goal]) ? GOAL_MIX[goal] : stageBase
   const t = base.reach + base.value + base.sales
   const raw = { reach: n * base.reach / t, value: n * base.value / t, sales: n * base.sales / t }
   const out = { reach: Math.floor(raw.reach), value: Math.floor(raw.value), sales: Math.floor(raw.sales) }
   let left = n - (out.reach + out.value + out.sales)
   const rem = [['reach', raw.reach - out.reach], ['value', raw.value - out.value], ['sales', raw.sales - out.sales]].sort((a, b) => b[1] - a[1])
-  for (const [k] of rem) { if (left <= 0) break; if (k === 'sales' && base.sales === 0) continue; out[k]++; left-- }
+  for (const [k] of rem) { if (left <= 0) break; if (k === 'sales' && noSales) continue; out[k]++; left-- }
   while (left > 0) { out.reach++; left-- }
-  if (base.sales === 0) out.sales = 0
+  if (noSales) out.sales = 0
   if (n > 0 && out.reach === 0) { out.reach = 1; if (out.value > 0) out.value--; else if (out.sales > 0) out.sales-- }
   return out
 }
@@ -374,6 +389,30 @@ function SlotCard({ job, day, moment, onPick }) {
   )
 }
 
+function MixDials({ reach, value, sales, total }) {
+  const pct = (v) => total > 0 ? Math.round((v / total) * 100) : 0
+  const items = [
+    { label: 'Reach', count: reach, color: 'bg-emerald-500', track: 'bg-emerald-500/20' },
+    { label: 'Trust', count: value, color: 'bg-blue-500', track: 'bg-blue-500/20' },
+    { label: 'Sales', count: sales, color: 'bg-gold', track: 'bg-gold/20' },
+  ]
+  return (
+    <div className="flex gap-4">
+      {items.map(it => (
+        <div key={it.label} className="flex-1">
+          <div className="flex justify-between items-baseline mb-1">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-zinc-500">{it.label}</span>
+            <span className="text-[10px] font-bold text-zinc-400">{it.count}</span>
+          </div>
+          <div className={`h-1.5 rounded-full ${it.track} overflow-hidden`}>
+            <div className={`h-full rounded-full ${it.color} transition-all duration-300`} style={{ width: `${pct(it.count)}%` }} />
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function Stepper({ label, note, value, onMinus, onPlus, minDisabled, maxDisabled }) {
   return (
     <div className="bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 mb-2 flex items-center justify-between gap-3">
@@ -423,6 +462,7 @@ export default function ContentCaptureV2Client() {
   const [quickArc, setQuickArc] = useState(null)
 
   // Weekly mode
+  const [weekGoal, setWeekGoal] = useState(null)
   const [weekSlots, setWeekSlots] = useState([])
   const [weekIdx, setWeekIdx] = useState(0)
   const [weekEnrichIdx, setWeekEnrichIdx] = useState(0)
@@ -435,6 +475,9 @@ export default function ContentCaptureV2Client() {
   // Writing state
   const [writing, setWriting] = useState(false)
   const [writingLine, setWritingLine] = useState('')
+
+  // Flow context: where to go after stage/channels
+  const [afterChannels, setAfterChannels] = useState('home')
 
   // Playbook data (loaded once for AI context)
   const [playbookContext, setPlaybookContext] = useState(null)
@@ -572,12 +615,12 @@ export default function ContentCaptureV2Client() {
   const pieceCount = piecesN || baseN
   const emailCount = emailN !== null ? emailN : (hasList ? 1 : 0)
   const ytCount = ytN !== null ? ytN : (doesYT ? 1 : 0)
-  const mix = mixFor(stage, pieceCount)
+  const mix = mixFor(stage, pieceCount, weekGoal)
 
   // ── Build week slots ──────────────────────────────────────────────────────
 
-  function buildWeekSlots() {
-    const m = mixFor(stage, pieceCount)
+  function buildWeekSlots(goalOverride) {
+    const m = mixFor(stage, pieceCount, goalOverride !== undefined ? goalOverride : weekGoal)
     const slots = []
     for (let i = 0; i < m.reach; i++) slots.push({ job: 'reach' })
     for (let i = 0; i < m.value; i++) slots.push({ job: 'value' })
@@ -676,7 +719,8 @@ export default function ContentCaptureV2Client() {
               const dy = doesYT === null ? false : doesYT
               setHasList(hl); setDoesYT(dy)
               await saveProfile({ has_list: hl, does_yt: dy })
-              setScreen('home')
+              setScreen(afterChannels)
+              setAfterChannels('home')
             }}>Done →</Btn>
           </div>
         </main>
@@ -689,7 +733,7 @@ export default function ContentCaptureV2Client() {
   if (screen === 'home') {
     return (
       <div className="min-h-screen bg-zinc-950 bg-grid text-white">
-        <Header onHome={() => setScreen('home')} onStage={() => setScreen('stage')} />
+        <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
         <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
           <div className="w-8 h-px bg-gold mb-4" />
           <GoldLabel>The Motherboard · Content system</GoldLabel>
@@ -702,8 +746,9 @@ export default function ContentCaptureV2Client() {
               <p className="text-sm text-zinc-500">Something happened — turn it into content in two minutes.</p>
             </button>
             <button onClick={() => {
-              const slots = buildWeekSlots()
-              setWeekSlots(slots); setWeekIdx(0); setWeekEnrichIdx(0); setScreen('board')
+              setWeekGoal(null)
+              if (!stage) { setAfterChannels('week-goal'); setScreen('stage'); return }
+              setScreen('week-goal')
             }}
               className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
               <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">PLAN MY WEEK</p>
@@ -933,6 +978,62 @@ export default function ContentCaptureV2Client() {
     )
   }
 
+  // ── Weekly Mode: Goal ──────────────────────────────────────────────────────
+
+  if (screen === 'week-goal') {
+    function selectGoal(goalId) {
+      if (goalId === 'conversion' && stage === 'start') {
+        setModal({
+          title: 'One honest thing first',
+          body: "Sales posts work on a warm audience, and yours is still growing — right now it'd be closing an empty room. The fastest route to sales is a few weeks of getting noticed and building trust first.",
+          options: [
+            ['Grow the audience first', () => { setModal(null); setWeekGoal('growth'); const slots = buildWeekSlots('growth'); setWeekSlots(slots); setScreen('board') }],
+            ['I\'ve got warm people — sell anyway', () => { setModal(null); setWeekGoal('conversion'); const slots = buildWeekSlots('conversion'); setWeekSlots(slots); setScreen('board') }],
+          ],
+        })
+        return
+      }
+      setWeekGoal(goalId)
+      const slots = buildWeekSlots(goalId)
+      setWeekSlots(slots)
+      setScreen('board')
+    }
+
+    // Preview mixes for the dials
+    const previewN = pieceCount
+    const mixes = {
+      growth: mixFor(stage, previewN, 'growth'),
+      trust: mixFor(stage, previewN, 'trust'),
+      conversion: mixFor(stage, previewN, 'conversion'),
+      default: mixFor(stage, previewN, 'default'),
+    }
+
+    return (
+      <div className="min-h-screen bg-zinc-950 bg-grid text-white">
+        <Header onHome={() => setScreen('home')} onStage={() => { setAfterChannels('home'); setScreen('stage') }} />
+        <main className="max-w-3xl mx-auto px-4 py-8 lg:px-8 lg:py-10">
+          <Question>What are you trying to <span className="text-gold font-medium">achieve</span> with your posting right now?</Question>
+          <DimLabel>This shapes how your week splits between reach, trust and sales content.</DimLabel>
+          <div className="flex flex-col gap-3">
+            {GOALS.map(g => {
+              const m = mixes[g.id]
+              return (
+                <button key={g.id} onClick={() => selectGoal(g.id)}
+                  className="w-full text-left rounded-lg border bg-zinc-900 border-zinc-800 hover:border-zinc-600 transition p-4">
+                  <span className="text-sm font-bold text-white">{g.t}</span>
+                  <span className="block text-xs text-zinc-500 mt-1 mb-3">{g.s}</span>
+                  <MixDials reach={m.reach} value={m.value} sales={m.sales} total={previewN} />
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-6"><GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn></div>
+        </main>
+        <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
+      </div>
+    )
+  }
+
   // ── Weekly Mode: Board ────────────────────────────────────────────────────
 
   if (screen === 'board') {
@@ -955,6 +1056,11 @@ export default function ContentCaptureV2Client() {
             <Stepper label="YouTube videos" note={ytCount === 1 ? 'One deep video a week' : ytCount === 0 ? 'No video this week' : 'A heavy schedule'}
               value={ytCount} onMinus={() => changeYtCount(-1)} onPlus={() => changeYtCount(1)} minDisabled={ytCount <= 0} maxDisabled={ytCount >= 3} />
           )}
+
+          <div className="glass-card p-4 mb-4">
+            <GoldLabel>Content mix</GoldLabel>
+            <MixDials reach={mix.reach} value={mix.value} sales={mix.sales} total={pieceCount} />
+          </div>
 
           <div className="mt-2">
             {weekSlots.map((sl, i) => (
@@ -1226,7 +1332,18 @@ export default function ContentCaptureV2Client() {
   function changePieceCount(delta) {
     const n = Math.max(1, Math.min(21, pieceCount + delta))
     setPiecesN(n); saveProfile({ pieces_per_week: n })
-    setWeekSlots(buildWeekSlots())
+    // Rebuild slots with new count — must compute mix inline since state hasn't flushed
+    const m = mixFor(stage, n, weekGoal)
+    const slots = []; const old = weekSlots.filter(s => s.moment).map(s => ({ job: s.job, moment: s.moment }))
+    for (let i = 0; i < m.reach; i++) slots.push({ job: 'reach' })
+    for (let i = 0; i < m.value; i++) slots.push({ job: 'value' })
+    for (let i = 0; i < m.sales; i++) slots.push({ job: 'sales' })
+    const days = assignDays(slots.length)
+    slots.forEach((s, i) => { s.day = days[i] || 'Any day'; s.moment = null; s.piece = null; s.card = null })
+    if (hasList) { const ed = ['Thursday','Monday','Saturday','Tuesday','Friday','Wednesday','Sunday']; for (let i = 0; i < emailCount; i++) slots.push({ job: 'email', day: ed[i] || 'Any day', moment: null, piece: null, card: null }) }
+    if (doesYT) { const yd = ['Sunday','Wednesday','Friday']; for (let i = 0; i < ytCount; i++) slots.push({ job: 'longform', day: yd[i] || 'Any day', moment: null, piece: null, card: null }) }
+    old.forEach(o => { const sl = slots.find(s => s.job === o.job && !s.moment); if (sl) sl.moment = o.moment })
+    setWeekSlots(slots)
   }
 
   function changeEmailCount(delta) {
