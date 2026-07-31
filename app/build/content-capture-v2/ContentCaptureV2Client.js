@@ -702,10 +702,6 @@ export default function ContentCaptureV2Client() {
               <p className="text-sm text-zinc-500">Something happened — turn it into content in two minutes.</p>
             </button>
             <button onClick={() => {
-              if (log.length === 0) {
-                setModal({ title: 'The log is empty', body: "The week builds from your logged moments, and there's nothing in yet. Log a few from this week — a client thing, a number, a question you keep getting — then come back.", options: [['Log some moments', () => setModal(null)]] })
-                return
-              }
               const slots = buildWeekSlots()
               setWeekSlots(slots); setWeekIdx(0); setWeekEnrichIdx(0); setScreen('board')
             }}
@@ -1005,7 +1001,9 @@ export default function ContentCaptureV2Client() {
               </div>
             ) : (
               <div className="border border-dashed border-zinc-700 rounded-lg p-6 text-center text-zinc-500 text-sm">
-                Every logged moment is already placed. Log another from the home screen, or leave this slot empty.
+                {log.length === 0
+                  ? 'No moments logged yet. Head back to the home screen and log a few — a client thing, a number, a question you keep getting.'
+                  : 'Every logged moment is already placed. Log another from the home screen, or leave this slot empty.'}
               </div>
             )
           })()}
