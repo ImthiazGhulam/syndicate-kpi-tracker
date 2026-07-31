@@ -201,11 +201,31 @@ function buildPrompt(c, m, redoNote, arc, ctx) {
     if (ctx.offer) {
       if (ctx.offer.offerName) lines.push(`Offer name: ${ctx.offer.offerName}`)
       if (ctx.offer.corePromise) lines.push(`Offer promise: ${ctx.offer.corePromise}`)
+      if (ctx.offer.price) lines.push(`Offer price: £${ctx.offer.price}`)
       if (ctx.offer.whoItsFor) lines.push(`Offer is for: ${ctx.offer.whoItsFor}`)
       if (ctx.offer.whoItsNotFor) lines.push(`Offer is NOT for: ${ctx.offer.whoItsNotFor}`)
-      if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}`)
+      if (ctx.offer.guaranteeType) lines.push(`Guarantee: ${ctx.offer.guaranteeType}${ctx.offer.guarantee ? ' — ' + ctx.offer.guarantee : ''}`)
+      if (ctx.offer.scarcity) lines.push(`Scarcity: ${ctx.offer.scarcity}`)
+      if (ctx.offer.deliveryModel) lines.push(`Delivery: ${ctx.offer.deliveryModel}`)
+      if (ctx.offer.resultsNumbers) lines.push(`Results numbers: ${ctx.offer.resultsNumbers}`)
+      if (ctx.offer.bigNames) lines.push(`Notable clients: ${ctx.offer.bigNames}`)
+      if (ctx.offer.continuityOffer) lines.push(`After the programme: ${ctx.offer.continuityOffer}`)
+      if (ctx.offer.ctaAction) lines.push(`CTA: ${ctx.offer.ctaAction}`)
+      if (ctx.offer.dipName) lines.push(`Micro offer (The Dip): ${ctx.offer.dipName}${ctx.offer.dipPrice ? ' — £' + ctx.offer.dipPrice : ''}`)
       if (ctx.offer.dipPromise) lines.push(`Micro offer promise: ${ctx.offer.dipPromise}`)
+      if (ctx.offer.dipProblem) lines.push(`Micro offer solves: ${ctx.offer.dipProblem}`)
+      if (ctx.offer.dipBridge) lines.push(`Bridge to main offer: ${ctx.offer.dipBridge}`)
     }
+    if (ctx.icp) {
+      if (ctx.icp.promise) lines.push(`ICP promise: ${ctx.icp.promise}`)
+      if (ctx.icp.dreamOutcome) lines.push(`Their dream outcome: ${ctx.icp.dreamOutcome}`)
+      if (ctx.icp.specificDescription) lines.push(`Ideal client: ${ctx.icp.specificDescription}`)
+      if (ctx.icp.pains) lines.push(`Their core pains: ${ctx.icp.pains}`)
+      if (ctx.icp.realObjections) lines.push(`Common objections: ${ctx.icp.realObjections}`)
+      if (ctx.icp.costOfInaction) lines.push(`Cost of doing nothing: ${ctx.icp.costOfInaction}`)
+      if (ctx.icp.triggerMoment) lines.push(`What makes them act: ${ctx.icp.triggerMoment}`)
+    }
+    if (ctx.programmeDuration) lines.push(`Programme duration: ${ctx.programmeDuration}`)
     if (ctx.hero) {
       if (ctx.hero.origin) lines.push(`Origin story: ${ctx.hero.origin}`)
       if (ctx.hero.gift) lines.push(`What they give clients: ${ctx.hero.gift}`)
@@ -217,7 +237,6 @@ function buildPrompt(c, m, redoNote, arc, ctx) {
       if (ctx.remarkable.mechanism) lines.push(`Mechanism: ${ctx.remarkable.mechanism}`)
       if (ctx.remarkable.provocation) lines.push(`Provocation: ${ctx.remarkable.provocation}`)
     }
-    if (ctx.icpPromise) lines.push(`ICP promise: ${ctx.icpPromise}`)
     if (lines.length > 0) {
       brandContext = `\nTHIS PERSON'S BRAND AND OFFER (use to guide tone, positioning, and who the content speaks to — weave naturally, never announce):
 ${lines.join('\n')}`
@@ -742,9 +761,10 @@ export default function ContentCaptureV2Client() {
       }
       if (soRes.data) {
         const so = soRes.data
-        const bb = so.bang_bang_data || {}
-        const icp = so.icp_data || {}
-        const dip = so.dip_data || {}
+        const bb = so.bang_bang || {}
+        const icp = so.icp || {}
+        const dip = so.dip || {}
+        const path = so.path_planner || {}
         ctx.offer = {
           offerName: bb.name || '',
           corePromise: bb.promise || '',
@@ -752,11 +772,35 @@ export default function ContentCaptureV2Client() {
           whoItsNotFor: bb.who_not_for || '',
           price: bb.price || '',
           guarantee: bb.guarantee_detail || '',
+          guaranteeType: bb.guarantee_type || '',
+          scarcity: bb.scarcity || '',
+          urgency: bb.urgency || '',
+          socialProof: Array.isArray(bb.social_proof) ? bb.social_proof.join(', ') : '',
+          bigNames: bb.big_names || '',
+          resultsNumbers: bb.results_numbers || '',
+          deliveryModel: Array.isArray(bb.delivery_model) ? bb.delivery_model.join(', ') : '',
+          continuityOffer: bb.continuity_offer || '',
+          ctaAction: bb.cta_action || '',
           dipName: dip.name || '',
           dipPrice: dip.price || '',
           dipPromise: dip.promise || '',
+          dipProblem: dip.problem || '',
+          dipOutcome: dip.outcome || '',
+          dipFormat: dip.format || '',
+          dipBridge: dip.bridge_to_main || '',
         }
-        if (icp.promise) ctx.icpPromise = icp.promise
+        ctx.icp = {
+          promise: icp.promise || '',
+          dreamOutcome: icp.dream_outcome || '',
+          specificDescription: icp.specific_description || '',
+          pains: Array.isArray(icp.pains) ? icp.pains.filter(Boolean).join(', ') : '',
+          realObjections: Array.isArray(icp.real_objections) ? icp.real_objections.join(', ') : '',
+          costOfInaction: icp.cost_of_inaction || '',
+          triggerMoment: icp.trigger_moment || '',
+          whoNotFor: icp.who_not_for || '',
+          pyramidLevel: icp.pyramid_level || '',
+        }
+        if (path.total_duration) ctx.programmeDuration = path.total_duration
       }
       if (Object.keys(ctx).length > 0) setPlaybookContext(ctx)
 
