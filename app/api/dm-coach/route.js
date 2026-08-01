@@ -38,7 +38,7 @@ const TOOLS = [
       properties: {
         stage: {
           type: 'string',
-          enum: ['dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
+          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
           description: 'Optional stage filter (use the stage ID)',
         },
       },
@@ -48,6 +48,7 @@ const TOOLS = [
 ]
 
 const STAGE_LABELS = {
+  new_follower: 'New Follower',
   dm_sent: 'Initial DM Sent',
   lead_magnet_sent: 'Lead Magnet Sent',
   follow_up: 'Follow-up Friday DM',
@@ -219,7 +220,17 @@ In ALL cases: the opener ends in a question about THEM, never the offer. The tri
 
 **Objection principles:** agree with the feeling first, never argue, ask one question back, never a wall of text.
 
-**The Hot List stages:** Initial DM Sent → Lead Magnet Sent → Follow-up Friday DM → Call Booked → Client Won / Client Ghosted. Card rules: leads only get a card once they reply (added at Initial DM Sent), regardless of trigger (new follower, poll voter, story viewer, post engager); Lead Magnet Sent when the freebie goes out, toggle ticked; Follow-up Friday DM on the first Friday message; Call Booked only on an actual booking, never a sent link; Ghosted is parked not lost — one reactivation per quarter that reopens the diagnosis and never mentions the offer. Card notes hold the trigger source (e.g. "via poll — chose 'pricing'"), the gap words verbatim, the urgency score and justification, and anything sent with its date.
+**The Hot List stages:** New Follower → Initial DM Sent → Lead Magnet Sent → Follow-up Friday DM → Call Booked → Client Won / Client Ghosted.
+
+Card rules:
+- **New Follower** — the moment someone follows, engages with a poll, views stories regularly, or interacts with a post, they get a card in New Follower. This is the holding pen before any outreach. Note the trigger source (e.g. "followed 01/08", "poll — chose 'pricing'", "commented on carousel about leads"). ALWAYS recommend adding them here when the client mentions a new follower or interaction.
+- **Initial DM Sent** — moves here when the first DM goes out. Not when they reply — when YOU send.
+- **Lead Magnet Sent** — when the freebie goes out, toggle ticked.
+- **Follow-up Friday DM** — on the first Friday message.
+- **Call Booked** — only on an actual booking, never a sent link.
+- **Client Won / Ghosted** — Ghosted is parked not lost — one reactivation per quarter that reopens the diagnosis and never mentions the offer.
+
+Card notes hold the trigger source, the gap words verbatim, the urgency score and justification, and anything sent with its date.
 
 ## HOW TO COACH
 
