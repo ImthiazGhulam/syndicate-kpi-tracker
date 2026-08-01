@@ -921,32 +921,51 @@ export default function ClientPage() {
     const lead = leads.find(l => l.id === coachLeadId)
     if (!lead) return
 
-    // Extract the Hot List action line from the coach response
+    // Extract the notes/action from the coach response
+    // The coach formats vary: **Hot List:**, **Notes to add:**, **Card:**, - **Notes:**  etc.
     let noteToSave = ''
-    const hotListMatch = fullResponse.match(/\*\*Hot List[:\s]*\*\*\s*([\s\S]*?)(?=\n\*\*|$)/i)
-    if (hotListMatch) {
-      noteToSave = hotListMatch[1].replace(/\*\*/g, '').trim()
-    } else {
-      // Fallback: look for lines starting with "Hot List" or "Notes:"
-      const lines = fullResponse.split('\n')
-      for (const line of lines) {
-        const clean = line.replace(/\*\*/g, '').trim()
-        if (clean.toLowerCase().startsWith('hot list') || clean.toLowerCase().startsWith('notes:') || clean.toLowerCase().startsWith('card:')) {
-          noteToSave = clean.replace(/^(hot list|notes|card)[:\s]*/i, '').trim()
+    const cleanText = fullResponse.replace(/\*\*/g, '')
+    const lines = cleanText.split('\n')
+
+    // Look for the notes line specifically — this is what should be saved to the card
+    const notePatterns = [
+      /notes?\s*(?:to\s*add)?[:\s]*(.+)/i,
+      /hot\s*list[:\s]*(.+)/i,
+      /card\s*(?:notes?)?[:\s]*(.+)/i,
+      /add\s*to\s*(?:card|notes?)[:\s]*(.+)/i,
+    ]
+
+    for (const line of lines) {
+      const trimmed = line.replace(/^[-•]\s*/, '').trim()
+      for (const pattern of notePatterns) {
+        const match = trimmed.match(pattern)
+        if (match && match[1]) {
+          // Found a notes line — but it might be multi-line, grab continuation lines
+          const startIdx = lines.indexOf(line)
+          let note = match[1].trim()
+          // Check if the next lines are continuation (not a new section header)
+          for (let j = startIdx + 1; j < lines.length; j++) {
+            const nextLine = lines[j].replace(/\*\*/g, '').trim()
+            if (!nextLine || nextLine.match(/^[-•]?\s*(where|send|watch|next|stage|move)/i)) break
+            note += ' ' + nextLine
+          }
+          noteToSave = note.trim()
           break
         }
       }
+      if (noteToSave) break
     }
 
-    // If we couldn't extract a specific note, don't save the entire response — ask user
+    // If we couldn't extract, ask the user
     if (!noteToSave) {
-      noteToSave = prompt('The coach note couldn\'t be extracted automatically. Paste the note to save:')
+      noteToSave = prompt('Paste the note the coach told you to save:')
       if (!noteToSave) return
     }
 
-    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+    // Don't prefix with date if the note already starts with a date pattern (DD/MM)
+    const hasDate = /^\d{2}\/\d{2}/.test(noteToSave)
     const existingNotes = lead.notes ? lead.notes + '\n' : ''
-    const newNotes = existingNotes + `${today} — ${noteToSave}`
+    const newNotes = existingNotes + (hasDate ? noteToSave : `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — ${noteToSave}`)
     const { data } = await supabase.from('leads').update({ notes: newNotes, updated_at: new Date().toISOString() }).eq('id', lead.id).select().single()
     if (data) setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
   }
