@@ -861,6 +861,91 @@ function VoiceCalibration({ samples, onSave }) {
   )
 }
 
+function EnrichCard({ idx, sl, engine, format, onEngineChange, onFormatChange, playbookContext }) {
+  const [open, setOpen] = useState(true)
+  const m = sl.moment
+  const availEngines = getAvailableEngines(sl.job)
+  const availFormats = engine ? getFormatsForJobEngine(sl.job, engine) : []
+  const fallbackQs = getEnrichQuestions(m.type, sl.job)
+  const bothChosen = engine && format
+
+  return (
+    <div className={`glass-card mb-3 overflow-hidden ${bothChosen ? 'border-gold/20' : ''}`}>
+      {/* Header — always visible, tappable to collapse */}
+      <button onClick={() => setOpen(!open)} className="w-full flex items-center justify-between px-4 py-3 text-left">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${bothChosen ? 'bg-emerald-500' : 'bg-zinc-600'}`} />
+          <span className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[sl.job]}</span>
+          <span className="text-xs text-zinc-500 truncate">— {m.line.slice(0, 50)}{m.line.length > 50 ? '...' : ''}</span>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          {engine && format && <span className="text-[10px] text-zinc-500">{ENGINES.find(e => e.id === engine)?.icon} {availFormats.find(f => f.id === format)?.label || format}</span>}
+          <svg className={`w-4 h-4 text-zinc-500 transition-transform ${open ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+        </div>
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 border-t border-white/[0.06]">
+          {/* Moment line */}
+          <p className="text-sm text-zinc-300 mt-3 mb-3">{m.line}</p>
+
+          {/* Sales context */}
+          {sl.job === 'sales' && playbookContext?.offer && (
+            <div className="bg-zinc-800/50 rounded-lg p-3 mb-3 border border-zinc-700/50">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Your offer</span>
+              {playbookContext.offer.offerName && <p className="text-xs text-zinc-300 mt-1"><span className="text-gold">{playbookContext.offer.offerName}</span>{playbookContext.offer.price ? ` — £${playbookContext.offer.price}` : ''}</p>}
+              {playbookContext.offer.dipName && <p className="text-xs text-zinc-300 mt-1"><span className="text-gold">{playbookContext.offer.dipName}</span>{playbookContext.offer.dipPrice ? ` — £${playbookContext.offer.dipPrice}` : ''}</p>}
+            </div>
+          )}
+
+          {/* Engine picker */}
+          <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Engine</label>
+          <div className="grid grid-cols-2 gap-1.5 mb-3">
+            {availEngines.map(eng => (
+              <button key={eng.id} onClick={() => onEngineChange(eng.id)}
+                className={`text-left px-2.5 py-2 rounded-lg border transition text-xs ${engine === eng.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600 text-zinc-400'}`}>
+                {eng.icon} {eng.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Format picker */}
+          {engine && (
+            <>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2">Format</label>
+              <div className="grid grid-cols-2 gap-1.5 mb-3">
+                {availFormats.map(f => (
+                  <button key={f.id} onClick={() => onFormatChange(f.id)}
+                    className={`text-left px-2.5 py-2 rounded-lg border transition text-xs ${format === f.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-800 border-zinc-700 hover:border-zinc-600 text-zinc-400'}`}>
+                    {f.icon} {f.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Questions — static fallback (AI questions removed from this view for reliability) */}
+          {bothChosen && (
+            <>
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2 mt-4">Flesh it out</label>
+              {fallbackQs.map(([key, q, hint]) => (
+                <div key={`${idx}-${key}`} className="mb-3">
+                  <label className="block text-xs font-bold text-white mb-1">{q}</label>
+                  <p className="text-[10px] text-zinc-500 mb-1">{hint}</p>
+                  <textarea rows={2} defaultValue="" id={`enrich-${idx}-${key}`}
+                    className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold text-sm resize-none" />
+                </div>
+              ))}
+            </>
+          )}
+
+          {!bothChosen && <p className="text-xs text-zinc-600 mt-2">Pick engine + format to unlock the questions.</p>}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function DialRing({ pct, color, trackColor, size = 64, stroke = 5 }) {
   const [animated, setAnimated] = useState(0)
   const radius = (size - stroke) / 2
@@ -1852,177 +1937,59 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     )
   }
 
-  // ── Weekly Mode: Enrichment ───────────────────────────────────────────────
+  // ── Weekly Mode: Enrichment (all posts on one page) ────────────────────────
 
   if (screen === 'week-enrich') {
-    if (weekIdx >= weekPieces.length) {
-      doWeekWrite()
-      return (
-        <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-            <WritingScreen label="WRITING YOUR WEEK" />
-        </SidebarLayout>
-      )
-    }
+    // Group pieces by day
+    const dayGroups = []
+    let lastDay = null
+    weekPieces.forEach((sl, i) => {
+      const dayBase = (sl.day || '').split(' · ')[0]
+      if (dayBase !== lastDay) { dayGroups.push({ day: dayBase, pieces: [] }); lastDay = dayBase }
+      dayGroups[dayGroups.length - 1].pieces.push({ sl, i })
+    })
 
-    const sl = weekPieces[weekIdx]
-    const m = sl.moment
-    const currentEngine = chosenEngines[weekIdx]
-    const currentFormat = chosenFormats[weekIdx]
-    const fallbackQs = getEnrichQuestions(m.type, sl.job)
-    const bothChosen = currentEngine && currentFormat
+    const allReady = weekPieces.every((_, i) => chosenEngines[i] && chosenFormats[i])
 
-    // Generate AI-tailored questions AFTER engine + format are chosen
-    if (bothChosen && !aiQuestions && !aiQLoading) {
-      setAiQLoading(true)
-      const fmtLabel = getFormatsForJobEngine(sl.job, currentEngine).find(f => f.id === currentFormat)?.label || currentFormat
-      generateEnrichQuestions(m.line, m.type, sl.job, currentEngine, fmtLabel).then(qs => {
-        setAiQuestions(qs)
-        setAiQLoading(false)
-      }).catch(() => {
-        setAiQuestions(null)
-        setAiQLoading(false)
+    function collectAllEnrichment() {
+      weekPieces.forEach((sl, i) => {
+        const qs = getEnrichQuestions(sl.moment.type, sl.job)
+        const enrichment = {}
+        qs.forEach(([key]) => {
+          const el = document.getElementById(`enrich-${i}-${key}`)
+          if (el) enrichment[key] = el.value.trim()
+        })
+        sl.moment.enrichment = enrichment
+        if (sl.moment.id && !sl.moment.id.toString().startsWith('local-')) {
+          updateLogEntry(sl.moment.id, enrichment)
+        }
       })
-    }
-
-    const qs = aiQuestions || fallbackQs
-
-    if (aiQLoading) {
-      return (
-        <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-            <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
-              Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
-            </p>
-            <div className="glass-card p-4 mb-6">
-              <p className="text-sm text-white">{m.line}</p>
-            </div>
-            <WritingScreen label="TAILORING YOUR QUESTIONS" line="Reading what you wrote and working out what to ask..." />
-        </SidebarLayout>
-      )
     }
 
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-          <p className="text-xs font-bold text-gold/60 uppercase tracking-widest mb-2">
-            Post {weekIdx + 1} of {weekPieces.length} · {JOBNAMES[sl.job]} · {sl.day}
-          </p>
-          <div className="glass-card p-4 mb-4">
-            <p className="text-sm text-white">{m.line}</p>
-            <span className="text-xs text-gold/60 uppercase tracking-widest">{TYPESHORT[m.type]}</span>
-          </div>
+          <GoldLabel>Flesh out your week</GoldLabel>
+          <Question>{weekPieces.length} posts to build.</Question>
+          <DimLabel>Pick engine + format for each post, answer the questions, then write them all.</DimLabel>
 
-          {sl.job === 'sales' && playbookContext?.offer && (
-            <div className="glass-card p-4 mb-4 border-gold/20">
-              <GoldLabel>From your Sold Out Playbook</GoldLabel>
-              <div className="space-y-2">
-                {playbookContext.offer.offerName && (
-                  <div className="flex justify-between items-baseline">
-                    <span className="text-sm text-white font-bold">{playbookContext.offer.offerName}</span>
-                    {playbookContext.offer.price && <span className="text-xs text-gold font-bold">£{playbookContext.offer.price}</span>}
-                  </div>
-                )}
-                {playbookContext.offer.corePromise && <p className="text-xs text-zinc-400">{playbookContext.offer.corePromise}</p>}
-                {playbookContext.offer.guaranteeType && <p className="text-xs text-zinc-500">Guarantee: {playbookContext.offer.guaranteeType}</p>}
-                {playbookContext.offer.scarcity && <p className="text-xs text-zinc-500">Scarcity: {playbookContext.offer.scarcity}</p>}
-                {playbookContext.offer.dipName && (
-                  <div className="border-t border-zinc-800 pt-2 mt-2">
-                    <div className="flex justify-between items-baseline">
-                      <span className="text-sm text-white font-bold">{playbookContext.offer.dipName}</span>
-                      {playbookContext.offer.dipPrice && <span className="text-xs text-gold font-bold">£{playbookContext.offer.dipPrice}</span>}
-                    </div>
-                    {playbookContext.offer.dipPromise && <p className="text-xs text-zinc-400">{playbookContext.offer.dipPromise}</p>}
-                  </div>
-                )}
-              </div>
-            </div>
-          )}
-
-          {sl.job === 'sales' && playbookContext?.icp && (
-            <div className="glass-card p-4 mb-4">
-              <GoldLabel>Your audience</GoldLabel>
-              {playbookContext.icp.pains && <p className="text-xs text-zinc-400 mb-1">Pains: {playbookContext.icp.pains}</p>}
-              {playbookContext.icp.realObjections && <p className="text-xs text-zinc-400 mb-1">Objections: {playbookContext.icp.realObjections}</p>}
-              {playbookContext.icp.costOfInaction && <p className="text-xs text-zinc-400">Cost of inaction: {playbookContext.icp.costOfInaction}</p>}
-            </div>
-          )}
-
-          <div className="mt-2">
-            <GoldLabel>What's this piece doing?</GoldLabel>
-            <DimLabel>Pick the engine — then the format options adjust.</DimLabel>
-            <div className="grid grid-cols-2 gap-2 mb-4">
-              {getAvailableEngines(sl.job).map(eng => (
-                <button key={eng.id} onClick={() => { setChosenEngines(prev => ({ ...prev, [weekIdx]: eng.id })); setChosenFormats(prev => { const u = { ...prev }; delete u[weekIdx]; return u }); setAiQuestions(null) }}
-                  className={`text-left px-3 py-3 rounded-lg border transition ${chosenEngines[weekIdx] === eng.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300'}`}>
-                  <span className="text-sm">{eng.icon} {eng.label}</span>
-                  <span className="block text-xs text-zinc-500 mt-0.5">{eng.desc}</span>
-                </button>
+          {dayGroups.map((group, gi) => (
+            <div key={gi} className="mb-6">
+              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3 mt-4 border-b border-zinc-800 pb-2">{group.day}</p>
+              {group.pieces.map(({ sl, i }) => (
+                <EnrichCard key={i} idx={i} sl={sl}
+                  engine={chosenEngines[i]} format={chosenFormats[i]}
+                  onEngineChange={(eng) => { setChosenEngines(prev => ({ ...prev, [i]: eng })); setChosenFormats(prev => { const u = { ...prev }; delete u[i]; return u }) }}
+                  onFormatChange={(fmt) => setChosenFormats(prev => ({ ...prev, [i]: fmt }))}
+                  playbookContext={playbookContext}
+                />
               ))}
             </div>
+          ))}
 
-            {chosenEngines[weekIdx] && (
-              <>
-                <GoldLabel>Pick the format</GoldLabel>
-                {(() => {
-                  const formats = getFormatsForJobEngine(sl.job, chosenEngines[weekIdx])
-                  if (formats.length === 0) return <p className="text-sm text-zinc-500">This engine doesn't run at this stage — pick another.</p>
-                  return (
-                    <div className="grid grid-cols-2 gap-2">
-                      {formats.map(f => (
-                        <button key={f.id} onClick={() => { setChosenFormats(prev => ({ ...prev, [weekIdx]: f.id })); setAiQuestions(null) }}
-                          className={`text-left px-3 py-3 rounded-lg border transition ${chosenFormats[weekIdx] === f.id ? 'bg-gold/10 border-gold/30 text-gold' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-600 text-zinc-300'}`}>
-                          <span className="text-sm">{f.icon} {f.label}</span>
-                          <span className="block text-xs text-zinc-500 mt-0.5">{f.desc}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )
-                })()}
-              </>
-            )}
-          </div>
-
-          {bothChosen && (
-            <div className="mt-6">
-              <GoldLabel>Now flesh it out</GoldLabel>
-              <DimLabel>These questions are tailored to your moment, your engine, and your format. Answer what you can.</DimLabel>
-              <div className="space-y-4">
-                {qs.map(([key, q, hint], qi) => (
-                  <div key={`${weekIdx}-${key}`} className="rounded-lg border border-zinc-800 bg-zinc-900 p-4">
-                    <label className="block text-sm font-bold text-white mb-1">{q}</label>
-                    <p className="text-xs text-zinc-500 mb-2">{hint}</p>
-                    <textarea
-                      rows={2}
-                      defaultValue={(m.enrichment || {})[key] || ''}
-                      id={`week-enrich-${weekIdx}-${key}`}
-                      className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          <div className="flex justify-between mt-6">
-            <GhostBtn onClick={() => {
-              setAiQuestions(null)
-              if (weekIdx > 0) { setWeekIdx(weekIdx - 1) }
-              else setScreen('board')
-            }}>← Back</GhostBtn>
-            <Btn gold disabled={!bothChosen || !chosenFormats[weekIdx]} onClick={() => {
-              const enrichment = { ...(m.enrichment || {}) }
-              qs.forEach(([key]) => {
-                const el = document.getElementById(`week-enrich-${weekIdx}-${key}`)
-                if (el) enrichment[key] = el.value.trim()
-              })
-              m.enrichment = enrichment
-              updateLogEntry(m.id, enrichment)
-              setAiQuestions(null)
-              if (weekIdx < weekPieces.length - 1) {
-                setWeekIdx(weekIdx + 1)
-              } else {
-                doWeekWrite()
-              }
-            }}>
-              {weekIdx < weekPieces.length - 1 ? 'Next post →' : 'Write the week →'}
+          <div className="flex justify-between mt-6 sticky bottom-0 bg-zinc-950/90 backdrop-blur-sm py-4 -mx-4 px-4 border-t border-zinc-800">
+            <GhostBtn onClick={() => setScreen('board')}>← Back to board</GhostBtn>
+            <Btn gold disabled={!allReady} onClick={() => { collectAllEnrichment(); doWeekWrite() }}>
+              Write the week ({weekPieces.filter((_, i) => chosenEngines[i] && chosenFormats[i]).length}/{weekPieces.length} ready) →
             </Btn>
           </div>
       </SidebarLayout>
