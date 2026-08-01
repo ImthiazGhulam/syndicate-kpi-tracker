@@ -1802,8 +1802,10 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             <div className="flex gap-3">
               <Btn onClick={() => { setWeekSlots(suggestFill([...weekSlots])) }}>Suggest for me</Btn>
               <Btn gold disabled={!filled} onClick={() => {
-                const assigned = weekSlots.filter(s => s.moment)
-                console.log('Fleshing out:', assigned.length, 'of', weekSlots.length, 'slots. Jobs:', assigned.map(s => s.job))
+                const assigned = weekSlots.filter(s => s.moment).map(s => ({
+                  ...s,
+                  moment: { ...s.moment, enrichment: {} }
+                }))
                 setWeekPieces(assigned)
                 setWeekIdx(0); setChosenEngines({}); setChosenFormats({}); setAiQuestions(null); setScreen('week-enrich')
               }}>Flesh them out ({filled}/{weekSlots.length}) →</Btn>
