@@ -755,9 +755,14 @@ export default function ClientPage() {
     setAddingLeadCol(null)
   }
 
+  const [animatingLeadId, setAnimatingLeadId] = useState(null)
   const moveLead = async (leadId, newStatus) => {
-    const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
-    if (data) setLeads(prev => prev.map(l => l.id === leadId ? data : l))
+    setAnimatingLeadId(leadId)
+    setTimeout(async () => {
+      const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
+      if (data) setLeads(prev => prev.map(l => l.id === leadId ? data : l))
+      setAnimatingLeadId(null)
+    }, 300)
   }
 
   const deleteLead = async (leadId) => {
@@ -898,10 +903,32 @@ export default function ClientPage() {
     setTimeout(() => coachInputRef.current?.focus(), 100)
   }
 
+  const [coachLeadId, setCoachLeadId] = useState(null)
   const askCoachAboutLead = (lead) => {
+    setCoachLeadId(lead.id)
     setCoachOpen(true)
     const text = `What do I send ${lead.name}${lead.instagram ? ` (@${lead.instagram.replace('@', '')})` : ''}?`
     sendCoachMessage(text)
+  }
+
+  const saveCoachNoteToLead = async (noteText) => {
+    if (!coachLeadId) return
+    const lead = leads.find(l => l.id === coachLeadId)
+    if (!lead) return
+    const existingNotes = lead.notes ? lead.notes + '\n\n' : ''
+    const newNotes = existingNotes + `[${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}] ${noteText.slice(0, 500)}`
+    const { data } = await supabase.from('leads').update({ notes: newNotes, updated_at: new Date().toISOString() }).eq('id', lead.id).select().single()
+    if (data) setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
+  }
+
+  const moveCoachLead = async () => {
+    if (!coachLeadId) return
+    const lead = leads.find(l => l.id === coachLeadId)
+    if (!lead) return
+    const stageIdx = LEAD_STAGES.findIndex(s => s.id === lead.status)
+    if (stageIdx < LEAD_STAGES.length - 1) {
+      await moveLead(lead.id, LEAD_STAGES[stageIdx + 1].id)
+    }
   }
 
   // Evening Ops
@@ -3908,8 +3935,8 @@ export default function ClientPage() {
               <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
             </div>
 
-            {/* Stage pills — on mobile these filter to one stage */}
-            <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-none pb-1">
+            {/* Stage pills — spread evenly to align with columns */}
+            <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-none pb-1 sm:grid sm:gap-2" style={{ gridTemplateColumns: `repeat(${LEAD_STAGES.length}, minmax(0, 1fr))` }}>
               {LEAD_STAGES.map(stage => {
                 const count = leads.filter(l => l.status === stage.id).length
                 return (
@@ -3918,9 +3945,9 @@ export default function ClientPage() {
                     const el = document.querySelector(`[data-stage="${stage.id}"]`)
                     if (el) el.scrollIntoView({ behavior: 'smooth', inline: 'start', block: 'nearest' })
                   }}
-                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded text-[10px] font-bold uppercase tracking-wider flex-shrink-0 transition border ${mobileStage === stage.id ? 'bg-gold/20 text-gold border-gold/30 sm:bg-zinc-800 sm:text-zinc-300 sm:border-zinc-700' : count > 0 ? 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-gold/30 hover:text-gold' : 'bg-zinc-900 text-zinc-600 border-zinc-800'}`}>
-                    <span className={`w-1.5 h-1.5 rounded-full ${stage.color.split(' ')[0].replace('border-', 'bg-').replace('/40', '')}`} />
-                    {stage.label} <span className="text-zinc-500">{count}</span>
+                    className={`flex items-center justify-center gap-1.5 px-1.5 py-1.5 rounded text-[9px] font-bold uppercase tracking-wider flex-shrink-0 transition border text-center ${mobileStage === stage.id ? 'bg-gold/20 text-gold border-gold/30 sm:bg-zinc-800 sm:text-zinc-300 sm:border-zinc-700' : count > 0 ? 'bg-zinc-800 text-zinc-300 border-zinc-700 hover:border-gold/30 hover:text-gold' : 'bg-zinc-900 text-zinc-600 border-zinc-800'}`}>
+                    <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${stage.color.split(' ')[0].replace('border-', 'bg-').replace('/40', '')}`} />
+                    <span className="truncate">{stage.label}</span> <span className="text-zinc-500">{count}</span>
                   </button>
                 )
               })}
@@ -3960,7 +3987,7 @@ export default function ClientPage() {
                             onTouchStart={e => handleTouchStart(e, lead)}
                             onTouchMove={handleTouchMove}
                             onTouchEnd={handleTouchEnd}
-                            className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group cursor-grab active:cursor-grabbing hover:border-zinc-600 transition select-none card-lift">
+                            className={`bg-zinc-800 border border-zinc-700 rounded-lg p-3 group cursor-grab active:cursor-grabbing hover:border-zinc-600 select-none card-lift transition-all duration-300 ${animatingLeadId === lead.id ? 'opacity-0 scale-95 -translate-y-2' : 'opacity-100 scale-100'}`}>
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0 flex-1 cursor-pointer" onClick={(e) => { e.stopPropagation(); openLeadModal(lead) }}>
                                 <p className="text-sm font-semibold text-white leading-tight">{lead.name}</p>
@@ -4191,6 +4218,18 @@ export default function ClientPage() {
                                 return <p key={j} className="mb-0.5">{line}</p>
                               })}
                             </div>
+                            {coachLeadId && i === coachMessages.length - 1 && (
+                              <div className="flex gap-2 mt-2 pt-2 border-t border-white/[0.06]">
+                                <button onClick={() => { saveCoachNoteToLead(msg.content); }}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-gold/60 hover:text-gold transition">
+                                  Save to card
+                                </button>
+                                <button onClick={moveCoachLead}
+                                  className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/60 hover:text-emerald-400 transition">
+                                  Move to next stage
+                                </button>
+                              </div>
+                            )}
                           </div>
                         )}
                       </div>
