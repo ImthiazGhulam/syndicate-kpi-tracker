@@ -911,12 +911,37 @@ export default function ClientPage() {
     sendCoachMessage(text)
   }
 
-  const saveCoachNoteToLead = async (noteText) => {
+  const saveCoachNoteToLead = async (fullResponse) => {
     if (!coachLeadId) return
     const lead = leads.find(l => l.id === coachLeadId)
     if (!lead) return
-    const existingNotes = lead.notes ? lead.notes + '\n\n' : ''
-    const newNotes = existingNotes + `[${new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}] ${noteText.slice(0, 500)}`
+
+    // Extract the Hot List action line from the coach response
+    let noteToSave = ''
+    const hotListMatch = fullResponse.match(/\*\*Hot List[:\s]*\*\*\s*([\s\S]*?)(?=\n\*\*|$)/i)
+    if (hotListMatch) {
+      noteToSave = hotListMatch[1].replace(/\*\*/g, '').trim()
+    } else {
+      // Fallback: look for lines starting with "Hot List" or "Notes:"
+      const lines = fullResponse.split('\n')
+      for (const line of lines) {
+        const clean = line.replace(/\*\*/g, '').trim()
+        if (clean.toLowerCase().startsWith('hot list') || clean.toLowerCase().startsWith('notes:') || clean.toLowerCase().startsWith('card:')) {
+          noteToSave = clean.replace(/^(hot list|notes|card)[:\s]*/i, '').trim()
+          break
+        }
+      }
+    }
+
+    // If we couldn't extract a specific note, don't save the entire response — ask user
+    if (!noteToSave) {
+      noteToSave = prompt('The coach note couldn\'t be extracted automatically. Paste the note to save:')
+      if (!noteToSave) return
+    }
+
+    const today = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })
+    const existingNotes = lead.notes ? lead.notes + '\n' : ''
+    const newNotes = existingNotes + `${today} — ${noteToSave}`
     const { data } = await supabase.from('leads').update({ notes: newNotes, updated_at: new Date().toISOString() }).eq('id', lead.id).select().single()
     if (data) setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
   }
