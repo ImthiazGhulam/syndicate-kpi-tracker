@@ -921,15 +921,6 @@ export default function ClientPage() {
     if (data) setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
   }
 
-  const moveCoachLead = async () => {
-    if (!coachLeadId) return
-    const lead = leads.find(l => l.id === coachLeadId)
-    if (!lead) return
-    const stageIdx = LEAD_STAGES.findIndex(s => s.id === lead.status)
-    if (stageIdx < LEAD_STAGES.length - 1) {
-      await moveLead(lead.id, LEAD_STAGES[stageIdx + 1].id)
-    }
-  }
 
   // Evening Ops
   const fetchEveningPulse = async (dateStr) => {
@@ -4219,15 +4210,25 @@ export default function ClientPage() {
                               })}
                             </div>
                             {coachLeadId && i === coachMessages.length - 1 && (
-                              <div className="flex gap-2 mt-2 pt-2 border-t border-white/[0.06]">
+                              <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-white/[0.06]">
                                 <button onClick={() => { saveCoachNoteToLead(msg.content); }}
                                   className="text-[10px] font-bold uppercase tracking-widest text-gold/60 hover:text-gold transition">
                                   Save to card
                                 </button>
-                                <button onClick={moveCoachLead}
-                                  className="text-[10px] font-bold uppercase tracking-widest text-emerald-500/60 hover:text-emerald-400 transition">
-                                  Move to next stage
-                                </button>
+                                <select
+                                  defaultValue=""
+                                  onChange={async (e) => {
+                                    if (!e.target.value || !coachLeadId) return
+                                    await moveLead(coachLeadId, e.target.value)
+                                    e.target.value = ''
+                                  }}
+                                  className="text-[10px] font-bold uppercase tracking-widest bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer appearance-none"
+                                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2334d399' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center', paddingRight: '20px' }}>
+                                  <option value="">Move to...</option>
+                                  {LEAD_STAGES.map(s => (
+                                    <option key={s.id} value={s.id}>{s.label}</option>
+                                  ))}
+                                </select>
                               </div>
                             )}
                           </div>
