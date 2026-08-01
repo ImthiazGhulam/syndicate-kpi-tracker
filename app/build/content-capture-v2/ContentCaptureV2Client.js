@@ -2224,6 +2224,23 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
     }
 
+    async function rewriteSavedPiece(idx, redoNote) {
+      const p = pieces[idx]
+      const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
+      const card = CARDS[p.cardKey || 'c1'] || { fmt: 'a social media post', out: 'Write the piece.', cta: 'Follow.', dont: [] }
+      setScreen('week-writing'); setWritingLine(moment.line)
+      try {
+        const newPiece = await generate(card, moment, redoNote, null, p.cardKey || 'c1')
+        const updated = [...pieces]
+        updated[idx] = { ...updated[idx], piece: newPiece }
+        const newWeek = { ...viewingWeek, piece_ids: updated }
+        await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+        setViewingWeek(newWeek)
+        setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+      } catch {}
+      setScreen('view-week')
+    }
+
     async function updatePiece(idx, newText) {
       const updated = [...pieces]
       updated[idx] = { ...updated[idx], piece: newText }
@@ -2248,11 +2265,56 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           </div>
 
           {pieces.map((p, i) => (
-            <EditablePieceCard key={`${viewingWeek.id}-${i}`}
+            <PieceCard key={`${viewingWeek.id}-${i}`}
               title={`${p.day || ''} · ${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
               piece={p.piece}
               onSave={(newText) => updatePiece(i, newText)}
-              onDelete={() => deletePiece(i)}
+              onRewrite={() => {
+                setModal({
+                  title: "What's off about it?",
+                  body: 'Pick the closest — the correction shapes the rewrite.',
+                  options: [
+                    ['Too salesy — soften it', () => { setModal(null); rewriteSavedPiece(i, 'It read too salesy. Softer, more human, the offer lighter.') }],
+                    ['Too formal — loosen it up', () => { setModal(null); rewriteSavedPiece(i, 'Too formal and written. Looser, more like talking.') }],
+                    ["Doesn't sound like me — plainer", () => { setModal(null); rewriteSavedPiece(i, "Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
+                    ['Just try a different angle', () => { setModal(null); rewriteSavedPiece(i, 'Take a completely different angle on the same moment.') }],
+                  ],
+                })
+              }}
+              onChangeFormat={() => {
+                const job = p.job || 'reach'
+                const availableEngines = getAvailableEngines(job)
+                setModal({
+                  title: 'Change the format',
+                  body: 'Pick a new engine and format — the piece will be rewritten.',
+                  options: availableEngines.flatMap(eng => {
+                    const formats = getFormatsForJobEngine(job, eng.id)
+                    return formats.map(f => ([
+                      `${eng.icon} ${eng.label} → ${f.label}`,
+                      async () => {
+                        setModal(null)
+                        const fmtPrompt = FORMAT_PROMPTS[f.id]
+                        if (!fmtPrompt) return
+                        const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
+                        const card = { fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label, cta: CARDS[p.cardKey || 'c1']?.cta || '', dont: [] }
+                        setScreen('week-writing'); setWritingLine(moment.line)
+                        try {
+                          const newPiece = await generate(card, moment, null, null, p.cardKey || 'c1')
+                          updatePiece(i, newPiece)
+                          // Also update format name
+                          const updated = [...pieces]
+                          updated[i] = { ...updated[i], piece: newPiece, format: f.label }
+                          const newWeek = { ...viewingWeek, piece_ids: updated }
+                          await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+                          setViewingWeek(newWeek)
+                          setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+                        } catch {}
+                        setScreen('view-week')
+                      }
+                    ]))
+                  }),
+                })
+              }}
             />
           ))}
 
@@ -2263,6 +2325,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <Btn onClick={() => setScreen('view-weeks')}>Done</Btn>
             </div>
           </div>
+          <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
       </SidebarLayout>
     )
   }
