@@ -45,6 +45,11 @@ const TOOLS = [
       required: [],
     },
   },
+  {
+    name: 'get_offer',
+    description: 'Returns the client\'s full offer details from their Sold Out playbook: main offer (Bang Bang) name, price, promise, guarantee, scarcity, who it\'s for, who it\'s not for, phases, delivery model, bonuses, CTA. Also returns the micro offer (The Dip) details and the ICP data: ideal client description, pains, real objections, cost of inaction, dream outcome, trigger moment. Call this at the start of any sales conversation so you know exactly what the client sells, at what price, and what objections to expect.',
+    input_schema: { type: 'object', properties: {}, required: [] },
+  },
 ]
 
 const STAGE_LABELS = {
@@ -165,6 +170,85 @@ async function executeTool(toolName, toolInput, clientId) {
     }
   }
 
+  if (toolName === 'get_offer') {
+    const [offerRes, deRes] = await Promise.all([
+      supabase.from('offer_playbooks').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+      supabase.from('distinction_engine').select('*').eq('client_id', clientId).order('created_at', { ascending: false }).limit(1).maybeSingle(),
+    ])
+
+    if (!offerRes.data && !deRes.data) return { offer: null, note: 'No Sold Out playbook data found. Ask the client about their offer directly.' }
+
+    const result = {}
+
+    if (offerRes.data) {
+      const bb = offerRes.data.bang_bang || {}
+      const dip = offerRes.data.dip || {}
+      const icp = offerRes.data.icp || {}
+      const path = offerRes.data.path_planner || {}
+
+      result.main_offer = {
+        name: bb.name || null,
+        promise: bb.promise || null,
+        price: bb.price || null,
+        who_for: bb.who_for || null,
+        who_not_for: bb.who_not_for || null,
+        guarantee_type: bb.guarantee_type || null,
+        guarantee_detail: bb.guarantee_detail || null,
+        scarcity: bb.scarcity || null,
+        urgency: bb.urgency || null,
+        delivery_model: bb.delivery_model || [],
+        touch_points: bb.touch_points || [],
+        bonuses: (bb.bonuses || []).filter(b => b.name),
+        phases: (bb.phases || []).filter(p => p.name),
+        continuity: bb.continuity_offer || null,
+        cta: bb.cta_action || null,
+        results_numbers: bb.results_numbers || null,
+        big_names: bb.big_names || null,
+        social_proof: bb.social_proof || [],
+      }
+
+      if (dip.name) {
+        result.micro_offer = {
+          name: dip.name,
+          promise: dip.promise || null,
+          price: dip.price || null,
+          problem: dip.problem || null,
+          outcome: dip.outcome || null,
+          format: dip.format || null,
+          duration: dip.duration || null,
+          bridge_to_main: dip.bridge_to_main || null,
+          belief_to_create: dip.belief_to_create || null,
+        }
+      }
+
+      result.icp = {
+        specific_description: icp.specific_description || null,
+        promise: icp.promise || null,
+        dream_outcome: icp.dream_outcome || null,
+        pains: Array.isArray(icp.pains) ? icp.pains.filter(Boolean) : [],
+        real_objections: icp.real_objections || [],
+        cost_of_inaction: icp.cost_of_inaction || null,
+        trigger_moment: icp.trigger_moment || null,
+        who_not_for: icp.who_not_for || null,
+        pyramid_level: icp.pyramid_level || null,
+        emotional_state: icp.emotional_state || [],
+      }
+
+      if (path.total_duration) result.programme_duration = path.total_duration
+    }
+
+    if (deRes.data) {
+      result.method = {
+        engine_name: deRes.data.engine_name || null,
+        promise: deRes.data.promise || null,
+        problems: [deRes.data.problem_1, deRes.data.problem_2, deRes.data.problem_3].filter(Boolean),
+        pillars: [deRes.data.pillar_1, deRes.data.pillar_2, deRes.data.pillar_3].filter(Boolean),
+      }
+    }
+
+    return result
+  }
+
   return { error: `Unknown tool: ${toolName}` }
 }
 
@@ -175,6 +259,7 @@ const SYSTEM_PROMPT = `You are the DM Sales Coach inside The Motherboard, coachi
 ## YOUR TOOLS AND WHEN TO USE THEM
 
 - **get_voice_profile** — returns the client's tone and brand voice, built from their Premium Position playbook. Call this ONCE at the start of every session, before drafting anything. Every message you draft is written in this voice.
+- **get_offer** — returns the client's FULL offer details from their Sold Out playbook: main offer (name, price, promise, guarantee, scarcity, phases, delivery, bonuses, CTA), micro offer / The Dip (name, price, bridge), ICP (pains, objections, dream outcome, cost of inaction), and their method from Distinction Engine (name, pillars, problems). Call this ONCE at the start of every session alongside get_voice_profile. You MUST know the offer before coaching any sales conversation — you need to know the price, the guarantee, the scarcity, and the real objections to handle them properly.
 - **get_lead** — returns one lead's card: name, Instagram handle, stage, notes, lead magnet toggle, last moved date. Call this whenever the client names a lead ("what do I send Priya?", "the guy from the webinar, @marcusfit"). The card is the source of truth: if the client's memory of the stage or the gap words conflicts with the card, trust the card and gently flag the mismatch.
 - **list_leads** — returns leads, optionally filtered by stage. Use it when the reference is ambiguous ("that nutrition coach" and two cards match), or when the client asks pipeline questions ("who needs a Friday message?", "who's gone stale?"). For "who do I message today", pull the board and prioritise: overdue next actions first, then cards unmoved for 7+ days, then Friday follow-ups if it's Thursday or Friday.
 
