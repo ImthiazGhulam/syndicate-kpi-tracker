@@ -4210,25 +4210,27 @@ export default function ClientPage() {
                               })}
                             </div>
                             {coachLeadId && i === coachMessages.length - 1 && (
-                              <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-white/[0.06]">
-                                <button onClick={() => { saveCoachNoteToLead(msg.content); }}
-                                  className="text-[10px] font-bold uppercase tracking-widest text-gold/60 hover:text-gold transition">
-                                  Save to card
-                                </button>
-                                <select
-                                  defaultValue=""
-                                  onChange={async (e) => {
-                                    if (!e.target.value || !coachLeadId) return
-                                    await moveLead(coachLeadId, e.target.value)
-                                    e.target.value = ''
-                                  }}
-                                  className="text-[10px] font-bold uppercase tracking-widest bg-zinc-800 border border-zinc-700 rounded px-2 py-1 text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500 cursor-pointer appearance-none"
-                                  style={{ backgroundImage: "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='10' fill='%2334d399' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E\")", backgroundRepeat: 'no-repeat', backgroundPosition: 'right 6px center', paddingRight: '20px' }}>
-                                  <option value="">Move to...</option>
-                                  {LEAD_STAGES.map(s => (
-                                    <option key={s.id} value={s.id}>{s.label}</option>
-                                  ))}
-                                </select>
+                              <div className="mt-2 pt-2 border-t border-white/[0.06]">
+                                <div className="flex gap-2 mb-2">
+                                  <button onClick={() => { saveCoachNoteToLead(msg.content); }}
+                                    className="text-[10px] font-bold uppercase tracking-widest text-gold/60 hover:text-gold transition">
+                                    Save to card
+                                  </button>
+                                </div>
+                                <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Move card to</p>
+                                <div className="flex flex-wrap gap-1">
+                                  {LEAD_STAGES.map(s => {
+                                    const currentLead = leads.find(l => l.id === coachLeadId)
+                                    const isCurrent = currentLead?.status === s.id
+                                    return (
+                                      <button key={s.id} disabled={isCurrent}
+                                        onClick={() => moveLead(coachLeadId, s.id)}
+                                        className={`text-[9px] font-bold uppercase tracking-wider px-2 py-1 rounded border transition ${isCurrent ? 'bg-gold/20 text-gold border-gold/30 cursor-default' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-emerald-500/50 hover:text-emerald-400'}`}>
+                                        {s.label}
+                                      </button>
+                                    )
+                                  })}
+                                </div>
                               </div>
                             )}
                           </div>
