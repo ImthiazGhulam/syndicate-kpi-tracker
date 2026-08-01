@@ -756,13 +756,18 @@ export default function ClientPage() {
   }
 
   const [animatingLeadId, setAnimatingLeadId] = useState(null)
+  const [movedFlash, setMovedFlash] = useState(null)
   const moveLead = async (leadId, newStatus) => {
     setAnimatingLeadId(leadId)
-    setTimeout(async () => {
-      const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
-      if (data) setLeads(prev => prev.map(l => l.id === leadId ? data : l))
-      setAnimatingLeadId(null)
-    }, 300)
+    await new Promise(r => setTimeout(r, 300))
+    const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
+    if (data) {
+      setLeads(prev => prev.map(l => l.id === leadId ? data : l))
+      const stageName = LEAD_STAGES.find(s => s.id === newStatus)?.label || newStatus
+      setMovedFlash(`Moved to ${stageName}`)
+      setTimeout(() => setMovedFlash(null), 2000)
+    }
+    setAnimatingLeadId(null)
   }
 
   const deleteLead = async (leadId) => {
@@ -4242,6 +4247,7 @@ export default function ClientPage() {
                                     Save note to card
                                   </button>
                                 </div>
+                                {movedFlash && <p className="text-[10px] font-bold text-emerald-400 mb-1 animate-pulse">{movedFlash}</p>}
                                 <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Move card to</p>
                                 <div className="flex flex-wrap gap-1">
                                   {LEAD_STAGES.map(s => {
