@@ -4214,7 +4214,7 @@ export default function ClientPage() {
                                 <div className="flex gap-2 mb-2">
                                   <button onClick={() => { saveCoachNoteToLead(msg.content); }}
                                     className="text-[10px] font-bold uppercase tracking-widest text-gold/60 hover:text-gold transition">
-                                    Save to card
+                                    Save note to card
                                   </button>
                                 </div>
                                 <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Move card to</p>
