@@ -602,9 +602,14 @@ function WritingScreen({ line, label }) {
   )
 }
 
-function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onToEmail, onToYT, onChangeFormat, formatOptions }) {
+function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onToEmail, onToYT, onChangeFormat, onSave }) {
   const [copied, setCopied] = useState(false)
   const [showDont, setShowDont] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState(piece || '')
+
+  // Sync draft when piece changes externally (rewrite, format change)
+  useEffect(() => { setDraft(piece || '') }, [piece])
 
   function handleCopy() {
     if (piece && navigator.clipboard) navigator.clipboard.writeText(piece)
@@ -616,6 +621,23 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
     if (!text) return <span className="text-zinc-500">This one didn't write. Tap rewrite to try again.</span>
     return text.split(/(\{\{[^}]+\}\})/).map((part, i) =>
       part.startsWith('{{') ? <span key={i} className="text-gold font-bold text-xs">{part}</span> : part
+    )
+  }
+
+  if (editing) {
+    return (
+      <div className="glass-card p-5 mb-3 border-gold/30">
+        <div className="flex justify-between items-baseline mb-3 gap-3 flex-wrap">
+          <h4 className="text-xs font-bold text-gold uppercase tracking-widest">{title}</h4>
+          <span className="text-xs text-gold uppercase tracking-widest">Editing</span>
+        </div>
+        <textarea rows={12} value={draft} onChange={e => setDraft(e.target.value)}
+          className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+        <div className="flex gap-2 mt-3">
+          <Btn gold onClick={() => { if (onSave) onSave(draft); setEditing(false) }}>Save</Btn>
+          <Btn onClick={() => { setDraft(piece || ''); setEditing(false) }}>Cancel</Btn>
+        </div>
+      </div>
     )
   }
 
@@ -640,7 +662,8 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
       )}
       <div className="flex gap-2 mt-4 flex-wrap">
         <Btn gold onClick={onCopy || handleCopy} disabled={!piece}>{copied ? 'Copied' : 'Copy it'}</Btn>
-        {onRewrite && <Btn onClick={onRewrite}>Rewrite it</Btn>}
+        {onSave && <Btn onClick={() => setEditing(true)}>Edit</Btn>}
+        {onRewrite && <Btn onClick={onRewrite}>Rewrite</Btn>}
         {onChangeFormat && <Btn onClick={onChangeFormat}>Change format</Btn>}
         {onToEmail && <Btn onClick={onToEmail}>→ Email</Btn>}
         {onToYT && <Btn onClick={onToYT}>→ YouTube</Btn>}
@@ -2030,6 +2053,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               piece={sl.piece}
               swap={sl.swap}
               dont={sl.cardObj.dont}
+              onSave={(newText) => {
+                setWeekPieces(prev => {
+                  const updated = [...prev]
+                  updated[i] = { ...updated[i], piece: newText }
+                  return updated
+                })
+              }}
               onRewrite={() => {
                 setModal({
                   title: "What's off about it?",
