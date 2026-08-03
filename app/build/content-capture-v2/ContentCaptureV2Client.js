@@ -280,21 +280,21 @@ const FORMAT_OPTIONS = {
 
 // Map format choice to generation instructions
 const FORMAT_PROMPTS = {
-  'talking-head': { fmt: 'a 30–90 second spoken video script (100–220 words), delivered to camera', out: "Write it as a spoken script. First line: [ON SCREEN: what's visually in frame in second one]. Then the script. Open mid-scene with no introductions. End by turning it onto the viewer, then one button line that loops back to the opening." },
+  'talking-head': { fmt: 'a 30–90 second spoken video script (100–220 words), delivered to camera, plus caption', out: "Write it as a spoken script. First line: [ON SCREEN: what's visually in frame in second one]. Then the script. Open mid-scene with no introductions. End by turning it onto the viewer, then one button line that loops back to the opening. Then 'CAPTION:' with a 2–3 line caption to post alongside the video." },
   'text-reel': { fmt: 'a 5–15 second text-on-screen reel plus caption', out: "Write 'ON SCREEN:' with the single line of text over the footage (fully readable in one glance), then 'B-ROLL:' one line describing ordinary footage from their week, then 'CAPTION:' with 3–5 short lines of context." },
   'carousel': { fmt: 'a 6–10 slide carousel post', out: "Write it slide by slide: 'SLIDE 1:' etc, under 40 words per slide. Slide 1 is the hook — one claim, one outcome, one tension. One idea per slide. Second-to-last slide turns on the reader. Last slide is the ask. Then 'CAPTION:' with a 2–3 line caption." },
-  'green-screen': { fmt: 'a 30–60 second green screen reaction video script', out: "Write it as a spoken script. First line: [ON SCREEN: the article/screenshot/post being reacted to]. Your first line names what's wrong, surprising or useful. Two or three beats of commentary. The takeaway in your frame, not theirs. Turn and button." },
+  'green-screen': { fmt: 'a 30–60 second green screen reaction video script plus caption', out: "Write it as a spoken script. First line: [ON SCREEN: the article/screenshot/post being reacted to]. Your first line names what's wrong, surprising or useful. Two or three beats of commentary. The takeaway in your frame, not theirs. Turn and button. Then 'CAPTION:' with a 2–3 line caption to post alongside the video." },
   'skit': { fmt: 'a 15–45 second skit or POV video', out: "Write 'ON SCREEN TEXT: POV: {{scenario}}'. Then describe the scene: what happens, played straight. One turn — the exaggeration or reveal. Then 'CAPTION:' landing the real point in one line." },
-  'screen-recording': { fmt: 'a 45–90 second screen recording walkthrough', out: "Write it as a narrated walkthrough. Hook names the outcome first. Then step by step: 'SCREEN: [what's visible]' followed by 'NARRATION: [what you say]' for each step. End on the finished state. IMPORTANT: name the specific tool, system, or method step being shown — not vague 'mindset work' but the actual thing on screen." },
-  'over-shoulder': { fmt: 'a 45–90 second over-the-shoulder video script', out: "Write it as a spoken narration over footage of you working. Hook names the outcome. Walk through what you're doing step by step, naming the specific tool, template, or process visible. End on the finished state. Same rules as screen recording but the camera is on you, not the screen." },
-  'story-sequence': { fmt: 'a 3–8 frame story sequence', out: "Write it frame by frame: 'FRAME 1:' etc. Frame 1 opens a loop. Each frame earns the tap to the next. Mix media suggestions: [TALKING CLIP], [SCREENSHOT], [TEXT FRAME], [POLL]. Final frame carries the CTA." },
-  'testimonial': { fmt: 'a testimonial or social proof post', out: "Open on the result or strongest line — never 'so tell us about yourself'. Where they were, in their words, one vivid detail. The turn: what changed — name the SPECIFIC step, method, or thing inside the programme that made the difference, not vague 'mindset shift'. Where they are now, with a number. Your frame in the caption: the principle that made the difference." },
+  'screen-recording': { fmt: 'a 45–90 second screen recording walkthrough plus caption', out: "Write it as a narrated walkthrough. Hook names the outcome first. Then step by step: 'SCREEN: [what's visible]' followed by 'NARRATION: [what you say]' for each step. End on the finished state. IMPORTANT: name the specific tool, system, or method step being shown — not vague 'mindset work' but the actual thing on screen. Then 'CAPTION:' with a 2–3 line caption to post alongside the video." },
+  'over-shoulder': { fmt: 'a 45–90 second over-the-shoulder video script plus caption', out: "Write it as a spoken narration over footage of you working. Hook names the outcome. Walk through what you're doing step by step, naming the specific tool, template, or process visible. End on the finished state. Same rules as screen recording but the camera is on you, not the screen. Then 'CAPTION:' with a 2–3 line caption to post alongside the video." },
+  'story-sequence': { fmt: 'a 3–8 frame story sequence plus caption', out: "Write it frame by frame: 'FRAME 1:' etc. Frame 1 opens a loop. Each frame earns the tap to the next. Mix media suggestions: [TALKING CLIP], [SCREENSHOT], [TEXT FRAME], [POLL]. Final frame carries the CTA. Then 'CAPTION:' with a 1–2 line caption if posting as a feed story highlight." },
+  'testimonial': { fmt: 'a testimonial or social proof post plus caption', out: "Open on the result or strongest line — never 'so tell us about yourself'. Where they were, in their words, one vivid detail. The turn: what changed — name the SPECIFIC step, method, or thing inside the programme that made the difference, not vague 'mindset shift'. Where they are now, with a number. Then 'CAPTION:' with 3–5 short lines framing the principle that made the difference, turning it on the reader." },
   'screenshot-post': { fmt: 'a screenshot/DM receipt post with caption', out: "Write 'SCREENSHOT:' describing what the screenshot shows (the DM, the payment, the message — describe it, don't invent it). Then 'CAPTION:' with 3–5 short lines: who this person is (one line), where they started, the specific thing that changed, and one line that turns it on the reader. Never explain the method — the screenshot IS the proof." },
   'before-after': { fmt: 'a before/after comparison post with caption', out: "Write 'BEFORE:' one vivid line describing where they were (specific, not 'struggling'). Then 'AFTER:' one vivid line describing where they are now (with a number). Then 'THE CHANGE:' the one specific thing that happened between the two — name the method step, the system, or the decision. Then 'CAPTION:' 3–5 short lines turning it on the reader." },
   'quote-card': { fmt: 'a single-line quote card with caption', out: "Write 'QUOTE:' one sharp line that could only sit under this person's brand — not a generic motivational quote. It should name a specific truth from their work. Then 'CAPTION:' 2–3 lines expanding on why this matters, grounded in a real moment or client." },
-  'yap': { fmt: 'a 30–90 second unscripted talking video (yap style)', out: "Write it as loose spoken notes — not a polished script. Mark: [SETTING: walking/car/desk]. Then the key beats to hit in order, written as bullet thoughts not full sentences. The structure is held loosely in the head. End with one clear point. This is deliberately casual — sloppy is a brand choice, not laziness." },
-  'rant': { fmt: 'a 30–60 second high-energy opinion video', out: "Write it as a spoken script. Higher energy, opinion-led. Open with the thing that's wrong. Build the case in 3 beats. Land the contrarian position with conviction. Turn on the viewer. This format works because it's genuinely felt — fake outrage reads instantly." },
-  'voice-note': { fmt: 'a 60–90 second voice note style video', out: "Write it as you'd speak into a voice note to a close friend. Softest register. No hook, no structure — just the thought as it came to you. Good for MOF depth. Mark: [TONE: intimate, like 1am voice note]. The lack of polish IS the format." },
+  'yap': { fmt: 'a 30–90 second unscripted talking video (yap style) plus caption', out: "Write it as loose spoken notes — not a polished script. Mark: [SETTING: walking/car/desk]. Then the key beats to hit in order, written as bullet thoughts not full sentences. The structure is held loosely in the head. End with one clear point. This is deliberately casual — sloppy is a brand choice, not laziness. Then 'CAPTION:' with a 1–2 line caption to post alongside the video." },
+  'rant': { fmt: 'a 30–60 second high-energy opinion video plus caption', out: "Write it as a spoken script. Higher energy, opinion-led. Open with the thing that's wrong. Build the case in 3 beats. Land the contrarian position with conviction. Turn on the viewer. This format works because it's genuinely felt — fake outrage reads instantly. Then 'CAPTION:' with a 1–2 line caption to post alongside the video." },
+  'voice-note': { fmt: 'a 60–90 second voice note style video plus caption', out: "Write it as you'd speak into a voice note to a close friend. Softest register. No hook, no structure — just the thought as it came to you. Good for MOF depth. Mark: [TONE: intimate, like 1am voice note]. The lack of polish IS the format. Then 'CAPTION:' with a 1–2 line caption to post alongside the video." },
   'youtube': { fmt: 'a script treatment for an 8–15 minute YouTube video', out: "Write '[TITLE:' a plain title for people who already follow]. Then 'OPENING (word for word):' 60–90 seconds spoken. Then 3–5 'SECTION:' blocks with key points and spoken lines. Then 'CLOSE (word for word):' ending that invites onto the email list." },
   'story-email': { fmt: 'a 150–300 word email', out: "Write 'SUBJECT:' (the moment itself, not the lesson), then the email. Open inside the scene. Tell what happened plainly. Land the one lesson once. Sign off warm. No pitch, no PS with a link." },
   'launch-email': { fmt: 'a 50–150 word launch email', out: "Write 'SUBJECT:' stating the fact plainly. Then the email: the fact first, the honest reason it exists, one line of proof if given, what changes either side of the line, one link ask stated once. Short sentences." },
@@ -2250,6 +2250,32 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
     }
 
+    async function convertToEmail(idx) {
+      const p = pieces[idx]
+      const cardKey = stage === 'launch' ? 'c17' : 'c13'
+      const card = CARDS[cardKey]
+      const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
+      setScreen('week-writing'); setWritingLine(moment.line)
+      try {
+        const emailPiece = await generate(card, moment, null, null, cardKey)
+        const updated = [...pieces]
+        updated.splice(idx + 1, 0, {
+          day: 'Thursday',
+          job: 'email',
+          format: card.nm,
+          momentLine: moment.line,
+          momentType: moment.type,
+          piece: emailPiece || '',
+          cardKey,
+        })
+        const newWeek = { ...viewingWeek, piece_ids: updated }
+        await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+        setViewingWeek(newWeek)
+        setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+      } catch {}
+      setScreen('view-week')
+    }
+
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <GhostBtn onClick={() => setScreen('view-weeks')}>← All weeks</GhostBtn>
@@ -2269,6 +2295,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               title={`${p.day || ''} · ${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
               piece={p.piece}
               onSave={(newText) => updatePiece(i, newText)}
+              onToEmail={p.job !== 'email' ? () => convertToEmail(i) : undefined}
               onRewrite={() => {
                 setModal({
                   title: "What's off about it?",
