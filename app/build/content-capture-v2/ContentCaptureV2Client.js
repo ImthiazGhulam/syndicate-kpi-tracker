@@ -2024,7 +2024,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   if (screen === 'week-writing') {
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-          <WritingScreen line={writingLine} label={`WRITING POST ${weekIdx + 1} OF ${weekPieces.length}`} />
+          <WritingScreen line={writingLine} label={weekPieces.length > 0 ? `WRITING POST ${weekIdx + 1} OF ${weekPieces.length}` : 'CONVERTING TO EMAIL'} />
       </SidebarLayout>
     )
   }
@@ -2251,28 +2251,33 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     }
 
     async function convertToEmail(idx) {
-      const p = pieces[idx]
+      const currentPieces = viewingWeek.piece_ids || []
+      const p = currentPieces[idx]
+      if (!p) return
       const cardKey = stage === 'launch' ? 'c17' : 'c13'
       const card = CARDS[cardKey]
-      const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
-      setScreen('week-writing'); setWritingLine(moment.line)
+      const momentLine = p.momentLine || p.piece?.slice(0, 80) || ''
+      const moment = { line: momentLine, type: p.momentType || 'client', enrichment: {} }
+      setScreen('week-writing'); setWritingLine(momentLine)
       try {
         const emailPiece = await generate(card, moment, null, null, cardKey)
-        const updated = [...pieces]
-        updated.splice(idx + 1, 0, {
+        const freshPieces = [...(viewingWeek.piece_ids || [])]
+        freshPieces.splice(idx + 1, 0, {
           day: 'Thursday',
           job: 'email',
           format: card.nm,
-          momentLine: moment.line,
+          momentLine: momentLine,
           momentType: moment.type,
           piece: emailPiece || '',
           cardKey,
         })
-        const newWeek = { ...viewingWeek, piece_ids: updated }
-        await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+        await supabase.from('cc_weeks').update({ piece_ids: freshPieces }).eq('id', viewingWeek.id)
+        const newWeek = { ...viewingWeek, piece_ids: freshPieces }
         setViewingWeek(newWeek)
         setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
-      } catch {}
+      } catch (err) {
+        console.error('Email conversion failed:', err)
+      }
       setScreen('view-week')
     }
 
