@@ -238,11 +238,12 @@ async function executeTool(toolName, toolInput, clientId) {
     }
 
     if (deRes.data) {
+      const de = deRes.data.engine_data || deRes.data
       result.method = {
-        engine_name: deRes.data.engine_name || null,
-        promise: deRes.data.promise || null,
-        problems: [deRes.data.problem_1, deRes.data.problem_2, deRes.data.problem_3].filter(Boolean),
-        pillars: [deRes.data.pillar_1, deRes.data.pillar_2, deRes.data.pillar_3].filter(Boolean),
+        engine_name: de.engine_name || null,
+        promise: de.promise || null,
+        problems: [de.problem_1, de.problem_2, de.problem_3].filter(Boolean),
+        pillars: [de.pillar_1, de.pillar_2, de.pillar_3].filter(Boolean),
       }
     }
 

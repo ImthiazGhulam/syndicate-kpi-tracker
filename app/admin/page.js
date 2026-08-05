@@ -226,6 +226,7 @@ function AdminPageInner() {
   const [editingBounceBack, setEditingBounceBack] = useState(false)
   const [clientDistinction, setClientDistinction] = useState(null)
   const [clientAIAccelerator, setClientAIAccelerator] = useState(null)
+  const [clientLeadMagnets, setClientLeadMagnets] = useState(null)
   const [identityChange, setIdentityChange] = useState(null)
   const [lifeDesign, setLifeDesign] = useState(null)
   const [adventures, setAdventures] = useState(defaultAdventures())
@@ -383,6 +384,7 @@ function AdminPageInner() {
     setClientBounceBack(null)
     setClientDistinction(null)
     setClientAIAccelerator(null)
+    setClientLeadMagnets(null)
     setAllClientLockIns([])
     setAllClientWarMaps([])
 
@@ -420,6 +422,7 @@ function AdminPageInner() {
       bounceBackRes,    // 16e. bounce_back
       distinctionRes,   // 16f. distinction_engine
       aiAccelRes,       // 16d. ai_accelerator
+      leadMagnetsRes,   // 16g. lead_magnets
       allLockInsRes,    // 17. weekly_review (all)
       allWarMapsRes,    // 18. war_map_weekly (all)
     ] = await Promise.all([
@@ -444,6 +447,7 @@ function AdminPageInner() {
       safe(supabase.from('bounce_back').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),                   // 16e
       safe(supabase.from('distinction_engine').select('*').eq('client_id', client.id).maybeSingle()),                                        // 16f
       safe(supabase.from('ai_accelerator').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),              // 16d
+      safe(supabase.from('lead_magnets').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),             // 16g
       safe(supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false })), // 17
       safe(supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false })), // 18
     ])
@@ -466,6 +470,7 @@ function AdminPageInner() {
     setClientBounceBack(Array.isArray(bounceBackRes.data) && bounceBackRes.data.length > 0 ? bounceBackRes.data : null)
     setClientDistinction(distinctionRes.data && !Array.isArray(distinctionRes.data) ? distinctionRes.data : null)
     setClientAIAccelerator(Array.isArray(aiAccelRes.data) && aiAccelRes.data.length > 0 ? aiAccelRes.data : null)
+    setClientLeadMagnets(Array.isArray(leadMagnetsRes.data) && leadMagnetsRes.data.length > 0 ? leadMagnetsRes.data : null)
     setAllClientLockIns(Array.isArray(allLockInsRes.data) ? allLockInsRes.data : [])
     setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
     setAdminReviewWeek(monday)
@@ -898,6 +903,7 @@ function AdminPageInner() {
       { id: 'premium-pos',  label: 'Premium Position™' },
       { id: 'distinction',  label: 'Distinction Engine™' },
       { id: 'ai-accel',     label: 'AI Accelerator™' },
+      { id: 'lead-magnets', label: 'Lead Magnets' },
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™' },
@@ -4418,6 +4424,53 @@ function AdminPageInner() {
                       </div>
                     )
                   })}
+                </div>
+                )
+              })()}
+
+              {activeTab === 'lead-magnets' && (() => {
+                if (!clientLeadMagnets) return (
+                  <div className="fade-in text-center py-16">
+                    <span className="text-4xl mb-4 block">🧲</span>
+                    <p className="text-zinc-500 text-sm font-medium">Client hasn&apos;t created any Lead Magnets yet.</p>
+                  </div>
+                )
+
+                const typeLabels = { script_pack: 'Script Pack', checklist: 'Checklist', guide: 'Guide', template: 'Template', tracker: 'Tracker', video_script: 'Video Script', other: 'Other' }
+
+                return (
+                <div className="fade-in">
+                  <div className="bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-8 mb-6">
+                    <h2 className="text-lg font-black text-white uppercase tracking-wider">Lead Magnets</h2>
+                    <p className="text-zinc-600 text-xs mt-2">{clientLeadMagnets.length} magnet{clientLeadMagnets.length !== 1 ? 's' : ''} created</p>
+                  </div>
+
+                  <div className="space-y-4">
+                    {clientLeadMagnets.map(m => (
+                      <div key={m.id} className="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+                        <div className="flex items-start justify-between gap-4 mb-3">
+                          <div>
+                            <h3 className="text-sm font-bold text-white">{m.name || 'Untitled Magnet'}</h3>
+                            {m.keyword && (
+                              <span className="inline-block mt-1 px-2 py-0.5 bg-gold/10 border border-gold/30 rounded text-gold text-[10px] font-bold uppercase tracking-widest">{m.keyword}</span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 shrink-0">
+                            <span className={`w-2 h-2 rounded-full ${m.dm_flow_live ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                            <span className="text-[10px] text-zinc-500 uppercase tracking-widest">{m.dm_flow_live ? 'Live' : 'Draft'}</span>
+                          </div>
+                        </div>
+                        {m.promise && (
+                          <p className="text-zinc-400 text-sm leading-relaxed mb-2">{m.promise}</p>
+                        )}
+                        <div className="flex items-center gap-3 text-[10px] text-zinc-600 uppercase tracking-widest">
+                          <span>{typeLabels[m.magnet_type] || m.magnet_type}</span>
+                          <span>&middot;</span>
+                          <span>{m.created_at ? new Date(m.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '\u2014'}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
                 )
               })()}

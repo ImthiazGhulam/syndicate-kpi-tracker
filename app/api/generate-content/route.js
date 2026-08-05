@@ -1,6 +1,9 @@
 import { NextResponse } from 'next/server'
 
-async function callAnthropicAPI(system, user, maxTokens = 1500) {
+const CONTENT_MODEL = process.env.CONTENT_MODEL || 'claude-sonnet-4-6'
+const CONTENT_MODEL_REWRITE = process.env.CONTENT_MODEL_REWRITE || 'claude-opus-4-6'
+
+async function callAnthropicAPI(system, user, maxTokens = 1500, model = CONTENT_MODEL) {
   for (let attempt = 0; attempt < 3; attempt++) {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -10,7 +13,7 @@ async function callAnthropicAPI(system, user, maxTokens = 1500) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-6',
+        model,
         max_tokens: maxTokens,
         system,
         messages: [{ role: 'user', content: user }],
@@ -30,7 +33,7 @@ export const dynamic = 'force-dynamic'
 
 export async function POST(req) {
   try {
-    const { prompt, voiceContext } = await req.json()
+    const { prompt, voiceContext, maxTokens, isRewrite, previousDraft } = await req.json()
 
     if (!prompt) {
       return NextResponse.json({ error: 'Prompt is required' }, { status: 400 })
@@ -69,10 +72,32 @@ Instead: short sentences that punch. Occasional long one that builds. "but" and 
       }
     }
 
-    const data = await callAnthropicAPI(systemPrompt, prompt)
+    // Rewrite escalation: use the rewrite model and include the failed draft
+    let useModel = CONTENT_MODEL
+    let finalPrompt = prompt
+    if (isRewrite && previousDraft) {
+      useModel = CONTENT_MODEL_REWRITE
+      finalPrompt = `${prompt}\n\nHere's the draft that missed:\n---\n${previousDraft}\n---\n\nWrite a genuinely better version, not a variation. Different angle, different opening, sharper throughout.`
+    }
+
+    const tokens = maxTokens || 1500
+    let data
+    let modelUsed = useModel
+    try {
+      data = await callAnthropicAPI(systemPrompt, finalPrompt, tokens, useModel)
+    } catch (err) {
+      // Silent fallback to default model if rewrite model errors
+      if (useModel !== CONTENT_MODEL) {
+        modelUsed = CONTENT_MODEL
+        data = await callAnthropicAPI(systemPrompt, finalPrompt, tokens, CONTENT_MODEL)
+      } else {
+        throw err
+      }
+    }
+
     const content = data.content?.[0]?.text || ''
 
-    return NextResponse.json({ content })
+    return NextResponse.json({ content, model: modelUsed })
   } catch (err) {
     console.error('Content generation error:', err)
     const status = err.status || 500

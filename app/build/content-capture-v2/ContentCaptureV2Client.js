@@ -60,6 +60,7 @@ const CARDS = {
   c16: { nm: 'The deadline post', fmt: 'a 3–5 frame story sequence, under 30 seconds total', out: "Write it frame by frame: 'FRAME 1:' etc. Frame 1: the fact — the date and number left, no preamble. Then the honest reason the limit exists. Then one line of proof. Then what goes when the door shuts. Final frame: the word or link. Mark: [COUNTDOWN].", cta: 'The word or the link. Nothing else.', dont: ['Apologising for selling', 'Extending the deadline after it passes'] },
   c17: { nm: 'A launch email to your list', fmt: 'a 50–150 word launch email', out: "Write 'SUBJECT:' stating the fact plainly — warm lists don't need tricking into opens. Then the email: the fact first (the date, what's closing or open), the honest reason it exists, one line of proof if a number was given, what changes either side of the line, and one link ask stated once. Short sentences. The shorter the better.", cta: 'The link, once.', dont: ['A newsletter wearing a launch email\'s timing', 'Burying the fact under a story'] },
   c18: { nm: "A 'want first look?' story sequence", fmt: 'a 3–5 frame story sequence to followers', out: "Write it frame by frame: 'FRAME 1:' etc. Frame 1: what the offer is, one line. Frame 2: who it's for and who it isn't for yet. Frame 3: the gap it closes. Frame 4: the hand-raise — 'want the details? send the word'.", cta: 'Reply with a word for the details — interest, not money.', dont: ['The full pitch in the stories', 'Running this more than every 2–3 weeks'] },
+  c19: { nm: 'A lead magnet carousel — solve the problem, offer the freebie', fmt: 'a 7–10 slide carousel post', out: "Write it slide by slide: 'SLIDE 1:' etc, under 40 words per slide. Slide 1: the big promise with the pain built in, end with \u{1F449}. Slide 2: the pain deeper, as a specific scene the reader recognises from their week. Slide 3: the reframe — what they haven't tried — plus a save ask, end with \u{1F449}. Slides 4–7: three or four steps that solve the problem properly, each actionable with real detail, an example, a number or a script, no teasers. Second-to-last slide: the turn — one short honest jab about the cost of staying stuck. Final slide: comment the keyword below, here's exactly what you'll get — no pitch. Then 'CAPTION:' 2–4 short sentences with the keyword repeated once.", cta: 'Comment the keyword. State exactly what gets sent. No pitch, no selling.', dont: ['Teasing the steps instead of teaching them', 'A pitch disguised as a CTA', 'Using leverage, unlock, elevate, or game-changer'] },
 }
 
 const ARCS = {
@@ -404,7 +405,7 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
   // Selective context injection based on card type
   const isStory = ['c1', 'c7', 'c11', 'c13'].includes(cardKey)
   const isReach = ['c1', 'c2', 'c3', 'c4'].includes(cardKey)
-  const isValue = ['c6', 'c7', 'c9', 'c11', 'c12', 'c13'].includes(cardKey)
+  const isValue = ['c6', 'c7', 'c9', 'c11', 'c12', 'c13', 'c19'].includes(cardKey)
   const isSales = ['c14', 'c15', 'c16', 'c17', 'c18'].includes(cardKey)
   const isYouTube = cardKey === 'c9'
   const isObjection = cardKey === 'c15'
@@ -518,6 +519,21 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
       brandContext = `${header}\n${lines.join('\n')}`
     }
 
+    // Lead magnet context for c19
+    if (cardKey === 'c19' && ctx?.magnet) {
+      const ml = []
+      if (ctx.magnet.name) ml.push(`Freebie name: ${ctx.magnet.name}`)
+      if (ctx.magnet.promise) ml.push(`Freebie promise: ${ctx.magnet.promise}`)
+      if (ctx.magnet.keyword) ml.push(`Keyword to comment: ${ctx.magnet.keyword}`)
+      if (ctx.magnet.methodSteps?.length) ml.push(`Method steps (sharpen these, don't replace): ${ctx.magnet.methodSteps.join(' \u2192 ')}`)
+      if (ml.length) brandContext += `\n\nTHE FREEBIE (this carousel drives comments for this specific lead magnet):\n${ml.join('\n')}`
+    }
+
+    // Ambient keyword context for non-c19 cards with comment-word CTAs
+    if (cardKey !== 'c19' && ctx?.activeMagnet) {
+      brandContext += `\n\nACTIVE LEAD MAGNET (if the CTA is a comment-word, use this keyword): Keyword: "${ctx.activeMagnet.keyword}" — they get: ${ctx.activeMagnet.promise}`
+    }
+
   }
 
   return `Write ${c.fmt}.
@@ -619,6 +635,7 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
 
   function renderPiece(text) {
     if (!text) return <span className="text-zinc-500">This one didn't write. Tap rewrite to try again.</span>
+    if (text.startsWith('{{ERROR:')) return <span className="text-red-400">{text.replace('{{ERROR:', '').replace('}}', '')}</span>
     return text.split(/(\{\{[^}]+\}\})/).map((part, i) =>
       part.startsWith('{{') ? <span key={i} className="text-gold font-bold text-xs">{part}</span> : part
     )
@@ -1095,6 +1112,12 @@ export default function ContentCaptureV2Client() {
   const [playbookContext, setPlaybookContext] = useState(null)
   const [voiceSamples, setVoiceSamples] = useState([])
 
+  // Lead magnet state
+  const [magnetData, setMagnetData] = useState(null)
+  const [memberMagnets, setMemberMagnets] = useState([])
+  const [freePushSlots, setFreePushSlots] = useState({})
+  const [freePushMagnet, setFreePushMagnet] = useState({})
+
   const saveTimer = useRef(null)
 
   // ── Auth + Load ───────────────────────────────────────────────────────────
@@ -1176,7 +1199,7 @@ export default function ContentCaptureV2Client() {
         }
       }
       if (deRes.data) {
-        const de = deRes.data
+        const de = deRes.data.engine_data || deRes.data
         ctx.distinction = {
           engineName: de.engine_name || '',
           problems: [de.problem_1, de.problem_2, de.problem_3].filter(Boolean),
@@ -1229,7 +1252,23 @@ export default function ContentCaptureV2Client() {
       }
       if (Object.keys(ctx).length > 0) setPlaybookContext(ctx)
 
+      // Load lead magnets for this client
+      const { data: magnets } = await supabase.from('lead_magnets').select('id, name, promise, keyword, dm_flow_live, problem_line, method_steps').eq('client_id', client.id)
+      if (magnets && magnets.length > 0) setMemberMagnets(magnets)
+
+      // Check for magnet_id query param (deep link from lead magnets page)
+      const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
+      const magnetId = searchParams.get('magnet_id')
+
       setLoading(false)
+      if (magnetId && magnets) {
+        const found = magnets.find(m => String(m.id) === magnetId)
+        if (found) {
+          setMagnetData(found)
+          setScreen('magnet-generate')
+          return
+        }
+      }
       if (profile && profile.stage && profile.has_list !== null) {
         setScreen('home')
       } else if (profile && profile.stage) {
@@ -1330,18 +1369,27 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     }
   }
 
-  async function generate(card, moment, redoNote, arc, cardKey) {
-    const prompt = buildPrompt(card, moment, redoNote, arc, playbookContext, cardKey)
+  const lastGenModel = useRef(null)
+
+  async function generate(card, moment, redoNote, arc, cardKey, opts = {}) {
+    const prompt = buildPrompt(card, moment, redoNote, arc, opts.contextOverride || playbookContext, cardKey)
     const voiceCtx = {}
     if (playbookContext?.voice) voiceCtx.voice = playbookContext.voice
     if (voiceSamples && voiceSamples.length > 0) voiceCtx.samples = voiceSamples
+    const body = { prompt, voiceContext: Object.keys(voiceCtx).length > 0 ? voiceCtx : undefined }
+    if (opts.maxTokens) body.maxTokens = opts.maxTokens
+    if (redoNote && opts.previousDraft) {
+      body.isRewrite = true
+      body.previousDraft = opts.previousDraft
+    }
     const res = await fetch('/api/generate-content', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, voiceContext: Object.keys(voiceCtx).length > 0 ? voiceCtx : undefined }),
+      body: JSON.stringify(body),
     })
     const data = await res.json()
     if (!res.ok) throw new Error(data.error || 'Generation failed')
+    lastGenModel.current = data.model || null
     return data.content
   }
 
@@ -1391,6 +1439,29 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       const yd = ['Sunday', 'Wednesday', 'Friday']
       for (let i = 0; i < ytCount; i++) slots.push({ job: 'longform', day: yd[i] || 'Any day', moment: null, piece: null, card: null })
     }
+
+    // Cadence: auto-suggest freebie push on one value slot if conditions met
+    const gOverride = goalOverride !== undefined ? goalOverride : weekGoal
+    const liveMagnets = memberMagnets.filter(mg => mg.dm_flow_live)
+    if (liveMagnets.length > 0 && stage !== 'launch') {
+      const validGoals = ['trust', 'growth', 'default']
+      const validStages = ['recovery', 'build', 'start', 'ever']
+      if ((gOverride && validGoals.includes(gOverride)) || validStages.includes(stage)) {
+        // Check last c19 in saved weeks
+        const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000
+        const recentC19 = savedWeeks.some(w => (w.piece_ids || []).some(p => p.cardKey === 'c19' && new Date(w.week_start).getTime() > sevenDaysAgo))
+        if (!recentC19) {
+          const firstValueIdx = slots.findIndex(s => s.job === 'value')
+          if (firstValueIdx >= 0) {
+            setFreePushSlots(prev => ({ ...prev, [firstValueIdx]: true }))
+            if (liveMagnets.length === 1) {
+              setFreePushMagnet(prev => ({ ...prev, [firstValueIdx]: String(liveMagnets[0].id) }))
+            }
+          }
+        }
+      }
+    }
+
     return slots
   }
 
@@ -1732,6 +1803,9 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'quick-result' && quickCard) {
     const card = CARDS[quickCard]
+    const unwiredMagnet = quickPiece && memberMagnets.length > 0
+      ? memberMagnets.find(mg => mg.keyword && quickPiece.toLowerCase().includes(mg.keyword.toLowerCase()) && !mg.dm_flow_live)
+      : null
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <GoldLabel>Your piece</GoldLabel>
@@ -1756,6 +1830,12 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             onToEmail={hasList && quickCard !== 'c13' && quickCard !== 'c17' ? () => doRepurpose(stage === 'launch' ? 'c17' : 'c13', 'YOUR LIST') : undefined}
             onToYT={doesYT && quickCard !== 'c9' ? () => doRepurpose('c9', 'YOUTUBE') : undefined}
           />
+          {unwiredMagnet && (
+            <NoteBox gold>
+              <span className="text-gold font-bold">Keyword '{unwiredMagnet.keyword}' isn't wired to your DMs yet</span> — comments will go nowhere.
+              <button onClick={() => router.push('/build/lead-magnets')} className="block text-gold font-bold text-xs uppercase tracking-widest mt-2 hover:text-white transition">Set it up →</button>
+            </NoteBox>
+          )}
           <div className="mt-4">
             <Btn onClick={() => setScreen('home')}>Done</Btn>
           </div>
@@ -1861,7 +1941,8 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{item.day}</span>
                   </div>
                 ) : (
-                  <SlotCard key={item.i} job={item.sl.job} moment={item.sl.moment}
+                  <div key={item.i}>
+                  <SlotCard job={item.sl.job} moment={item.sl.moment}
                     onPick={() => setPicker(item.i)}
                     onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
                     salesAngle={salesAngles[item.i]}
@@ -1881,7 +1962,6 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                           })
                           if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
                         } else {
-                          // addLogEntry returned null — save failed. Assign a local-only moment so the slot still fills.
                           const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
                           setWeekSlots(prev => {
                             const updated = [...prev]
@@ -1891,7 +1971,6 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         }
                       } catch (err) {
                         console.error('Capture failed:', err)
-                        // Still assign locally so the user doesn't lose their input
                         const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
                         setWeekSlots(prev => {
                           const updated = [...prev]
@@ -1900,6 +1979,42 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         })
                       }
                     }} />
+                  {item.sl.job === 'value' && memberMagnets.length > 0 && (
+                    <div className="ml-4 mb-2 flex items-center gap-2">
+                      <button onClick={() => {
+                        const isOn = !freePushSlots[item.i]
+                        setFreePushSlots(prev => ({ ...prev, [item.i]: isOn }))
+                        if (!isOn) setFreePushMagnet(prev => { const u = { ...prev }; delete u[item.i]; return u })
+                        if (isOn && stage === 'launch' && playbookContext?.offer?.offerName) {
+                          setModal({ title: 'Heads up', body: `This week is selling ${playbookContext.offer.offerName} — a freebie push splits the ask.`, options: [['Got it', () => setModal(null)]] })
+                        }
+                      }}
+                        className={`text-[10px] font-bold uppercase tracking-widest transition ${freePushSlots[item.i] ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                        {freePushSlots[item.i] ? '● Freebie push ON' : '○ Freebie push'}
+                      </button>
+                      {freePushSlots[item.i] && memberMagnets.length > 1 && (
+                        <select value={freePushMagnet[item.i] || ''} onChange={e => setFreePushMagnet(prev => ({ ...prev, [item.i]: e.target.value }))}
+                          className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer">
+                          <option value="">Pick magnet...</option>
+                          {memberMagnets.map(mg => <option key={mg.id} value={mg.id}>{mg.name} ({mg.keyword})</option>)}
+                        </select>
+                      )}
+                      {freePushSlots[item.i] && memberMagnets.length === 1 && (
+                        <span className="text-[10px] text-zinc-500">{memberMagnets[0].name} ({memberMagnets[0].keyword})</span>
+                      )}
+                      {freePushSlots[item.i] && (() => {
+                        const chosenMg = memberMagnets.length === 1 ? memberMagnets[0] : memberMagnets.find(m => String(m.id) === freePushMagnet[item.i])
+                        if (!chosenMg) return null
+                        const lastC19 = savedWeeks.flatMap(w => (w.piece_ids || []).filter(p => p.cardKey === 'c19')).find(p => {
+                          const d = new Date(p.date || 0)
+                          return (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000
+                        })
+                        if (!lastC19) return null
+                        return <span className="text-[10px] text-zinc-500 italic">You pushed this freebie recently — keyword CTAs on regular posts are still working for it.</span>
+                      })()}
+                    </div>
+                  )}
+                  </div>
                 )
               )
             })()}
@@ -2034,6 +2149,11 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   if (screen === 'week-review') {
     const finishedCount = weekPieces.filter(s => s.piece).length
 
+    // Check for unwired magnet keywords across all pieces
+    const unwiredWeekMagnets = memberMagnets.length > 0
+      ? memberMagnets.filter(mg => mg.keyword && !mg.dm_flow_live && weekPieces.some(sl => sl.piece && sl.piece.toLowerCase().includes(mg.keyword.toLowerCase())))
+      : []
+
     function copyAll() {
       const txt = weekPieces.filter(s => s.piece).map(s =>
         `=== ${s.day.toUpperCase()} — ${JOBNAMES[s.job].toUpperCase()} — ${s.cardObj.nm} ===\n\n${s.piece}`
@@ -2095,7 +2215,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                             updated[i] = { ...updated[i], piece, cardObj: newCard, chosenFormat: f.id, chosenEngine: eng.id }
                             return updated
                           })
-                        } catch {}
+                        } catch (err) {
+                          setWeekPieces(prev => {
+                            const updated = [...prev]
+                            updated[i] = { ...updated[i], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
+                            return updated
+                          })
+                        }
                         setScreen('week-review')
                       }
                     ]))
@@ -2112,7 +2238,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     updated.splice(i + 1, 0, { job: 'email', day: 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece, swap: null, arc: null })
                     return updated
                   })
-                } catch {}
+                } catch (err) {
+                  setWeekPieces(prev => {
+                    const updated = [...prev]
+                    updated.splice(i + 1, 0, { job: 'email', day: 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece: `{{ERROR:${err.message || 'Generation failed'}. Tap rewrite.}}`, swap: null, arc: null })
+                    return updated
+                  })
+                }
                 setScreen('week-review')
               } : undefined}
               onToYT={sl.job !== 'longform' && doesYT ? async () => {
@@ -2124,10 +2256,23 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece, swap: null, arc: null })
                     return updated
                   })
-                } catch {}
+                } catch (err) {
+                  setWeekPieces(prev => {
+                    const updated = [...prev]
+                    updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece: `{{ERROR:${err.message || 'Generation failed'}. Tap rewrite.}}`, swap: null, arc: null })
+                    return updated
+                  })
+                }
                 setScreen('week-review')
               } : undefined}
             />
+          ))}
+
+          {unwiredWeekMagnets.length > 0 && unwiredWeekMagnets.map(mg => (
+            <NoteBox key={mg.id} gold>
+              <span className="text-gold font-bold">Keyword '{mg.keyword}' isn't wired to your DMs yet</span> — comments will go nowhere.
+              <button onClick={() => router.push('/build/lead-magnets')} className="block text-gold font-bold text-xs uppercase tracking-widest mt-2 hover:text-white transition">Set it up →</button>
+            </NoteBox>
           ))}
 
           <div className="flex justify-between mt-6">
@@ -2226,18 +2371,24 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
     async function rewriteSavedPiece(idx, redoNote) {
       const p = pieces[idx]
+      const prevDraft = p.piece && !p.piece.startsWith('{{ERROR:') ? p.piece : undefined
       const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
       const card = CARDS[p.cardKey || 'c1'] || { fmt: 'a social media post', out: 'Write the piece.', cta: 'Follow.', dont: [] }
       setScreen('week-writing'); setWritingLine(moment.line)
       try {
-        const newPiece = await generate(card, moment, redoNote, null, p.cardKey || 'c1')
+        const newPiece = await generate(card, moment, redoNote, null, p.cardKey || 'c1', prevDraft ? { previousDraft: prevDraft } : {})
         const updated = [...pieces]
         updated[idx] = { ...updated[idx], piece: newPiece }
         const newWeek = { ...viewingWeek, piece_ids: updated }
         await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
         setViewingWeek(newWeek)
         setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
-      } catch {}
+      } catch (err) {
+        const updated = [...pieces]
+        updated[idx] = { ...updated[idx], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
+        const newWeek = { ...viewingWeek, piece_ids: updated }
+        setViewingWeek(newWeek)
+      }
       setScreen('view-week')
     }
 
@@ -2333,14 +2484,17 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         try {
                           const newPiece = await generate(card, moment, null, null, p.cardKey || 'c1')
                           updatePiece(i, newPiece)
-                          // Also update format name
                           const updated = [...pieces]
                           updated[i] = { ...updated[i], piece: newPiece, format: f.label }
                           const newWeek = { ...viewingWeek, piece_ids: updated }
                           await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
                           setViewingWeek(newWeek)
                           setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
-                        } catch {}
+                        } catch (err) {
+                          const updated = [...pieces]
+                          updated[i] = { ...updated[i], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
+                          setViewingWeek({ ...viewingWeek, piece_ids: updated })
+                        }
                         setScreen('view-week')
                       }
                     ]))
@@ -2418,6 +2572,52 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     )
   }
 
+  // ── Screen: Magnet Generate ──────────────────────────────────────────────
+
+  if (screen === 'magnet-generate' && magnetData) {
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+        <GhostBtn onClick={() => router.push('/build/lead-magnets')}>← Back to Lead Magnets</GhostBtn>
+        <div className="mt-4 mb-6">
+          <GoldLabel>Lead Magnet Carousel</GoldLabel>
+          <Question>Build a carousel for <span className="text-gold font-medium">{magnetData.name || 'your freebie'}</span></Question>
+          <div className="glass-card p-4 mt-4 mb-4">
+            {magnetData.name && <p className="text-sm text-white mb-1"><span className="text-gold font-bold">Freebie:</span> {magnetData.name}</p>}
+            {magnetData.promise && <p className="text-sm text-zinc-400 mb-1"><span className="text-gold font-bold">Promise:</span> {magnetData.promise}</p>}
+            {magnetData.keyword && <p className="text-sm text-zinc-400"><span className="text-gold font-bold">Keyword:</span> {magnetData.keyword}</p>}
+          </div>
+        </div>
+        {!quickPiece && !writing && (
+          <Btn gold onClick={() => doMagnetGenerate()}>Generate carousel</Btn>
+        )}
+        {writing && <WritingScreen line="Building your lead magnet carousel..." label="WRITING YOUR PIECE" />}
+        {quickPiece && !writing && (
+          <>
+            <PieceCard
+              title="Lead Magnet Carousel"
+              subtitle={CARDS.c19.nm}
+              piece={quickPiece}
+              dont={CARDS.c19.dont}
+              onRewrite={() => doMagnetGenerate('Lead with the pain in slide 1 instead of the promise. The reader should feel the problem before they see the solution.')}
+            />
+            <div className="flex gap-3 mt-4">
+              <Btn onClick={() => doMagnetGenerate('Lead with the pain in slide 1 instead of the promise. The reader should feel the problem before they see the solution.')}>Second version</Btn>
+              <Btn onClick={() => { setQuickPiece(null); router.push('/build/lead-magnets') }}>Done</Btn>
+            </div>
+          </>
+        )}
+      </SidebarLayout>
+    )
+  }
+
+  if (screen === 'magnet-writing') {
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+        <WritingScreen line="Building your lead magnet carousel..." label="WRITING YOUR PIECE" />
+      </SidebarLayout>
+    )
+  }
+
   // ── Fallback ──────────────────────────────────────────────────────────────
 
   return (
@@ -2466,10 +2666,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     setWritingLine(`${card.nm}${arc ? ' — ' + arc.n + ' shape' : ''} — from your moment, your words, your numbers.`)
 
     try {
-      const piece = await generate(card, m, redoNote, arc, r.card)
+      const piece = await generate(card, m, redoNote, arc, r.card, redoNote && quickPiece && !quickPiece.startsWith('{{ERROR:') ? { previousDraft: quickPiece } : {})
       setQuickPiece(piece)
-    } catch {
-      setQuickPiece(null)
+      if (piece && m.id && !String(m.id).startsWith('local-')) {
+        supabase.from('cc_capture_log').update({ used_at: new Date().toISOString() }).eq('id', m.id)
+      }
+    } catch (err) {
+      setQuickPiece(`{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`)
     }
     setScreen('quick-result')
   }
@@ -2483,10 +2686,26 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       setQuickCard(cardKey)
       setQuickRoute({})
       setQuickPiece(piece)
-    } catch {
-      setQuickPiece(null)
+    } catch (err) {
+      setQuickPiece(`{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`)
     }
     setScreen('quick-result')
+  }
+
+  async function doMagnetGenerate(redoNote) {
+    if (!magnetData) return
+    setWriting(true)
+    setScreen('magnet-generate')
+    const syntheticMoment = { line: magnetData.problem_line || magnetData.promise || magnetData.name, type: 'question', enrichment: {} }
+    const magnetCtx = { ...playbookContext, magnet: { name: magnetData.name, promise: magnetData.promise, keyword: magnetData.keyword, methodSteps: magnetData.method_steps || [] } }
+    try {
+      const prevDraft = redoNote && quickPiece && !quickPiece.startsWith('{{ERROR:') ? quickPiece : undefined
+      const piece = await generate(CARDS.c19, syntheticMoment, redoNote, null, 'c19', { contextOverride: magnetCtx, ...(prevDraft ? { previousDraft: prevDraft } : {}) })
+      setQuickPiece(piece)
+    } catch (err) {
+      setQuickPiece(`{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`)
+    }
+    setWriting(false)
   }
 
   function changePieceCount(delta) {
@@ -2527,6 +2746,31 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       const m = sl.moment
       setWeekIdx(i)
       setWritingLine(m.line)
+
+      // Check if this slot has freebie push enabled
+      const origSlotIdx = weekSlots.findIndex((ws, wi) => ws.moment && ws.moment.id === m.id && ws.job === sl.job)
+      const isFreePush = freePushSlots[origSlotIdx]
+      if (isFreePush) {
+        const chosenMg = memberMagnets.length === 1 ? memberMagnets[0] : memberMagnets.find(mg => String(mg.id) === freePushMagnet[origSlotIdx])
+        if (chosenMg) {
+          const syntheticMoment = { line: chosenMg.problem_line || chosenMg.promise || m.line, type: m.type, enrichment: m.enrichment || {} }
+          const magnetCtx = { ...playbookContext, magnet: { name: chosenMg.name, promise: chosenMg.promise, keyword: chosenMg.keyword, methodSteps: chosenMg.method_steps || [] } }
+          sl.cardObj = CARDS.c19
+          sl.cardKey = 'c19'
+          sl.chosenFormat = 'carousel'
+          sl.swap = null
+          sl.arc = null
+          try {
+            sl.piece = await generate(CARDS.c19, syntheticMoment, null, null, 'c19', { contextOverride: magnetCtx })
+            sl.model = lastGenModel.current
+          } catch (err) {
+            sl.piece = `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`
+            sl.model = null
+          }
+          continue
+        }
+      }
+
       const hasNum = !!(m.enrichment && m.enrichment.num && m.enrichment.num.trim())
       const r = routeMoment(m.type, sl.job, hasNum, stage)
       const baseCard = CARDS[r.card]
@@ -2544,8 +2788,10 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       sl.arc = arc
       try {
         sl.piece = await generate(card, m, null, arc, r.card)
-      } catch {
-        sl.piece = null
+        sl.model = lastGenModel.current
+      } catch (err) {
+        sl.piece = `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`
+        sl.model = null
       }
     }
     setWeekPieces(pieces)
@@ -2557,11 +2803,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       monday.setDate(now.getDate() - ((now.getDay() + 6) % 7))
       const weekStart = monday.toISOString().split('T')[0]
 
-      const weekData = {
-        client_id: clientId,
-        week_start: weekStart,
-        mix: { reach: mix.reach, value: mix.value, sales: mix.sales, goal: weekGoal },
-        piece_ids: pieces.map(sl => ({
+      const pieceData = pieces.map(sl => ({
           day: sl.day,
           job: sl.job,
           format: sl.chosenFormat || sl.cardObj?.nm || '',
@@ -2569,10 +2811,32 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           momentType: sl.moment?.type || '',
           piece: sl.piece || '',
           cardKey: sl.cardKey || '',
-        })),
+          model: sl.model || null,
+        }))
+      const weekData = {
+        client_id: clientId,
+        week_start: weekStart,
+        mix: { reach: mix.reach, value: mix.value, sales: mix.sales, goal: weekGoal },
+        piece_ids: pieceData,
       }
-      const { data: savedWeek } = await supabase.from('cc_weeks').insert(weekData).select().single()
-      if (savedWeek) setSavedWeeks(prev => [savedWeek, ...prev])
+      // Check for existing week to upsert
+      const { data: existingWeek } = await supabase.from('cc_weeks').select('id').eq('client_id', clientId).eq('week_start', weekStart).maybeSingle()
+      let savedWeek
+      if (existingWeek) {
+        const { data } = await supabase.from('cc_weeks').update({ mix: weekData.mix, piece_ids: pieceData }).eq('id', existingWeek.id).select().single()
+        savedWeek = data
+        if (savedWeek) setSavedWeeks(prev => prev.map(w => w.id === savedWeek.id ? savedWeek : w))
+      } else {
+        const { data } = await supabase.from('cc_weeks').insert(weekData).select().single()
+        savedWeek = data
+        if (savedWeek) setSavedWeeks(prev => [savedWeek, ...prev])
+      }
+
+      // Mark used moments
+      const usedIds = pieces.filter(sl => sl.piece && !sl.piece.startsWith('{{ERROR:') && sl.moment?.id && !String(sl.moment.id).startsWith('local-')).map(sl => sl.moment.id)
+      if (usedIds.length > 0) {
+        await supabase.from('cc_capture_log').update({ used_at: new Date().toISOString() }).in('id', usedIds)
+      }
     }
 
     setScreen('week-review')
@@ -2580,11 +2844,14 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   async function rewriteWeekPiece(idx, redoNote) {
     const sl = weekPieces[idx]
+    const prevDraft = sl.piece && !sl.piece.startsWith('{{ERROR:') ? sl.piece : undefined
     setScreen('week-writing')
     setWritingLine(sl.moment.line)
     try {
-      sl.piece = await generate(sl.cardObj, sl.moment, redoNote, sl.arc, sl.cardKey)
-    } catch {}
+      sl.piece = await generate(sl.cardObj, sl.moment, redoNote, sl.arc, sl.cardKey, prevDraft ? { previousDraft: prevDraft } : {})
+    } catch (err) {
+      sl.piece = `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`
+    }
     setWeekPieces([...weekPieces])
     setScreen('week-review')
   }
@@ -2603,7 +2870,7 @@ function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage,
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const activeSection = screen === 'home' ? 'home'
-    : screen.startsWith('quick') ? 'quick-moment'
+    : screen.startsWith('quick') || screen.startsWith('magnet') ? 'quick-moment'
     : screen.startsWith('week') || screen === 'board' ? 'week-goal'
     : screen === 'view-weeks' || screen === 'view-week' ? 'view-weeks'
     : 'home'
