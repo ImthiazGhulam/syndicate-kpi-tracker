@@ -440,7 +440,7 @@ export default function LeadMagnetClient() {
   // ── Create new magnet ─────────────────────────────────────────────────────
 
   const createMagnet = async () => {
-    if (!clientData) return
+    if (!clientData) { alert('No client data loaded yet'); return }
     const { data, error } = await supabase.from('lead_magnets').insert({
       client_id: clientData.id,
       name: '',
@@ -451,6 +451,11 @@ export default function LeadMagnetClient() {
       method_steps: [],
       dm_flow_live: false,
     }).select().single()
+    if (error) {
+      console.error('Create magnet error:', error)
+      alert('Failed to create freebie: ' + (error.message || JSON.stringify(error)))
+      return
+    }
     if (data) {
       setMagnets(prev => [data, ...prev])
       setActiveMagnet(data)
