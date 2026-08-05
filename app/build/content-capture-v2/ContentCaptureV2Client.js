@@ -1803,6 +1803,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'quick-result' && quickCard) {
     const card = CARDS[quickCard]
+    const quickJob_ = quickJob || 'reach'
     const unwiredMagnet = quickPiece && memberMagnets.length > 0
       ? memberMagnets.find(mg => mg.keyword && quickPiece.toLowerCase().includes(mg.keyword.toLowerCase()) && !mg.dm_flow_live)
       : null
@@ -1815,6 +1816,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             piece={quickPiece}
             swap={quickRoute?.swap}
             dont={card.dont}
+            onSave={(newText) => setQuickPiece(newText)}
             onRewrite={() => {
               setModal({
                 title: "What's off about it?",
@@ -1825,6 +1827,34 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                   ["Doesn't sound like me — plainer", () => { setModal(null); doQuickWrite("Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
                   ['Just try a different angle', () => { setModal(null); doQuickWrite('Take a completely different angle on the same moment.') }],
                 ],
+              })
+            }}
+            onChangeFormat={() => {
+              const availableEngines = getAvailableEngines(quickJob_)
+              setModal({
+                title: 'Change the format',
+                body: 'Pick a new engine and format — the piece will be rewritten.',
+                options: availableEngines.flatMap(eng => {
+                  const formats = getFormatsForJobEngine(quickJob_, eng.id)
+                  return formats.map(f => ([
+                    `${eng.icon} ${eng.label} → ${f.label}`,
+                    async () => {
+                      setModal(null)
+                      const fmtPrompt = FORMAT_PROMPTS[f.id]
+                      if (!fmtPrompt) return
+                      const newCard = { ...card, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label }
+                      setScreen('quick-writing'); setWritingLine(quickMoment.line)
+                      try {
+                        const piece = await generate(newCard, quickMoment, null, quickArc, quickCard)
+                        setQuickPiece(piece)
+                        setQuickCard(quickCard)
+                      } catch (err) {
+                        setQuickPiece(`{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`)
+                      }
+                      setScreen('quick-result')
+                    }
+                  ]))
+                }),
               })
             }}
             onToEmail={hasList && quickCard !== 'c13' && quickCard !== 'c17' ? () => doRepurpose(stage === 'launch' ? 'c17' : 'c13', 'YOUR LIST') : undefined}
