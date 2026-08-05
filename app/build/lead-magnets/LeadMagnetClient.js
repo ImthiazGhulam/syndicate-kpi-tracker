@@ -312,6 +312,7 @@ export default function LeadMagnetClient() {
 
   useEffect(() => {
     const init = async () => {
+      try {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) { router.push('/login'); return }
       setUser(session.user)
@@ -349,6 +350,10 @@ export default function LeadMagnetClient() {
       }
 
       setLoading(false)
+      } catch (err) {
+        console.error('Lead Magnets init error:', err)
+        setLoading(false)
+      }
     }
     init()
   }, [router])
