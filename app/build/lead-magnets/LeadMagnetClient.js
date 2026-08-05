@@ -520,7 +520,8 @@ export default function LeadMagnetClient() {
   // ── Offer context ─────────────────────────────────────────────────────────
 
   const offerName = offerPlaybook?.bang_bang?.name || offerPlaybook?.dip?.name || ''
-  const icpPains = offerPlaybook?.icp?.pains || ''
+  const icpPainsRaw = offerPlaybook?.icp?.pains
+  const icpPains = Array.isArray(icpPainsRaw) ? icpPainsRaw.filter(Boolean).join(', ') : (icpPainsRaw || '')
   const hasOffer = !!(offerPlaybook?.bang_bang?.name || offerPlaybook?.dip?.name)
 
   // ── Distinction engine data ───────────────────────────────────────────────
