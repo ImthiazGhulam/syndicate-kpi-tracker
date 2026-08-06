@@ -50,6 +50,23 @@ const TOOLS = [
     description: 'Returns the client\'s full offer details from their Sold Out playbook: main offer (Bang Bang) name, price, promise, guarantee, scarcity, who it\'s for, who it\'s not for, phases, delivery model, bonuses, CTA. Also returns the micro offer (The Dip) details and the ICP data: ideal client description, pains, real objections, cost of inaction, dream outcome, trigger moment. Call this at the start of any sales conversation so you know exactly what the client sells, at what price, and what objections to expect.',
     input_schema: { type: 'object', properties: {}, required: [] },
   },
+  {
+    name: 'update_lead',
+    description: 'Update a lead\'s Hot List card — append a note and/or move to a new stage. Call this EVERY TIME you give coaching advice about a specific lead. The note should be a short dated action log (e.g. "06/08 — sent gap question, awaiting reply"). Notes are APPENDED to existing notes, never replaced. Stage is only changed if the conversation warrants a move.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: 'Lead name or Instagram handle to identify the card' },
+        note: { type: 'string', description: 'Note to append to the card (date-prefixed, e.g. "06/08 — sent connect DM, referenced their poll answer about pricing")' },
+        new_stage: {
+          type: 'string',
+          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
+          description: 'New stage to move the card to. Only include if the card should move.',
+        },
+      },
+      required: ['query'],
+    },
+  },
 ]
 
 const STAGE_LABELS = {
@@ -250,6 +267,39 @@ async function executeTool(toolName, toolInput, clientId) {
     return result
   }
 
+  if (toolName === 'update_lead') {
+    const query = (toolInput.query || '').trim().toLowerCase()
+    if (!query) return { error: 'No lead query provided' }
+
+    const { data: leads } = await supabase
+      .from('leads')
+      .select('*')
+      .eq('client_id', clientId)
+      .order('updated_at', { ascending: false })
+
+    if (!leads || leads.length === 0) return { error: 'No leads found on the Hot List.' }
+
+    const match = leads.find(l => {
+      const name = (l.name || '').toLowerCase()
+      const ig = (l.instagram || '').replace('@', '').toLowerCase()
+      return name.includes(query) || ig.includes(query) || query.includes(name) || query.includes(ig)
+    })
+
+    if (!match) return { error: `No lead matching "${toolInput.query}" found. Card not updated.` }
+
+    // Store proposed update — NOT applied yet. Client must confirm.
+    return {
+      proposed: true,
+      lead_id: match.id,
+      lead_name: match.name,
+      current_notes: match.notes || '',
+      current_stage: match.status,
+      proposed_note: toolInput.note || null,
+      proposed_stage: toolInput.new_stage || null,
+      proposed_stage_label: toolInput.new_stage ? STAGE_LABELS[toolInput.new_stage] : null,
+    }
+  }
+
   return { error: `Unknown tool: ${toolName}` }
 }
 
@@ -265,6 +315,7 @@ CRITICAL FIRST ACTION: On your VERY FIRST response in any conversation, you MUST
 - **get_offer** — returns the client's FULL offer details from their Sold Out playbook: main offer (name, price, promise, guarantee, scarcity, phases, delivery, bonuses, CTA), micro offer / The Dip (name, price, bridge), ICP (pains, objections, dream outcome, cost of inaction), and their method from Distinction Engine (name, pillars, problems). Call this ONCE at the start of every session alongside get_voice_profile. You MUST know the offer before coaching any sales conversation — you need to know the price, the guarantee, the scarcity, and the real objections to handle them properly.
 - **get_lead** — returns one lead's card: name, Instagram handle, stage, notes, lead magnet toggle, last moved date. Call this whenever the client names a lead ("what do I send Priya?", "the guy from the webinar, @marcusfit"). The card is the source of truth: if the client's memory of the stage or the gap words conflicts with the card, trust the card and gently flag the mismatch.
 - **list_leads** — returns leads, optionally filtered by stage. Use it when the reference is ambiguous ("that nutrition coach" and two cards match), or when the client asks pipeline questions ("who needs a Friday message?", "who's gone stale?"). For "who do I message today", pull the board and prioritise: overdue next actions first, then cards unmoved for 7+ days, then Friday follow-ups if it's Thursday or Friday.
+- **update_lead** — proposes a card update: a note to append and/or a stage to move to. CRITICAL: you MUST call this tool EVERY TIME you give coaching advice about a specific lead. After drafting the next message and giving the Hot List action, call update_lead so the client can confirm the card update with one tap. Notes should be short, dated action logs (e.g. "06/08 — sent connect DM, referenced poll answer about pricing"). Only propose a stage change when the conversation genuinely warrants a move.
 
 Never invent card data. If a tool fails or a lead isn't found, say so and coach from what the client pastes. Ask at most ONE clarifying question before giving a provisional read.
 
@@ -377,6 +428,9 @@ export async function POST(req) {
       return { role: m.role, content: m.content }
     })
 
+    // Track proposed card updates from the coach
+    const proposedUpdates = []
+
     // Agentic tool-use loop — keep going until the model stops calling tools
     let maxLoops = 8
     while (maxLoops > 0) {
@@ -424,6 +478,10 @@ export async function POST(req) {
               tool_use_id: block.id,
               content: JSON.stringify(result),
             })
+            // Capture proposed card updates
+            if (block.name === 'update_lead' && result.proposed) {
+              proposedUpdates.push(result)
+            }
           }
         }
 
@@ -438,7 +496,11 @@ export async function POST(req) {
         .map(b => b.text)
         .join('\n')
 
-      return NextResponse.json({ reply: text })
+      const response = { reply: text }
+      if (proposedUpdates.length > 0) {
+        response.proposed_updates = proposedUpdates
+      }
+      return NextResponse.json(response)
     }
 
     return NextResponse.json({ error: 'Coach took too many steps. Please try again.' }, { status: 500 })

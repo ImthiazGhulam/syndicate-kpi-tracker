@@ -900,7 +900,16 @@ export default function ClientPage() {
         body: JSON.stringify({ messages: all.map(m => ({ role: m.role, content: m.content, images: m.images })), clientId: clientData.id }),
       })
       const result = await res.json()
-      setCoachMessages([...all, { role: 'assistant', content: result.error ? `Error: ${result.error}` : result.reply }])
+      const assistantMsg = { role: 'assistant', content: result.error ? `Error: ${result.error}` : result.reply }
+      if (result.proposed_updates && result.proposed_updates.length > 0) {
+        assistantMsg.proposed_updates = result.proposed_updates
+      }
+      setCoachMessages([...all, assistantMsg])
+      // Refresh leads after coach responds (in case tools read stale data)
+      if (clientData) {
+        const { data: freshLeads } = await supabase.from('leads').select('*').eq('client_id', clientData.id).order('created_at', { ascending: true })
+        if (freshLeads) setLeads(freshLeads)
+      }
     } catch (err) {
       setCoachMessages([...all, { role: 'assistant', content: 'Failed to connect. Try again.' }])
     }
@@ -916,58 +925,31 @@ export default function ClientPage() {
     sendCoachMessage(text)
   }
 
-  const saveCoachNoteToLead = async (fullResponse) => {
-    if (!coachLeadId) return
-    const lead = leads.find(l => l.id === coachLeadId)
+  const confirmCoachUpdate = async (update, msgIndex) => {
+    const lead = leads.find(l => l.id === update.lead_id)
     if (!lead) return
 
-    // Extract the notes/action from the coach response
-    // The coach formats vary: **Hot List:**, **Notes to add:**, **Card:**, - **Notes:**  etc.
-    let noteToSave = ''
-    const cleanText = fullResponse.replace(/\*\*/g, '')
-    const lines = cleanText.split('\n')
+    const updates = { updated_at: new Date().toISOString() }
+    if (update.proposed_note) {
+      const existingNotes = lead.notes ? lead.notes + '\n' : ''
+      updates.notes = existingNotes + update.proposed_note
+    }
+    if (update.proposed_stage) {
+      updates.status = update.proposed_stage
+    }
 
-    // Look for the notes line specifically — this is what should be saved to the card
-    const notePatterns = [
-      /notes?\s*(?:to\s*add)?[:\s]*(.+)/i,
-      /hot\s*list[:\s]*(.+)/i,
-      /card\s*(?:notes?)?[:\s]*(.+)/i,
-      /add\s*to\s*(?:card|notes?)[:\s]*(.+)/i,
-    ]
-
-    for (const line of lines) {
-      const trimmed = line.replace(/^[-•]\s*/, '').trim()
-      for (const pattern of notePatterns) {
-        const match = trimmed.match(pattern)
-        if (match && match[1]) {
-          // Found a notes line — but it might be multi-line, grab continuation lines
-          const startIdx = lines.indexOf(line)
-          let note = match[1].trim()
-          // Check if the next lines are continuation (not a new section header)
-          for (let j = startIdx + 1; j < lines.length; j++) {
-            const nextLine = lines[j].replace(/\*\*/g, '').trim()
-            if (!nextLine || nextLine.match(/^[-•]?\s*(where|send|watch|next|stage|move)/i)) break
-            note += ' ' + nextLine
-          }
-          noteToSave = note.trim()
-          break
+    const { data } = await supabase.from('leads').update(updates).eq('id', lead.id).select().single()
+    if (data) {
+      setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
+      // Mark this update as confirmed in the message
+      setCoachMessages(prev => prev.map((m, i) => {
+        if (i === msgIndex && m.proposed_updates) {
+          return { ...m, proposed_updates: m.proposed_updates.map(u => u.lead_id === update.lead_id ? { ...u, confirmed: true } : u) }
         }
-      }
-      if (noteToSave) break
+        return m
+      }))
+      flash('Card updated')
     }
-
-    // If we couldn't extract, ask the user
-    if (!noteToSave) {
-      noteToSave = prompt('Paste the note the coach told you to save:')
-      if (!noteToSave) return
-    }
-
-    // Don't prefix with date if the note already starts with a date pattern (DD/MM)
-    const hasDate = /^\d{2}\/\d{2}/.test(noteToSave)
-    const existingNotes = lead.notes ? lead.notes + '\n' : ''
-    const newNotes = existingNotes + (hasDate ? noteToSave : `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — ${noteToSave}`)
-    const { data } = await supabase.from('leads').update({ notes: newNotes, updated_at: new Date().toISOString() }).eq('id', lead.id).select().single()
-    if (data) setLeads(prev => prev.map(l => l.id === lead.id ? data : l))
   }
 
 
@@ -4257,14 +4239,41 @@ export default function ClientPage() {
                                 return <p key={j} className="mb-0.5">{line}</p>
                               })}
                             </div>
-                            {coachLeadId && i === coachMessages.length - 1 && (
+                            {/* Proposed card updates from the coach */}
+                            {msg.proposed_updates && msg.proposed_updates.length > 0 && (
+                              <div className="mt-3 space-y-2">
+                                {msg.proposed_updates.map((update, ui) => (
+                                  <div key={ui} className={`p-3 rounded-lg border ${update.confirmed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-gold/5 border-gold/30'}`}>
+                                    <p className="text-[10px] font-bold uppercase tracking-widest text-gold mb-2">
+                                      {update.confirmed ? '✓ Card Updated' : `Update card: ${update.lead_name}`}
+                                    </p>
+                                    {update.proposed_note && (
+                                      <div className="mb-2">
+                                        <p className="text-[9px] text-zinc-500 uppercase tracking-widest mb-0.5">Add note</p>
+                                        <p className="text-zinc-300 text-xs">{update.proposed_note}</p>
+                                      </div>
+                                    )}
+                                    {update.proposed_stage && (
+                                      <div className="mb-2">
+                                        <p className="text-[9px] text-zinc-500 uppercase tracking-widest mb-0.5">Move to</p>
+                                        <p className="text-zinc-300 text-xs">{update.proposed_stage_label}</p>
+                                      </div>
+                                    )}
+                                    {!update.confirmed && (
+                                      <button
+                                        onClick={() => confirmCoachUpdate(update, i)}
+                                        className="mt-1 px-4 py-1.5 text-[10px] font-bold uppercase tracking-widest bg-gold text-black rounded hover:bg-gold/90 transition"
+                                      >
+                                        Confirm Update
+                                      </button>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                            {/* Manual move — only show if no proposed updates */}
+                            {coachLeadId && i === coachMessages.length - 1 && (!msg.proposed_updates || msg.proposed_updates.length === 0) && (
                               <div className="mt-2 pt-2 border-t border-white/[0.06]">
-                                <div className="flex gap-2 mb-2">
-                                  <button onClick={() => { saveCoachNoteToLead(msg.content); }}
-                                    className="text-[10px] font-bold uppercase tracking-widest text-gold/60 hover:text-gold transition">
-                                    Save note to card
-                                  </button>
-                                </div>
                                 {movedFlash && <p className="text-[10px] font-bold text-emerald-400 mb-1 animate-pulse">{movedFlash}</p>}
                                 <p className="text-[9px] text-zinc-600 uppercase tracking-widest mb-1">Move card to</p>
                                 <div className="flex flex-wrap gap-1">
