@@ -2200,6 +2200,15 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                 Build it all in one sitting.
               </p>
             </button>
+            <button onClick={() => { setPhaseView('list'); setPlanningPhaseWeek(null); setScreen('phase-planner') }}
+              className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
+              <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">PHASE PLANNER</p>
+              <p className="text-sm text-zinc-500">
+                {activePhase
+                  ? `${activePhase.name} — ${activePhase.weeks.length} weeks. ${(() => { const cw = getPhaseCurrentWeek(activePhase); return cw ? `Currently on week ${cw.weekNum} (${PHASE_WEEK_TYPES.find(t => t.id === cw.type)?.label}).` : 'Not currently active.' })()}`
+                  : 'Plan your content strategy across multiple weeks with reach, trust, and sales phases.'}
+              </p>
+            </button>
           </div>
 
           <GoldLabel>Your moments — log them the day they happen</GoldLabel>
