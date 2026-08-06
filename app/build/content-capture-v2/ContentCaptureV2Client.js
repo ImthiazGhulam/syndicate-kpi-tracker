@@ -1526,6 +1526,19 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     return w ? { ...w, weekNum, total: phase.weeks.length } : null
   }
 
+  const phaseWeekToGoal = { reach: 'growth', trust: 'trust', sales: 'conversion' }
+
+  const planPhaseWeek = (weekNum) => {
+    if (!activePhase) return
+    const weekData = activePhase.weeks.find(w => w.week === weekNum)
+    if (!weekData) return
+    const goal = phaseWeekToGoal[weekData.type] || 'default'
+    setWeekGoal(goal)
+    const slots = buildWeekSlots(goal)
+    setWeekSlots(slots)
+    setScreen('board')
+  }
+
   function navigateTo(screenId, data) {
     if (screenId === 'quick-moment') {
       setQuickMoment(null); setQuickJob(null); setEnrichIdx(0)
@@ -1689,39 +1702,71 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
         {phaseView === 'list' ? (
           <div className="space-y-6">
             {/* Active phase */}
-            {activePhase && currentWeek && (
+            {activePhase && (
               <div className="glass-card overflow-hidden">
                 <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
                   <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Active Phase</span>
-                  <span className="text-zinc-500 text-xs">Week {currentWeek.weekNum} of {currentWeek.total}</span>
+                  <div className="flex items-center gap-2">
+                    {currentWeek && <span className="text-zinc-500 text-xs">Week {currentWeek.weekNum} of {currentWeek.total}</span>}
+                    <button onClick={() => editPhase(activePhase)} className="text-zinc-500 hover:text-white text-xs transition">Edit</button>
+                  </div>
                 </div>
                 <div className="p-5">
-                  <h3 className="text-white font-bold text-lg mb-3">{activePhase.name}</h3>
-                  <div className="flex gap-1 mb-4">
+                  <h3 className="text-white font-bold text-lg mb-1">{activePhase.name}</h3>
+                  {activePhase.launch_reason && (
+                    <p className="text-amber-400 text-xs mb-3">{activePhase.launch_reason}</p>
+                  )}
+                  <div className="flex gap-1 mb-5">
                     {activePhase.weeks.map((w, i) => (
-                      <div key={i} className={`flex-1 h-3 rounded-full ${PHASE_WEEK_COLORS[w.type]?.dot} ${w.week === currentWeek.weekNum ? 'ring-1 ring-white/30' : 'opacity-40'}`} />
+                      <div key={i} className={`flex-1 h-3 rounded-full ${PHASE_WEEK_COLORS[w.type]?.dot} ${currentWeek && w.week === currentWeek.weekNum ? 'ring-1 ring-white/30' : 'opacity-40'}`} />
                     ))}
                   </div>
-                  <div className={`p-4 rounded-lg border ${PHASE_WEEK_COLORS[currentWeek.type]?.bg} ${PHASE_WEEK_COLORS[currentWeek.type]?.border}`}>
-                    <div className="flex items-center gap-2 mb-1">
-                      <span className="text-xl">{PHASE_WEEK_TYPES.find(w => w.id === currentWeek.type)?.icon}</span>
-                      <span className={`text-sm font-bold uppercase tracking-widest ${PHASE_WEEK_COLORS[currentWeek.type]?.text}`}>This Week: {PHASE_WEEK_TYPES.find(w => w.id === currentWeek.type)?.label}</span>
-                    </div>
-                    <p className="text-zinc-400 text-sm mt-1">{PHASE_WEEK_TYPES.find(w => w.id === currentWeek.type)?.desc}</p>
-                  </div>
-                  <div className="flex gap-3 mt-4">
-                    <button onClick={() => navigateTo('quick-moment')} className="flex-1 py-3 rounded font-bold text-sm uppercase tracking-widest bg-gold text-black hover:bg-gold/90 transition">Create Content</button>
-                    <button onClick={() => editPhase(activePhase)} className="px-4 py-3 rounded text-sm font-semibold bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-600 transition">Edit</button>
+
+                  {/* Each week as a clickable card */}
+                  <div className="space-y-2">
+                    {activePhase.weeks.map(w => {
+                      const colors = PHASE_WEEK_COLORS[w.type]
+                      const wType = PHASE_WEEK_TYPES.find(t => t.id === w.type)
+                      const isCurrent = currentWeek && w.week === currentWeek.weekNum
+                      const weekStart = new Date(activePhase.start_date)
+                      weekStart.setDate(weekStart.getDate() + (w.week - 1) * 7)
+                      const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6)
+                      const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                      const isPast = new Date() > weekEnd
+
+                      return (
+                        <button
+                          key={w.week}
+                          onClick={() => planPhaseWeek(w.week)}
+                          className={`w-full text-left p-4 rounded-lg border transition ${
+                            isCurrent
+                              ? `${colors.bg} ${colors.border} ring-1 ring-white/10`
+                              : isPast
+                                ? 'bg-zinc-900/50 border-zinc-800/50 opacity-50'
+                                : `bg-zinc-900 border-zinc-800 hover:${colors.border} hover:${colors.bg}`
+                          }`}
+                        >
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                              <span className="text-white text-sm font-bold">Week {w.week}</span>
+                              {isCurrent && <span className="text-[9px] font-bold uppercase tracking-widest bg-gold/20 text-gold px-2 py-0.5 rounded-full">This Week</span>}
+                            </div>
+                            <span className="text-zinc-500 text-xs">{fmt(weekStart)} — {fmt(weekEnd)}</span>
+                          </div>
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-1.5">
+                              <span className="text-sm">{wType?.icon}</span>
+                              <span className={`text-xs font-bold uppercase tracking-widest ${colors.text}`}>{wType?.label}</span>
+                              <span className="text-zinc-600 text-xs ml-1">— {wType?.desc}</span>
+                            </div>
+                            <span className={`text-xs ${colors.text}`}>Plan →</span>
+                          </div>
+                        </button>
+                      )
+                    })}
                   </div>
                 </div>
-              </div>
-            )}
-
-            {activePhase && !currentWeek && (
-              <div className="glass-card p-5">
-                <p className="text-white font-bold mb-1">{activePhase.name}</p>
-                <p className="text-zinc-500 text-sm">{activePhase.weeks.length} weeks — not currently active (hasn't started or already ended)</p>
-                <button onClick={() => editPhase(activePhase)} className="mt-3 text-gold text-xs font-bold uppercase tracking-widest hover:text-gold/80 transition">Edit</button>
               </div>
             )}
 
