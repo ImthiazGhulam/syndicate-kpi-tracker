@@ -618,7 +618,7 @@ function WritingScreen({ line, label }) {
   )
 }
 
-function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onToEmail, onToYT, onChangeFormat, onSave }) {
+function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onToEmail, onToYT, onChangeFormat, onSave, posted, onTogglePosted }) {
   const [copied, setCopied] = useState(false)
   const [showDont, setShowDont] = useState(false)
   const [editing, setEditing] = useState(false)
@@ -659,10 +659,20 @@ function PieceCard({ title, subtitle, piece, swap, dont, onCopy, onRewrite, onTo
   }
 
   return (
-    <div className="glass-card p-5 mb-3">
-      <div className="flex justify-between items-baseline mb-3 gap-3 flex-wrap">
-        <h4 className="text-xs font-bold text-gold uppercase tracking-widest">{title}</h4>
-        {subtitle && <span className="text-xs text-zinc-600 uppercase tracking-widest">{subtitle}</span>}
+    <div className={`glass-card p-5 mb-3 ${posted ? 'border-emerald-500/20 bg-emerald-500/[0.02]' : ''}`}>
+      <div className="flex justify-between items-center mb-3 gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          {onTogglePosted && (
+            <button onClick={onTogglePosted} className={`w-5 h-5 rounded border-2 flex items-center justify-center transition flex-shrink-0 ${posted ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600 hover:border-zinc-400'}`}>
+              {posted && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+            </button>
+          )}
+          <h4 className={`text-xs font-bold uppercase tracking-widest ${posted ? 'text-emerald-400' : 'text-gold'}`}>{title}</h4>
+        </div>
+        <div className="flex items-center gap-2">
+          {posted && <span className="text-[9px] font-bold uppercase tracking-widest text-emerald-400">Posted</span>}
+          {subtitle && <span className="text-xs text-zinc-600 uppercase tracking-widest">{subtitle}</span>}
+        </div>
       </div>
       {swap && <NoteBox gold><span className="text-gold font-bold">One switch made:</span> {swap}</NoteBox>}
       <div className="text-sm leading-relaxed whitespace-pre-wrap text-zinc-300 mt-3">{renderPiece(piece)}</div>
@@ -2366,6 +2376,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             piece={quickPiece}
             swap={quickRoute?.swap}
             dont={card.dont}
+            posted={quickPiece?.posted || false}
             onSave={(newText) => setQuickPiece(newText)}
             onRewrite={() => {
               setModal({
@@ -2753,6 +2764,14 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               piece={sl.piece}
               swap={sl.swap}
               dont={sl.cardObj.dont}
+              posted={sl.posted || false}
+              onTogglePosted={() => {
+                setWeekPieces(prev => {
+                  const updated = [...prev]
+                  updated[i] = { ...updated[i], posted: !updated[i].posted }
+                  return updated
+                })
+              }}
               onSave={(newText) => {
                 setWeekPieces(prev => {
                   const updated = [...prev]
@@ -2893,11 +2912,25 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         <span className="text-sm font-bold text-white">Week of {dateStr}</span>
                         <span className="text-xs text-zinc-500">{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
                       </div>
-                      <div className="flex gap-3 mt-2 text-xs text-zinc-500">
-                        {m.reach > 0 && <span>{m.reach} reach</span>}
-                        {m.value > 0 && <span>{m.value} trust</span>}
-                        {m.sales > 0 && <span>{m.sales} sales</span>}
-                      </div>
+                      {(() => {
+                        const postedCount = pieces.filter(p => p.posted).length
+                        const pct = pieces.length > 0 ? Math.round((postedCount / pieces.length) * 100) : 0
+                        return (
+                          <>
+                            <div className="flex items-center justify-between mt-2">
+                              <div className="flex gap-3 text-xs text-zinc-500">
+                                {m.reach > 0 && <span>{m.reach} reach</span>}
+                                {m.value > 0 && <span>{m.value} trust</span>}
+                                {m.sales > 0 && <span>{m.sales} sales</span>}
+                              </div>
+                              <span className={`text-[10px] font-bold ${postedCount === pieces.length && pieces.length > 0 ? 'text-emerald-400' : 'text-zinc-600'}`}>{postedCount}/{pieces.length}</span>
+                            </div>
+                            <div className="h-1 bg-zinc-800 rounded-full overflow-hidden mt-1.5">
+                              <div className={`h-full rounded-full transition-all ${postedCount === pieces.length && pieces.length > 0 ? 'bg-emerald-500' : 'bg-gold/60'}`} style={{ width: `${pct}%` }} />
+                            </div>
+                          </>
+                        )
+                      })()}
                     </button>
                     <div className="flex gap-2 mt-3 border-t border-zinc-800 pt-3">
                       <button onClick={() => navigateTo('view-week', w)} className="text-xs font-bold text-gold/60 hover:text-gold uppercase tracking-widest">View</button>
@@ -3018,18 +3051,39 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           <div className="mt-4 mb-6">
             <GoldLabel>Saved week</GoldLabel>
             <Question>Week of {dateStr}</Question>
-            <div className="flex gap-3 mt-1 text-xs text-zinc-500">
-              <span>{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
-              {m.reach > 0 && <span>· {m.reach} reach</span>}
-              {m.value > 0 && <span>· {m.value} trust</span>}
-              {m.sales > 0 && <span>· {m.sales} sales</span>}
-            </div>
+            {(() => {
+              const postedCount = pieces.filter(p => p.posted).length
+              const pct = pieces.length > 0 ? Math.round((postedCount / pieces.length) * 100) : 0
+              return (
+                <div className="mt-3">
+                  <div className="flex items-center justify-between mb-1">
+                    <div className="flex gap-3 text-xs text-zinc-500">
+                      <span>{pieces.length} post{pieces.length !== 1 ? 's' : ''}</span>
+                      {m.reach > 0 && <span>· {m.reach} reach</span>}
+                      {m.value > 0 && <span>· {m.value} trust</span>}
+                      {m.sales > 0 && <span>· {m.sales} sales</span>}
+                    </div>
+                    <span className={`text-xs font-bold ${postedCount === pieces.length ? 'text-emerald-400' : 'text-zinc-500'}`}>{postedCount}/{pieces.length} posted</span>
+                  </div>
+                  <div className="h-1.5 bg-zinc-800 rounded-full overflow-hidden">
+                    <div className={`h-full rounded-full transition-all ${postedCount === pieces.length ? 'bg-emerald-500' : 'bg-gold'}`} style={{ width: `${pct}%` }} />
+                  </div>
+                </div>
+              )
+            })()}
           </div>
 
           {pieces.map((p, i) => (
             <PieceCard key={`${viewingWeek.id}-${i}`}
               title={`${p.day || ''} · ${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
               piece={p.piece}
+              posted={p.posted || false}
+              onTogglePosted={async () => {
+                const updated = [...pieces]
+                updated[i] = { ...updated[i], posted: !updated[i].posted }
+                setViewingWeek(prev => ({ ...prev, piece_ids: updated }))
+                await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+              }}
               onSave={(newText) => updatePiece(i, newText)}
               onToEmail={p.job !== 'email' ? () => convertToEmail(i) : undefined}
               onRewrite={() => {
@@ -3392,6 +3446,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           piece: sl.piece || '',
           cardKey: sl.cardKey || '',
           model: sl.model || null,
+          posted: sl.posted || false,
         }))
       const weekData = {
         client_id: clientId,
