@@ -1995,7 +1995,6 @@ export default function ClientPage() {
       { id: 'distinction', label: 'Distinction Engine™',  icon: '⚙️', href: '/distinction-engine' },
       { id: 'ai-accel',    label: 'AI Accelerator™',      icon: '⚡', href: '/ai-accelerator' },
       { id: 'content-cap', label: 'Content Capture™',     icon: '🎬', href: '/content-capture' },
-      { id: 'phase-plan',  label: 'Phase Planner',         icon: '📅', href: '/content-capture/phase-planner' },
       { id: 'content-v2',  label: 'Content Capture™ V2',  icon: '🎯', href: '/build/content-capture-v2' },
       { id: 'lead-magnets', label: 'Lead Magnets',        icon: '🧲', href: '/build/lead-magnets' },
       { id: 'comeback',    label: 'Comeback Story™',      icon: '🔥', href: '/build/comeback-story' },
