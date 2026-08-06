@@ -1911,7 +1911,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         {hasList && emailCount > 0 && <span>· {emailCount} email{emailCount !== 1 ? 's' : ''}</span>}
                         {doesYT && ytCount > 0 && <span>· {ytCount} video{ytCount !== 1 ? 's' : ''}</span>}
                       </div>
-                      {hasList && <span className="text-zinc-600">✉️ Emails derive from your posts</span>}
+                      {hasList && <span className="text-zinc-600 text-[10px]">Emails derive from your posts</span>}
                     </div>
                   </div>
 
@@ -2158,6 +2158,25 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                 ))}
               </select>
               <p className="text-xs text-zinc-500 mt-2">{STAGES.find(s => s.id === stage)?.s}</p>
+              <div className="flex items-center gap-4 mt-3 pt-3 border-t border-zinc-800">
+                <GoldLabel>Channels</GoldLabel>
+              </div>
+              <div className="flex items-center gap-4">
+                <button onClick={async () => { const v = !hasList; setHasList(v); if (!v) { setEmailN(0) }; await saveProfile({ has_list: v }) }}
+                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition ${hasList ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                  <span className={`w-4 h-4 rounded border-2 flex items-center justify-center transition flex-shrink-0 ${hasList ? 'bg-gold border-gold' : 'border-zinc-600'}`}>
+                    {hasList && <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  </span>
+                  ✉️ Email list
+                </button>
+                <button onClick={async () => { const v = !doesYT; setDoesYT(v); if (!v) { setYtN(0) }; await saveProfile({ does_yt: v }) }}
+                  className={`flex items-center gap-2 text-xs font-bold uppercase tracking-widest transition ${doesYT ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                  <span className={`w-4 h-4 rounded border-2 flex items-center justify-center transition flex-shrink-0 ${doesYT ? 'bg-gold border-gold' : 'border-zinc-600'}`}>
+                    {doesYT && <svg className="w-2.5 h-2.5 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  </span>
+                  🎥 YouTube
+                </button>
+              </div>
             </div>
           )}
 
