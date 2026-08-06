@@ -1527,6 +1527,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   }
 
   const phaseWeekToGoal = { reach: 'growth', trust: 'trust', sales: 'conversion' }
+  const [planningPhaseWeek, setPlanningPhaseWeek] = useState(null)
 
   const planPhaseWeek = (weekNum) => {
     if (!activePhase) return
@@ -1536,7 +1537,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     setWeekGoal(goal)
     const slots = buildWeekSlots(goal)
     setWeekSlots(slots)
-    setScreen('board')
+    setPlanningPhaseWeek(weekNum)
+  }
+
+  const exitPhaseWeekPlan = () => {
+    setPlanningPhaseWeek(null)
+    setWeekSlots([])
+    setPicker(null)
   }
 
   function navigateTo(screenId, data) {
@@ -1693,6 +1700,170 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   if (screen === 'phase-planner') {
     const currentWeek = activePhase ? getPhaseCurrentWeek(activePhase) : null
+
+    // ── Inline board for a specific phase week ──
+    if (planningPhaseWeek && activePhase) {
+      const pwData = activePhase.weeks.find(w => w.week === planningPhaseWeek)
+      const pwType = PHASE_WEEK_TYPES.find(t => t.id === pwData?.type)
+      const pwColors = PHASE_WEEK_COLORS[pwData?.type] || PHASE_WEEK_COLORS.trust
+      const pwStart = new Date(activePhase.start_date); pwStart.setDate(pwStart.getDate() + (planningPhaseWeek - 1) * 7)
+      const pwEnd = new Date(pwStart); pwEnd.setDate(pwEnd.getDate() + 6)
+      const fmtD = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+      const filled = weekSlots.filter(s => s.moment).length
+
+      return (
+        <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          {/* Week header */}
+          <button onClick={exitPhaseWeekPlan} className="text-zinc-500 hover:text-white text-xs font-bold uppercase tracking-widest mb-4 flex items-center gap-1 transition">
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+            Back to Phase
+          </button>
+
+          <div className={`p-4 rounded-lg border ${pwColors.bg} ${pwColors.border} mb-6`}>
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <span className="text-lg">{pwType?.icon}</span>
+                <span className="text-white font-bold">Week {planningPhaseWeek} — {pwType?.label}</span>
+              </div>
+              <span className="text-zinc-500 text-xs">{fmtD(pwStart)} — {fmtD(pwEnd)}</span>
+            </div>
+            <p className={`text-xs ${pwColors.text}`}>{pwType?.desc}</p>
+          </div>
+
+          <GoldLabel>Plan Week {planningPhaseWeek}</GoldLabel>
+          <Question>Match <span className="text-gold font-medium">moments</span> to this week's posts.</Question>
+          <DimLabel>Tap a slot, pick a moment. Or let the tool suggest and adjust from there.</DimLabel>
+
+          <Stepper label="Feed posts" note={pieceCount === baseN ? 'The pace your stage suggests' : pieceCount > baseN ? 'Above your stage\'s pace' : 'A lighter week'}
+            value={pieceCount} onMinus={() => changePieceCount(-1)} onPlus={() => changePieceCount(1)} minDisabled={pieceCount <= 3} maxDisabled={pieceCount >= 21} />
+          {hasList && (
+            <Stepper label="Emails to your list" note={emailCount === 1 ? 'One a week keeps it warm' : emailCount === 0 ? 'Skipping the list this week' : 'More than one needs genuinely separate moments'}
+              value={emailCount} onMinus={() => changeEmailCount(-1)} onPlus={() => changeEmailCount(1)} minDisabled={emailCount <= 0} maxDisabled={emailCount >= 7} />
+          )}
+          {doesYT && (
+            <Stepper label="YouTube videos" note={ytCount === 1 ? 'One deep video a week' : ytCount === 0 ? 'No video this week' : 'A heavy schedule'}
+              value={ytCount} onMinus={() => changeYtCount(-1)} onPlus={() => changeYtCount(1)} minDisabled={ytCount <= 0} maxDisabled={ytCount >= 3} />
+          )}
+
+          <div className="glass-card p-4 mb-4">
+            <GoldLabel>Content mix</GoldLabel>
+            <MixDials reach={mix.reach} value={mix.value} sales={mix.sales} total={pieceCount} />
+          </div>
+
+          <div className="mt-2">
+            {(() => {
+              const grouped = []
+              let lastDay = null
+              weekSlots.forEach((sl, i) => {
+                const dayBase = sl.day.split(' · ')[0]
+                if (dayBase !== lastDay) { grouped.push({ type: 'day', day: dayBase }); lastDay = dayBase }
+                grouped.push({ type: 'slot', sl, i })
+              })
+              return grouped.map((item, gi) =>
+                item.type === 'day' ? (
+                  <div key={'day-' + gi} className="mt-4 mb-2 first:mt-0">
+                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{item.day}</span>
+                  </div>
+                ) : (
+                  <div key={item.i}>
+                    <SlotCard job={item.sl.job} moment={item.sl.moment}
+                      onPick={() => setPicker(item.i)}
+                      onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
+                      salesAngle={salesAngles[item.i]}
+                      onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
+                      offerContext={playbookContext?.offer}
+                      onCapture={async (type, line, enrichment, angle) => {
+                        try {
+                          const entry = await addLogEntry(type, line)
+                          if (entry) {
+                            entry.enrichment = enrichment || {}
+                            if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
+                            setLog(prev => [entry, ...prev])
+                            setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: entry }; return updated })
+                            if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
+                          } else {
+                            const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
+                            setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: localMoment }; return updated })
+                          }
+                        } catch (err) {
+                          const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
+                          setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: localMoment }; return updated })
+                        }
+                      }} />
+                    {item.sl.job === 'value' && memberMagnets.length > 0 && (
+                      <div className="ml-4 mb-2 flex items-center gap-2">
+                        <button onClick={() => {
+                          const isOn = !freePushSlots[item.i]
+                          setFreePushSlots(prev => ({ ...prev, [item.i]: isOn }))
+                          if (!isOn) setFreePushMagnet(prev => { const u = { ...prev }; delete u[item.i]; return u })
+                        }} className={`text-[10px] font-bold uppercase tracking-widest transition ${freePushSlots[item.i] ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                          {freePushSlots[item.i] ? '● Freebie push ON' : '○ Freebie push'}
+                        </button>
+                        {freePushSlots[item.i] && memberMagnets.length > 1 && (
+                          <select value={freePushMagnet[item.i] || ''} onChange={e => setFreePushMagnet(prev => ({ ...prev, [item.i]: e.target.value }))}
+                            className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer">
+                            <option value="">Pick magnet...</option>
+                            {memberMagnets.map(mg => <option key={mg.id} value={mg.id}>{mg.name} ({mg.keyword})</option>)}
+                          </select>
+                        )}
+                        {freePushSlots[item.i] && memberMagnets.length === 1 && (
+                          <span className="text-[10px] text-zinc-500">{memberMagnets[0].name} ({memberMagnets[0].keyword})</span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )
+              )
+            })()}
+          </div>
+
+          <div className="flex justify-between mt-6">
+            <GhostBtn onClick={exitPhaseWeekPlan}>← Back to Phase</GhostBtn>
+            <div className="flex gap-3">
+              <Btn onClick={() => { setWeekSlots(suggestFill([...weekSlots])) }}>Suggest for me</Btn>
+              <Btn gold disabled={!filled} onClick={() => {
+                const assigned = weekSlots.filter(s => s.moment).map(s => ({ ...s, moment: { ...s.moment, enrichment: {} } }))
+                setWeekPieces(assigned)
+                setWeekIdx(0); setChosenEngines({}); setChosenFormats({}); setAiQuestions(null); setScreen('week-enrich')
+              }}>Flesh them out ({filled}/{weekSlots.length}) →</Btn>
+            </div>
+          </div>
+
+          <BottomSheet open={picker !== null} title={picker !== null ? JOBLONG[weekSlots[picker]?.job] : ''} onClose={() => setPicker(null)}
+            subtitle={(weekSlots[picker]?.job === 'email' || weekSlots[picker]?.job === 'longform') ? 'Reusing a moment from a feed post is the smart move here — same material, deeper format.' : undefined}>
+            {picker !== null && (() => {
+              const job = weekSlots[picker].job
+              const reuse = job === 'email' || job === 'longform'
+              const usedIds = new Set(weekSlots.filter((s, x) => s.moment && x !== picker && s.job !== 'email' && s.job !== 'longform').map(s => s.moment.id))
+              const avail = reuse ? log : log.filter(m => !usedIds.has(m.id))
+              return avail.length ? (
+                <div className="flex flex-col gap-2">
+                  {avail.map(m => (
+                    <OptionButton key={m.id} onClick={() => {
+                      const idx = picker
+                      setWeekSlots(prev => { const updated = [...prev]; updated[idx] = { ...updated[idx], moment: m }; return updated })
+                      setPicker(null)
+                    }}>
+                      <span className="block text-xs font-bold uppercase tracking-widest text-gold/60 mb-1">{TYPESHORT[m.type]}</span>
+                      {m.line}
+                    </OptionButton>
+                  ))}
+                  <div className="flex gap-3 mt-3">
+                    <Btn onClick={() => { const idx = picker; setWeekSlots(prev => { const u = [...prev]; u[idx] = { ...u[idx], moment: null }; return u }); setPicker(null) }}>Leave empty</Btn>
+                    <Btn onClick={() => setPicker(null)}>Close</Btn>
+                  </div>
+                </div>
+              ) : (
+                <div className="border border-dashed border-zinc-700 rounded-lg p-6 text-center text-zinc-500 text-sm">
+                  {log.length === 0 ? 'No moments logged yet. Head back to the home screen and log a few.' : 'Every logged moment is already placed. Log another from the home screen, or leave this slot empty.'}
+                </div>
+              )
+            })()}
+          </BottomSheet>
+          <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
+        </SidebarLayout>
+      )
+    }
 
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
