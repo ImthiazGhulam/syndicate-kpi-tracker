@@ -1191,7 +1191,13 @@ Return ONLY the complete HTML. No markdown, no explanation, no code fences. Star
         scaling: 'SCALING STAGE — Offer, brand, and system are in place. Need to optimise content for consistent lead generation and conversion.',
       }
 
-      systemPrompt = 'You are a content strategy advisor for coaches, consultants, and service providers. You design multi-week content phases that balance three content types: REACH (grow audience — shareable, bold, wide-net content), TRUST (build authority — value, storytelling, behind-the-scenes), and SALES (drive conversion — offers, social proof, urgency, CTAs). You are direct and strategic. No fluff. You always return valid JSON with no markdown formatting or code fences.'
+      const todayStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })
+
+      systemPrompt = `You are a content strategy advisor for coaches, consultants, and service providers. You design multi-week content phases that balance three content types: REACH (grow audience — shareable, bold, wide-net content), TRUST (build authority — value, storytelling, behind-the-scenes), and SALES (drive conversion — offers, social proof, urgency, CTAs). You are direct, strategic, and commercially sharp. No fluff. You always return valid JSON with no markdown formatting or code fences.
+
+You have deep knowledge of launch timing, seasonal buying patterns, and industry-specific calendar events. You understand that every sales push needs a REASON — a hook that justifies urgency. You draw from proven launch strategies used by top online coaches and service providers (Jeff Walker's Product Launch Formula, Amy Porterfield's list-building sequences, Russell Brunson's challenge funnels, Daniel Priestley's oversubscribed model).
+
+Today's date is ${todayStr}.`
 
       userPrompt = `Design a content phase for this business. Suggest the ideal phase length, name, and week-by-week content type (reach, trust, or sales).
 
@@ -1201,29 +1207,80 @@ ${data.business_context ? `BUSINESS CONTEXT:\n${data.business_context}` : ''}
 
 REQUESTED DURATION: ${data.requested_duration || 6} weeks (you can suggest a different length if it makes more sense for their stage)
 
-Guidelines by stage:
+## LAUNCH REASON — EVERY SALES PHASE NEEDS ONE
+
+A sales push without a reason feels desperate. Every phase that includes 2+ sales weeks MUST have a clear launch trigger. Suggest the most relevant one based on the date, niche, and offer type. Categories:
+
+**Seasonal / Calendar:**
+- New Year (Jan) — fresh start, resolution energy
+- Back to School (Sept) — new term, new habits
+- Black Friday / Cyber Monday (late Nov) — price-driven urgency
+- Christmas (Dec) — gift offers, "treat yourself" positioning
+- Summer (Jun-Aug) — "get ahead while competitors rest", or "summer reset"
+- Q4 push (Oct-Nov) — "finish the year strong"
+- Tax year end (Mar-Apr UK, varies elsewhere) — financial urgency
+- Half-term / school holidays — relevant for parent-facing niches
+
+**Business Cycle:**
+- New cohort launch — natural open/close doors
+- Founding member pricing — early-bird urgency
+- Price increase — "current price ends [date]"
+- Beta / pilot intake — limited spots, first-mover advantage
+- Anniversary / milestone — celebrating with a special offer
+- Case study close — "we just finished with [client], taking 3 more"
+- Waitlist open — demand-driven scarcity
+- Scholarship / bursary intake — "opening X funded spots for [specific type of person]"
+- Case study launch — "looking for X people to document the full journey" (positions the offer as an opportunity, not a sale)
+- Challenge / sprint — "free 5-day [topic] challenge, then doors open for those who want to go deeper"
+- Results review — "just reviewed our Q[X] numbers, here's what's working — opening [X] spots for people who want the same"
+
+**Industry / Niche-Specific:**
+- Based on the client's sector, what seasonal patterns affect THEIR audience's buying behaviour?
+- When does their ideal client feel the pain most acutely?
+- When do budgets get allocated or renewed?
+- What industry events, conferences, or cycles create natural momentum?
+
+If the client's niche is known, suggest the specific trigger most relevant to THEIR audience. For example:
+- Fitness coaches → Jan (New Year), Sept (back to routine), pre-summer (Apr-May)
+- Business coaches → Jan (planning), Sept (Q4 push), tax year end
+- Therapists/wellbeing → Jan (mental health awareness), Sept (burnout season)
+- E-commerce consultants → pre-Black Friday (Oct), Q1 planning
+- Career coaches → Jan (new job energy), Sept (post-summer reassessment)
+
+CRITICAL — BRAND VOICE ALIGNMENT:
+All launch reasons, phase names, and wording MUST match the person's brand personality and positioning. If their business context includes personality traits, values, or tone, reflect that in the naming. For example:
+- A high-end premium coach doesn't say "discount" — they say "invitation-only intake" or "founding member allocation"
+- A no-nonsense direct coach doesn't say "scholarship opportunity" — they say "case study spots" or "results sprint"
+- A warm community-builder doesn't say "limited spots" — they say "opening the doors to [X] new members"
+Never use generic marketing language. Use the language of THEIR brand.
+
+Include the suggested launch reason in the explanation.
+
+## Guidelines by stage:
 - EARLY: Heavy reach (60-70%), some trust (20-30%), minimal sales (0-10%). Focus on getting seen. Do NOT include sales weeks — they have nothing to sell yet.
 - BUILDING: Balanced reach (30-40%) and trust (40-50%), light sales (10-20%). Build authority. If they don't have an offer yet, zero sales weeks.
-- LAUNCHING: Trust-heavy start (weeks 1-3), then shift to sales (weeks 4+). Build desire, then convert.
-- SCALING: Structured cycles — reach → trust → trust → sales, repeat. Consistent pipeline.
+- LAUNCHING: Trust-heavy start (weeks 1-3), then shift to sales (weeks 4+). Build desire, then convert. The sales weeks should be tied to the launch reason.
+- SCALING: Structured cycles — reach → trust → trust → sales, repeat. Consistent pipeline. Sales weeks should align with the next relevant seasonal or business trigger.
 
-CRITICAL — Stage misalignment warnings:
+## Stage misalignment warnings:
 - If the stage is EARLY or BUILDING and the client seems to want a launch phase, you MUST warn them in the explanation: "You're not ready for a sales-heavy phase yet. You need at least 6 weeks of reach and trust content before your first sales push. Here's what to do instead." Then design a reach/trust phase with zero or minimal sales.
 - If the stage is BUILDING and they have no offer defined (no offer name in the business context), warn them: "You don't have a defined offer yet — sales weeks won't work until you build one. Focus on reach and trust to grow your audience while you develop your offer."
 - A launch phase (with 2+ sales weeks) should only be suggested for LAUNCHING or SCALING stages.
 
-General rules:
+## General rules:
 - Never start a phase with a sales week (build trust first)
 - Never have more than 2 sales weeks back-to-back
 - End phases with either a sales push or a trust cooldown depending on what comes next
 - Reach weeks work best at the start of a phase or after a sales push
+- The phase name should reflect the launch reason if there is one (e.g. "Q4 Push", "New Year Sprint", "Cohort 3 Launch")
 
 Return ONLY valid JSON in this exact format (no markdown, no code fences, no explanation outside the JSON):
 {
-  "name": "Phase name (e.g. Authority Build, Launch Sprint, Visibility Push)",
+  "name": "Phase name reflecting the launch reason or strategy",
   "duration": <number of weeks>,
   "weeks": ["reach", "trust", "sales", ...],
-  "explanation": "2-3 sentences explaining WHY this sequence works for their stage and business. Include any warnings about stage misalignment here."
+  "launch_reason": "The specific trigger/reason for any sales push in this phase (e.g. 'Black Friday — discounted founding member pricing', 'New cohort intake — doors close Sept 20th'). Null if no sales weeks.",
+  "explanation": "3-4 sentences explaining: (1) WHY this sequence works for their stage, (2) what the launch reason is and why it's the right one for their niche right now, (3) any warnings about stage misalignment. Be specific to their sector and offer."
 }`
     }
 

@@ -1439,6 +1439,12 @@ export default function ContentCaptureClient() {
             <div className="mt-4 p-4 bg-zinc-800/50 border border-gold/20 rounded-lg">
               <Label>AI Recommendation</Label>
               <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{phaseAiSuggestion.explanation}</p>
+              {phaseAiSuggestion.launch_reason && (
+                <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                  <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-1">Launch Reason</p>
+                  <p className="text-zinc-300 text-sm">{phaseAiSuggestion.launch_reason}</p>
+                </div>
+              )}
             </div>
           )}
         </div>

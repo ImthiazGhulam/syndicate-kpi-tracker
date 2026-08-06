@@ -1795,6 +1795,12 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <div className="glass-card p-4 border-gold/20">
                 <GoldLabel>AI Recommendation</GoldLabel>
                 <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{phaseAiSuggestion.explanation}</p>
+                {phaseAiSuggestion.launch_reason && (
+                  <div className="mt-3 p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-1">Launch Reason</p>
+                    <p className="text-zinc-300 text-sm">{phaseAiSuggestion.launch_reason}</p>
+                  </div>
+                )}
               </div>
             )}
 
