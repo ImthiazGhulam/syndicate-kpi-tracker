@@ -188,6 +188,11 @@ export default function ContentCaptureClient() {
   const [offerData, setOfferData] = useState(null)
   const [distinctionData, setDistinctionData] = useState(null)
 
+  // Phase context
+  const [activePhase, setActivePhase] = useState(null)
+  const [currentWeekType, setCurrentWeekType] = useState(null)
+  const [currentWeekNum, setCurrentWeekNum] = useState(null)
+
   // Capture data
   const [debriefData, setDebriefData] = useState([])
   const [hasDebriefs, setHasDebriefs] = useState(true)
@@ -256,6 +261,29 @@ export default function ContentCaptureClient() {
       if (ppRes.data) setBrandData(ppRes.data)
       if (opRes.data) setOfferData(opRes.data)
       if (deRes.data) setDistinctionData(deRes.data?.engine_data || deRes.data)
+
+      // Fetch active content phase
+      const { data: phaseData } = await supabase
+        .from('content_phases')
+        .select('*')
+        .eq('client_id', client.id)
+        .eq('is_active', true)
+        .maybeSingle()
+
+      if (phaseData) {
+        setActivePhase(phaseData)
+        const today = new Date()
+        const start = new Date(phaseData.start_date)
+        const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24))
+        const weekNum = Math.floor(diffDays / 7) + 1
+        if (weekNum >= 1 && weekNum <= phaseData.weeks.length) {
+          const weekData = phaseData.weeks.find(w => w.week === weekNum)
+          if (weekData) {
+            setCurrentWeekType(weekData.type)
+            setCurrentWeekNum(weekNum)
+          }
+        }
+      }
 
       // Fetch last 7 days of debriefs
       const sevenDaysAgo = new Date()
@@ -456,6 +484,8 @@ export default function ContentCaptureClient() {
             business_context: getBusinessContext(),
             email_type: emailType,
             email_framework: emailFramework,
+            phase_week_type: currentWeekType,
+            phase_name: activePhase?.name,
           },
         }),
       })
@@ -492,6 +522,8 @@ export default function ContentCaptureClient() {
             structure: generatedStructure,
             email_type: emailType,
             email_framework: emailFramework,
+            phase_week_type: currentWeekType,
+            phase_name: activePhase?.name,
           },
         }),
       })
@@ -528,6 +560,8 @@ export default function ContentCaptureClient() {
             structure: generatedStructure,
             email_type: emailType,
             email_framework: emailFramework,
+            phase_week_type: currentWeekType,
+            phase_name: activePhase?.name,
           },
         }),
       })
@@ -1022,6 +1056,14 @@ export default function ContentCaptureClient() {
           <p className="text-zinc-500 text-xs mt-1">Turn your week into content</p>
         </div>
         <nav className="p-4 space-y-1">
+          <button
+            onClick={() => { router.push('/content-capture/phase-planner'); setSidebarOpen(false) }}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded text-sm transition sidebar-item mb-2"
+          >
+            <span className="text-base">📅</span>
+            <span>Phase Planner</span>
+          </button>
+          <div className="h-px bg-zinc-800 mb-2" />
           {STAGES.map(stage => (
             <button
               key={stage.num}
@@ -1046,6 +1088,39 @@ export default function ContentCaptureClient() {
       <main className="flex-1 lg:ml-0 pt-16 lg:pt-0 bg-grid">
         <div className="max-w-2xl mx-auto p-6 lg:p-10">
           {(generatingStructure || suggestingHooks || generating) && <LoadingOverlay lines={AI_STATUS_LINES} />}
+
+          {/* Phase Banner */}
+          {activePhase && currentWeekType && (
+            <div className={`mb-6 p-4 rounded-lg border ${
+              currentWeekType === 'reach' ? 'bg-blue-500/10 border-blue-500/30' :
+              currentWeekType === 'trust' ? 'bg-emerald-500/10 border-emerald-500/30' :
+              'bg-amber-500/10 border-amber-500/30'
+            }`}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-lg">{currentWeekType === 'reach' ? '📡' : currentWeekType === 'trust' ? '🤝' : '💰'}</span>
+                  <div>
+                    <span className={`text-xs font-bold uppercase tracking-widest ${
+                      currentWeekType === 'reach' ? 'text-blue-400' :
+                      currentWeekType === 'trust' ? 'text-emerald-400' :
+                      'text-amber-400'
+                    }`}>{activePhase.name} — Week {currentWeekNum}: {currentWeekType}</span>
+                    <p className="text-zinc-400 text-xs mt-0.5">
+                      {currentWeekType === 'reach' ? 'Bold, shareable content to grow your audience' :
+                       currentWeekType === 'trust' ? 'Value-driven content to build authority and connection' :
+                       'Conversion-focused content to drive action'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => router.push('/content-capture/phase-planner')}
+                  className="text-zinc-500 hover:text-white text-xs transition"
+                >
+                  View Phase
+                </button>
+              </div>
+            </div>
+          )}
 
           <ProgressIndicator current={currentStage} stages={STAGES} />
 

@@ -813,13 +813,17 @@ Be specific to their niche and offer type.`
         ? 'You are an expert email copywriter for coaches, consultants, and service providers. You write like a real person — short sentences, line breaks after every 1-2 sentences, conversational tone. You speak to ONE person, not a crowd. You use concrete, visual language that the reader can picture. You never write chunky paragraphs. You never use spam trigger words (free, guarantee, act now, limited time, etc.). You never sound like AI. Every line is written to get the reader to read the next line.'
         : 'You are a content strategist for coaches, consultants, and service providers. You write direct, engaging content. No fluff. No corporate speak. Write like a real person who gives genuine value. You know their brand voice, their audience, and their offer.'
 
+      const phaseContext = data.phase_week_type ? `\n\nCONTENT PHASE CONTEXT:
+This is a ${data.phase_week_type.toUpperCase()} WEEK in their content phase "${data.phase_name || ''}".
+${data.phase_week_type === 'reach' ? 'REACH WEEK: Content should be bold, shareable, wide-appeal. Use contrarian takes, relatable stories, and hooks designed to be shared beyond their current audience. Prioritise virality and new eyeballs over depth.' : ''}${data.phase_week_type === 'trust' ? 'TRUST WEEK: Content should build authority and connection. Use personal stories, behind-the-scenes, deep value, client transformations, and genuine insights. Prioritise depth and relatability over reach.' : ''}${data.phase_week_type === 'sales' ? 'SALES WEEK: Content should drive conversion. Use social proof, testimonials, offer breakdowns, urgency, and clear CTAs. Position their offer as the obvious next step. Prioritise action over engagement.' : ''}` : ''
+
       userPrompt = `Write the BODY/STRUCTURE of this content piece. Do NOT write the hook — that will be added separately.
 
 SOURCE MATERIAL (from their real week):
 ${data.captures}
 
 ${data.business_context ? `THEIR BUSINESS CONTEXT:
-${data.business_context}` : ''}
+${data.business_context}` : ''}${phaseContext}
 
 CTA DIRECTION: ${data.cta}
 
@@ -851,6 +855,9 @@ ${data.format === 'email' ? `- CRITICAL EMAIL RULES:
         'photo-caption': 'These hooks will be the FIRST LINE of a caption (before the "see more" fold). Must stop the scroll. Short, punchy, creates curiosity. One line only.',
       }
 
+      const hooksPhaseContext = data.phase_week_type ? `\n\nCONTENT PHASE: This is a ${data.phase_week_type.toUpperCase()} WEEK.
+${data.phase_week_type === 'reach' ? 'Hooks should be bold, shareable, and designed to reach new audiences. Prioritise contrarian, surprising, or universally relatable hooks.' : ''}${data.phase_week_type === 'trust' ? 'Hooks should draw people in with personal stories, vulnerability, or deep expertise. Prioritise curiosity and emotional connection.' : ''}${data.phase_week_type === 'sales' ? 'Hooks should create urgency or showcase results. Prioritise social proof, transformation, and desire-building.' : ''}` : ''
+
       systemPrompt = 'You are a content strategist for coaches, consultants, and service providers. You write scroll-stopping hooks tailored to specific content formats. No fluff. Every hook must be specific to what the person actually experienced — never generic.'
       userPrompt = `Based on this person's content structure and story, suggest 5 hooks tailored to their specific format.
 
@@ -861,7 +868,7 @@ THE CONTENT STRUCTURE (already written — the hook needs to lead into this):
 ${data.structure || 'Not yet generated'}
 
 ${data.business_context ? `THEIR BUSINESS CONTEXT:
-${data.business_context}` : ''}
+${data.business_context}` : ''}${hooksPhaseContext}
 
 FORMAT-SPECIFIC HOOK REQUIREMENTS:
 ${hookFormatGuides[data.format] || hookFormatGuides['yap']}
@@ -897,6 +904,9 @@ Rules:
 - Keep it under 200 words
 - Write in first person, same tone as the main content` : ''
 
+      const finalPhaseContext = data.phase_week_type ? `\n\nCONTENT PHASE: This is a ${data.phase_week_type.toUpperCase()} WEEK.
+${data.phase_week_type === 'reach' ? 'Tone should be bold and shareable. End with a CTA that encourages sharing or following.' : ''}${data.phase_week_type === 'trust' ? 'Tone should be personal and valuable. End with a CTA that deepens the relationship (comment, save, DM).' : ''}${data.phase_week_type === 'sales' ? 'Tone should be confident and conversion-focused. End with a clear CTA to take the next step (buy, book, apply).' : ''}` : ''
+
       systemPrompt = 'You are a content strategist for coaches, consultants, and service providers. You assemble final content pieces by combining a hook with an existing body structure. Write like a real person. No fluff. No corporate speak.'
       userPrompt = `Combine this hook with the existing content structure into one polished, final piece of content.
 
@@ -909,7 +919,7 @@ SOURCE MATERIAL (for reference):
 ${data.captures}
 
 ${data.business_context ? `THEIR BUSINESS CONTEXT:
-${data.business_context}` : ''}
+${data.business_context}` : ''}${finalPhaseContext}
 
 CTA DIRECTION: ${data.cta}
 
@@ -1172,6 +1182,46 @@ ${JSON.stringify(data.generated_output || {}, null, 2)}
 Return ONLY the complete HTML. No markdown, no explanation, no code fences. Start with <!DOCTYPE html>.`
     }
 
+    // ── Phase Suggestion ──────────────────────────────────────────────────────
+    if (type === 'phase-suggestion') {
+      const stageDescriptions = {
+        early: 'EARLY STAGE — Still defining their brand, offer, and audience. No clear positioning yet. Need visibility and audience-building first.',
+        building: 'BUILDING STAGE — Brand identity exists but offer is not yet defined or launched. Need to build authority and trust while developing their offer.',
+        launching: 'LAUNCHING STAGE — Has an offer but still building traction. Need a mix of reach, trust-building, and initial sales pushes.',
+        scaling: 'SCALING STAGE — Offer, brand, and system are in place. Need to optimise content for consistent lead generation and conversion.',
+      }
+
+      systemPrompt = 'You are a content strategy advisor for coaches, consultants, and service providers. You design multi-week content phases that balance three content types: REACH (grow audience — shareable, bold, wide-net content), TRUST (build authority — value, storytelling, behind-the-scenes), and SALES (drive conversion — offers, social proof, urgency, CTAs). You are direct and strategic. No fluff.'
+
+      userPrompt = `Design a content phase for this business. Suggest the ideal phase length, name, and week-by-week content type (reach, trust, or sales).
+
+BUSINESS STAGE: ${stageDescriptions[data.business_stage] || stageDescriptions['building']}
+
+${data.business_context ? `BUSINESS CONTEXT:\n${data.business_context}` : ''}
+
+REQUESTED DURATION: ${data.requested_duration || 6} weeks (you can suggest a different length if it makes more sense for their stage)
+
+Guidelines by stage:
+- EARLY: Heavy reach (60-70%), some trust (20-30%), minimal sales (0-10%). Focus on getting seen.
+- BUILDING: Balanced reach (30-40%) and trust (40-50%), light sales (10-20%). Build authority.
+- LAUNCHING: Trust-heavy start (weeks 1-3), then shift to sales (weeks 4+). Build desire, then convert.
+- SCALING: Structured cycles — reach → trust → trust → sales, repeat. Consistent pipeline.
+
+General rules:
+- Never start a phase with a sales week (build trust first)
+- Never have more than 2 sales weeks back-to-back
+- End phases with either a sales push or a trust cooldown depending on what comes next
+- Reach weeks work best at the start of a phase or after a sales push
+
+Return ONLY valid JSON in this exact format:
+{
+  "name": "Phase name (e.g. Authority Build, Launch Sprint, Visibility Push)",
+  "duration": <number of weeks>,
+  "weeks": ["reach", "trust", "sales", ...],
+  "explanation": "2-3 sentences explaining WHY this sequence works for their stage and business"
+}`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
@@ -1179,7 +1229,7 @@ Return ONLY the complete HTML. No markdown, no explanation, no code fences. Star
     const maxTokens = type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
       : (type === 'show-up-page' || type === 'show-up-page-html') ? 16000
       : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft' || type === 'comeback-compose') ? 4000
-      : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map') ? 3000
+      : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map' || type === 'phase-suggestion') ? 3000
       : 2500
 
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)

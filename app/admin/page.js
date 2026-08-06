@@ -179,6 +179,7 @@ function AdminPageInner() {
   const [competitors, setCompetitors] = useState([])
   const [competitorPosts, setCompetitorPosts] = useState([])
   const [selectedCompetitor, setSelectedCompetitor] = useState(null) // null = overview, id = specific
+  const [clientPhase, setClientPhase] = useState(null)
 
   // Daily Ops checklist
   const [dailyOpsChecklist, setDailyOpsChecklist] = useState([])
@@ -387,6 +388,7 @@ function AdminPageInner() {
     setClientLeadMagnets(null)
     setAllClientLockIns([])
     setAllClientWarMaps([])
+    setClientPhase(null)
 
     try {
 
@@ -491,6 +493,10 @@ function AdminPageInner() {
 
     setWarMapTasks(Array.isArray(warTasksRes.data) ? warTasksRes.data : [])
     setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : [])
+
+    // Fetch active content phase
+    const phaseRes = await safe(supabase.from('content_phases').select('*').eq('client_id', client.id).eq('is_active', true).maybeSingle())
+    setClientPhase(phaseRes.data && !Array.isArray(phaseRes.data) ? phaseRes.data : null)
 
     const projs = projectsRes.data || []
     setProjects(projs)
@@ -1932,6 +1938,44 @@ function AdminPageInner() {
                     })()}
                   </div>
                   {selectedClient.notes && <p className="text-zinc-500 text-xs mt-4 italic border-t border-zinc-800 pt-3">{selectedClient.notes}</p>}
+
+                  {/* Content Phase */}
+                  {clientPhase && (() => {
+                    const today = new Date()
+                    const start = new Date(clientPhase.start_date)
+                    const diffDays = Math.floor((today - start) / (1000 * 60 * 60 * 24))
+                    const weekNum = Math.floor(diffDays / 7) + 1
+                    const totalWeeks = clientPhase.weeks.length
+                    const currentWeek = weekNum >= 1 && weekNum <= totalWeeks ? clientPhase.weeks.find(w => w.week === weekNum) : null
+                    const typeConfig = {
+                      reach: { icon: '📡', label: 'Reach', color: 'text-blue-400', bg: 'bg-blue-500/10', border: 'border-blue-500/20', dot: 'bg-blue-500' },
+                      trust: { icon: '🤝', label: 'Trust', color: 'text-emerald-400', bg: 'bg-emerald-500/10', border: 'border-emerald-500/20', dot: 'bg-emerald-500' },
+                      sales: { icon: '💰', label: 'Sales', color: 'text-amber-400', bg: 'bg-amber-500/10', border: 'border-amber-500/20', dot: 'bg-amber-500' },
+                    }
+                    return (
+                      <div className={`mt-4 p-3 rounded-lg border ${currentWeek ? typeConfig[currentWeek.type]?.bg : 'bg-zinc-800/50'} ${currentWeek ? typeConfig[currentWeek.type]?.border : 'border-zinc-700'}`}>
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Content Phase</span>
+                          <span className="text-zinc-500 text-[10px]">{currentWeek ? `Week ${weekNum}/${totalWeeks}` : weekNum > totalWeeks ? 'Completed' : 'Not started'}</span>
+                        </div>
+                        <p className="text-white text-sm font-semibold">{clientPhase.name}</p>
+                        {currentWeek && (
+                          <div className="flex items-center gap-1.5 mt-1">
+                            <span className="text-sm">{typeConfig[currentWeek.type]?.icon}</span>
+                            <span className={`text-xs font-bold uppercase tracking-widest ${typeConfig[currentWeek.type]?.color}`}>
+                              {typeConfig[currentWeek.type]?.label} Week
+                            </span>
+                          </div>
+                        )}
+                        <div className="flex gap-0.5 mt-2">
+                          {clientPhase.weeks.map((w, i) => (
+                            <div key={i} className={`flex-1 h-1.5 rounded-full ${w.week === weekNum ? typeConfig[w.type]?.dot + ' ring-1 ring-white/30' : typeConfig[w.type]?.dot} opacity-${w.week === weekNum ? '100' : '40'}`} />
+                          ))}
+                        </div>
+                      </div>
+                    )
+                  })()}
+
                   <div className="flex justify-end mt-4 pt-3 border-t border-zinc-800">
                     <button onClick={() => setConfirmAction({ message: `This will permanently delete ${selectedClient.name} and ALL their data — KPIs, projects, playbooks, everything. This cannot be undone.`, onConfirm: () => deleteClient(selectedClient.id) })}
                       className="text-[10px] text-zinc-600 hover:text-red-400 uppercase tracking-widest font-semibold transition">
