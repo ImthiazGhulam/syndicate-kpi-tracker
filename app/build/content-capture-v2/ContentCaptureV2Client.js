@@ -1903,6 +1903,18 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     ))}
                   </div>
 
+                  {/* Content summary */}
+                  <div className="glass-card p-4 mb-4">
+                    <div className="flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-3 text-zinc-400">
+                        <span>{pieceCount} post{pieceCount !== 1 ? 's' : ''}/week</span>
+                        {hasList && emailCount > 0 && <span>· {emailCount} email{emailCount !== 1 ? 's' : ''}</span>}
+                        {doesYT && ytCount > 0 && <span>· {ytCount} video{ytCount !== 1 ? 's' : ''}</span>}
+                      </div>
+                      {hasList && <span className="text-zinc-600">✉️ Emails derive from your posts</span>}
+                    </div>
+                  </div>
+
                   {/* Each week as a clickable card */}
                   <div className="space-y-2">
                     {activePhase.weeks.map(w => {
@@ -1914,6 +1926,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                       const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6)
                       const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
                       const isPast = new Date() > weekEnd
+                      const wMix = mixFor(stage, pieceCount, phaseWeekToGoal[w.type] || 'default')
 
                       return (
                         <button
@@ -1935,13 +1948,19 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                             </div>
                             <span className="text-zinc-500 text-xs">{fmt(weekStart)} — {fmt(weekEnd)}</span>
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between mb-2">
                             <div className="flex items-center gap-1.5">
                               <span className="text-sm">{wType?.icon}</span>
                               <span className={`text-xs font-bold uppercase tracking-widest ${colors.text}`}>{wType?.label}</span>
-                              <span className="text-zinc-600 text-xs ml-1">— {wType?.desc}</span>
                             </div>
                             <span className={`text-xs ${colors.text}`}>Plan →</span>
+                          </div>
+                          <div className="flex items-center gap-3 text-[10px] text-zinc-500">
+                            <span>{wMix.reach} reach</span>
+                            <span>{wMix.value} trust</span>
+                            <span>{wMix.sales} sales</span>
+                            {hasList && emailCount > 0 && <span>· {emailCount} ✉️</span>}
+                            {doesYT && ytCount > 0 && <span>· {ytCount} 🎥</span>}
                           </div>
                         </button>
                       )
