@@ -1449,19 +1449,41 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   const suggestPhase = async () => {
     setPhaseSuggesting(true); setPhaseAiSuggestion(null)
     try {
+      // Build business context from loaded playbook data
+      const ctxParts = []
+      const pc = playbookContext || {}
+      if (pc.positioning?.whatYouDo) ctxParts.push(`What they do: ${pc.positioning.whatYouDo}`)
+      if (pc.positioning?.sector) ctxParts.push(`Sector: ${pc.positioning.sector}`)
+      if (pc.distinction?.engineName) ctxParts.push(`Branded system: ${pc.distinction.engineName}`)
+      if (pc.distinction?.promise) ctxParts.push(`Distinction promise: ${pc.distinction.promise}`)
+      if (pc.offer?.offerName) ctxParts.push(`Main offer: ${pc.offer.offerName}`)
+      if (pc.offer?.corePromise) ctxParts.push(`Offer promise: ${pc.offer.corePromise}`)
+      if (pc.offer?.price) ctxParts.push(`Price: £${pc.offer.price}`)
+      if (pc.icp?.specificDescription) ctxParts.push(`Ideal client: ${pc.icp.specificDescription}`)
+      if (pc.icp?.dreamOutcome) ctxParts.push(`Dream outcome: ${pc.icp.dreamOutcome}`)
+      if (pc.offer?.dipName) ctxParts.push(`Entry offer: ${pc.offer.dipName}`)
+
       const stageMap = { start: 'early', build: 'building', launch: 'launching', recovery: 'building', ever: 'scaling' }
       const res = await fetch('/api/generate-plan', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ type: 'phase-suggestion', data: { business_context: '', business_stage: stageMap[stage] || 'building', requested_duration: phaseDuration } }),
+        body: JSON.stringify({ type: 'phase-suggestion', data: { business_context: ctxParts.join('\n'), business_stage: stageMap[stage] || 'building', requested_duration: phaseDuration } }),
       })
       const result = await res.json()
       if (result.plan) {
         try {
-          const parsed = JSON.parse(result.plan)
+          // Strip markdown code fences if present
+          const cleaned = result.plan.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const parsed = JSON.parse(cleaned)
           setPhaseAiSuggestion(parsed)
           if (parsed.name) setPhaseName(parsed.name)
-          if (parsed.duration) setPhaseDuration(parsed.duration)
-          if (parsed.weeks) setPhaseWeeks(parsed.weeks.map((type, i) => ({ week: i + 1, type })))
+          // Set weeks FIRST, then duration — avoids initPhaseWeeks overwriting
+          if (parsed.weeks) {
+            const newWeeks = parsed.weeks.map((type, i) => ({ week: i + 1, type }))
+            setPhaseWeeks(newWeeks)
+            setPhaseDuration(newWeeks.length)
+          } else if (parsed.duration) {
+            setPhaseDuration(parsed.duration)
+          }
         } catch { setPhaseAiSuggestion({ explanation: result.plan }) }
       }
     } catch (err) { console.error('Phase suggestion error:', err) }

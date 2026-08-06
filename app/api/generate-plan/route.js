@@ -1191,7 +1191,7 @@ Return ONLY the complete HTML. No markdown, no explanation, no code fences. Star
         scaling: 'SCALING STAGE — Offer, brand, and system are in place. Need to optimise content for consistent lead generation and conversion.',
       }
 
-      systemPrompt = 'You are a content strategy advisor for coaches, consultants, and service providers. You design multi-week content phases that balance three content types: REACH (grow audience — shareable, bold, wide-net content), TRUST (build authority — value, storytelling, behind-the-scenes), and SALES (drive conversion — offers, social proof, urgency, CTAs). You are direct and strategic. No fluff.'
+      systemPrompt = 'You are a content strategy advisor for coaches, consultants, and service providers. You design multi-week content phases that balance three content types: REACH (grow audience — shareable, bold, wide-net content), TRUST (build authority — value, storytelling, behind-the-scenes), and SALES (drive conversion — offers, social proof, urgency, CTAs). You are direct and strategic. No fluff. You always return valid JSON with no markdown formatting or code fences.'
 
       userPrompt = `Design a content phase for this business. Suggest the ideal phase length, name, and week-by-week content type (reach, trust, or sales).
 
@@ -1202,10 +1202,15 @@ ${data.business_context ? `BUSINESS CONTEXT:\n${data.business_context}` : ''}
 REQUESTED DURATION: ${data.requested_duration || 6} weeks (you can suggest a different length if it makes more sense for their stage)
 
 Guidelines by stage:
-- EARLY: Heavy reach (60-70%), some trust (20-30%), minimal sales (0-10%). Focus on getting seen.
-- BUILDING: Balanced reach (30-40%) and trust (40-50%), light sales (10-20%). Build authority.
+- EARLY: Heavy reach (60-70%), some trust (20-30%), minimal sales (0-10%). Focus on getting seen. Do NOT include sales weeks — they have nothing to sell yet.
+- BUILDING: Balanced reach (30-40%) and trust (40-50%), light sales (10-20%). Build authority. If they don't have an offer yet, zero sales weeks.
 - LAUNCHING: Trust-heavy start (weeks 1-3), then shift to sales (weeks 4+). Build desire, then convert.
 - SCALING: Structured cycles — reach → trust → trust → sales, repeat. Consistent pipeline.
+
+CRITICAL — Stage misalignment warnings:
+- If the stage is EARLY or BUILDING and the client seems to want a launch phase, you MUST warn them in the explanation: "You're not ready for a sales-heavy phase yet. You need at least 6 weeks of reach and trust content before your first sales push. Here's what to do instead." Then design a reach/trust phase with zero or minimal sales.
+- If the stage is BUILDING and they have no offer defined (no offer name in the business context), warn them: "You don't have a defined offer yet — sales weeks won't work until you build one. Focus on reach and trust to grow your audience while you develop your offer."
+- A launch phase (with 2+ sales weeks) should only be suggested for LAUNCHING or SCALING stages.
 
 General rules:
 - Never start a phase with a sales week (build trust first)
@@ -1213,12 +1218,12 @@ General rules:
 - End phases with either a sales push or a trust cooldown depending on what comes next
 - Reach weeks work best at the start of a phase or after a sales push
 
-Return ONLY valid JSON in this exact format:
+Return ONLY valid JSON in this exact format (no markdown, no code fences, no explanation outside the JSON):
 {
   "name": "Phase name (e.g. Authority Build, Launch Sprint, Visibility Push)",
   "duration": <number of weeks>,
   "weeks": ["reach", "trust", "sales", ...],
-  "explanation": "2-3 sentences explaining WHY this sequence works for their stage and business"
+  "explanation": "2-3 sentences explaining WHY this sequence works for their stage and business. Include any warnings about stage misalignment here."
 }`
     }
 
