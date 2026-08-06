@@ -1108,6 +1108,19 @@ export default function ContentCaptureV2Client() {
   // Flow context: where to go after stage/channels
   const [afterChannels, setAfterChannels] = useState('home')
 
+  // Phase planner
+  const [phases, setPhases] = useState([])
+  const [activePhase, setActivePhase] = useState(null)
+  const [phaseView, setPhaseView] = useState('list')
+  const [phaseName, setPhaseName] = useState('')
+  const [phaseStartDate, setPhaseStartDate] = useState('')
+  const [phaseDuration, setPhaseDuration] = useState(6)
+  const [phaseWeeks, setPhaseWeeks] = useState([])
+  const [editingPhaseId, setEditingPhaseId] = useState(null)
+  const [phaseSaving, setPhaseSaving] = useState(false)
+  const [phaseSuggesting, setPhaseSuggesting] = useState(false)
+  const [phaseAiSuggestion, setPhaseAiSuggestion] = useState(null)
+
   // Playbook data (loaded once for AI context)
   const [playbookContext, setPlaybookContext] = useState(null)
   const [voiceSamples, setVoiceSamples] = useState([])
@@ -1256,6 +1269,14 @@ export default function ContentCaptureV2Client() {
       const { data: magnets } = await supabase.from('lead_magnets').select('id, name, promise, keyword, dm_flow_live, problem_line, method_steps').eq('client_id', client.id)
       if (magnets && magnets.length > 0) setMemberMagnets(magnets)
 
+      // Fetch content phases
+      const { data: allPhases } = await supabase.from('content_phases').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
+      if (allPhases) {
+        setPhases(allPhases)
+        const active = allPhases.find(p => p.is_active)
+        if (active) setActivePhase(active)
+      }
+
       // Check for magnet_id query param (deep link from lead magnets page)
       const searchParams = new URLSearchParams(typeof window !== 'undefined' ? window.location.search : '')
       const magnetId = searchParams.get('magnet_id')
@@ -1402,6 +1423,86 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   const mix = mixFor(stage, pieceCount, weekGoal)
 
   // ── Navigation ──────────────────────────────────────────────────────────
+
+  // ── Phase Planner Functions ──────────────────────────────────────────────
+
+  const initPhaseWeeks = (count) => setPhaseWeeks(Array.from({ length: count }, (_, i) => ({ week: i + 1, type: 'trust' })))
+
+  const resetPhaseForm = () => { setPhaseName(''); setPhaseStartDate(''); setPhaseDuration(6); setPhaseWeeks([]); setEditingPhaseId(null); setPhaseAiSuggestion(null) }
+
+  const startCreatePhase = () => {
+    resetPhaseForm()
+    const today = new Date()
+    const dow = today.getDay()
+    const daysUntilMon = dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow
+    const nextMon = new Date(today); nextMon.setDate(today.getDate() + daysUntilMon)
+    setPhaseStartDate(nextMon.toISOString().split('T')[0])
+    initPhaseWeeks(6)
+    setPhaseView('create')
+  }
+
+  const editPhase = (phase) => {
+    setPhaseName(phase.name); setPhaseStartDate(phase.start_date); setPhaseDuration(phase.weeks.length)
+    setPhaseWeeks(phase.weeks); setEditingPhaseId(phase.id); setPhaseView('edit')
+  }
+
+  const suggestPhase = async () => {
+    setPhaseSuggesting(true); setPhaseAiSuggestion(null)
+    try {
+      const stageMap = { start: 'early', build: 'building', launch: 'launching', recovery: 'building', ever: 'scaling' }
+      const res = await fetch('/api/generate-plan', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'phase-suggestion', data: { business_context: '', business_stage: stageMap[stage] || 'building', requested_duration: phaseDuration } }),
+      })
+      const result = await res.json()
+      if (result.plan) {
+        try {
+          const parsed = JSON.parse(result.plan)
+          setPhaseAiSuggestion(parsed)
+          if (parsed.name) setPhaseName(parsed.name)
+          if (parsed.duration) setPhaseDuration(parsed.duration)
+          if (parsed.weeks) setPhaseWeeks(parsed.weeks.map((type, i) => ({ week: i + 1, type })))
+        } catch { setPhaseAiSuggestion({ explanation: result.plan }) }
+      }
+    } catch (err) { console.error('Phase suggestion error:', err) }
+    setPhaseSuggesting(false)
+  }
+
+  const savePhase = async () => {
+    if (!phaseName || !phaseStartDate || phaseWeeks.length === 0 || !clientId) return
+    setPhaseSaving(true)
+    await supabase.from('content_phases').update({ is_active: false }).eq('client_id', clientId)
+    const payload = { client_id: clientId, name: phaseName, start_date: phaseStartDate, weeks: phaseWeeks, is_active: true, updated_at: new Date().toISOString() }
+    if (editingPhaseId) { await supabase.from('content_phases').update(payload).eq('id', editingPhaseId) }
+    else { await supabase.from('content_phases').insert(payload) }
+    const { data: refreshed } = await supabase.from('content_phases').select('*').eq('client_id', clientId).order('created_at', { ascending: false })
+    if (refreshed) { setPhases(refreshed); setActivePhase(refreshed.find(p => p.is_active) || null) }
+    setPhaseSaving(false); setPhaseView('list'); resetPhaseForm()
+  }
+
+  const deletePhase = async (id) => {
+    await supabase.from('content_phases').delete().eq('id', id)
+    setPhases(prev => prev.filter(p => p.id !== id))
+    if (activePhase?.id === id) setActivePhase(null)
+    // deleted
+  }
+
+  const activatePhase = async (id) => {
+    await supabase.from('content_phases').update({ is_active: false }).eq('client_id', clientId)
+    await supabase.from('content_phases').update({ is_active: true }).eq('id', id)
+    setPhases(prev => prev.map(p => ({ ...p, is_active: p.id === id })))
+    setActivePhase(phases.find(p => p.id === id))
+    // activated
+  }
+
+  const getPhaseCurrentWeek = (phase) => {
+    if (!phase) return null
+    const today = new Date(); const start = new Date(phase.start_date)
+    const weekNum = Math.floor((today - start) / (1000 * 60 * 60 * 24 * 7)) + 1
+    if (weekNum < 1 || weekNum > phase.weeks.length) return null
+    const w = phase.weeks.find(w => w.week === weekNum)
+    return w ? { ...w, weekNum, total: phase.weeks.length } : null
+  }
 
   function navigateTo(screenId, data) {
     if (screenId === 'quick-moment') {
@@ -1550,6 +1651,211 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           </div>
         </div>
       </div>
+    )
+  }
+
+  // ── Screen: Phase Planner ────────────────────────────────────────────────
+
+  if (screen === 'phase-planner') {
+    const currentWeek = activePhase ? getPhaseCurrentWeek(activePhase) : null
+
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+        <GoldLabel>Phase Planner</GoldLabel>
+        <Question>Plan your content strategy across <span className="text-gold font-medium">multiple weeks</span></Question>
+
+        {phaseView === 'list' ? (
+          <div className="space-y-6">
+            {/* Active phase */}
+            {activePhase && currentWeek && (
+              <div className="glass-card overflow-hidden">
+                <div className="px-4 py-2 border-b border-zinc-800 bg-zinc-900/50 flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-gold uppercase tracking-widest">Active Phase</span>
+                  <span className="text-zinc-500 text-xs">Week {currentWeek.weekNum} of {currentWeek.total}</span>
+                </div>
+                <div className="p-5">
+                  <h3 className="text-white font-bold text-lg mb-3">{activePhase.name}</h3>
+                  <div className="flex gap-1 mb-4">
+                    {activePhase.weeks.map((w, i) => (
+                      <div key={i} className={`flex-1 h-3 rounded-full ${PHASE_WEEK_COLORS[w.type]?.dot} ${w.week === currentWeek.weekNum ? 'ring-1 ring-white/30' : 'opacity-40'}`} />
+                    ))}
+                  </div>
+                  <div className={`p-4 rounded-lg border ${PHASE_WEEK_COLORS[currentWeek.type]?.bg} ${PHASE_WEEK_COLORS[currentWeek.type]?.border}`}>
+                    <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xl">{PHASE_WEEK_TYPES.find(w => w.id === currentWeek.type)?.icon}</span>
+                      <span className={`text-sm font-bold uppercase tracking-widest ${PHASE_WEEK_COLORS[currentWeek.type]?.text}`}>This Week: {PHASE_WEEK_TYPES.find(w => w.id === currentWeek.type)?.label}</span>
+                    </div>
+                    <p className="text-zinc-400 text-sm mt-1">{PHASE_WEEK_TYPES.find(w => w.id === currentWeek.type)?.desc}</p>
+                  </div>
+                  <div className="flex gap-3 mt-4">
+                    <button onClick={() => navigateTo('quick-moment')} className="flex-1 py-3 rounded font-bold text-sm uppercase tracking-widest bg-gold text-black hover:bg-gold/90 transition">Create Content</button>
+                    <button onClick={() => editPhase(activePhase)} className="px-4 py-3 rounded text-sm font-semibold bg-zinc-800 border border-zinc-700 text-zinc-300 hover:text-white hover:border-zinc-600 transition">Edit</button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {activePhase && !currentWeek && (
+              <div className="glass-card p-5">
+                <p className="text-white font-bold mb-1">{activePhase.name}</p>
+                <p className="text-zinc-500 text-sm">{activePhase.weeks.length} weeks — not currently active (hasn't started or already ended)</p>
+                <button onClick={() => editPhase(activePhase)} className="mt-3 text-gold text-xs font-bold uppercase tracking-widest hover:text-gold/80 transition">Edit</button>
+              </div>
+            )}
+
+            {!activePhase && (
+              <div className="glass-card p-8 text-center">
+                <p className="text-zinc-400 text-sm mb-4">No active phase. Create one to plan your content strategy.</p>
+              </div>
+            )}
+
+            <button onClick={startCreatePhase} className="w-full py-4 rounded font-bold text-sm uppercase tracking-widest bg-gold text-black hover:bg-gold/90 transition">+ New Phase</button>
+
+            {phases.filter(p => !p.is_active).length > 0 && (
+              <div>
+                <GoldLabel>Previous Phases</GoldLabel>
+                <div className="space-y-3">
+                  {phases.filter(p => !p.is_active).map(phase => (
+                    <div key={phase.id} className="glass-card p-4">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-white font-semibold text-sm">{phase.name}</h4>
+                        <span className="text-zinc-600 text-xs">{phase.weeks.length} weeks</span>
+                      </div>
+                      <div className="flex gap-1 mb-3">
+                        {phase.weeks.map((w, i) => <div key={i} className={`flex-1 h-2 rounded-full ${PHASE_WEEK_COLORS[w.type]?.dot} opacity-50`} />)}
+                      </div>
+                      <div className="flex gap-2">
+                        <button onClick={() => activatePhase(phase.id)} className="px-3 py-1.5 text-xs font-semibold bg-gold/10 border border-gold/30 rounded text-gold hover:bg-gold/20 transition">Reactivate</button>
+                        <button onClick={() => editPhase(phase)} className="px-3 py-1.5 text-xs font-semibold bg-zinc-800 border border-zinc-700 rounded text-zinc-400 hover:text-white transition">Edit</button>
+                        <button onClick={() => deletePhase(phase.id)} className="px-3 py-1.5 text-xs font-semibold bg-zinc-800 border border-zinc-700 rounded text-red-400 hover:text-red-300 transition">Delete</button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        ) : (
+          <div className="space-y-6">
+            <div>
+              <GoldLabel>Phase Name</GoldLabel>
+              <input type="text" value={phaseName} onChange={e => setPhaseName(e.target.value)} placeholder="e.g. Q3 Launch Push, Authority Build..."
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+            </div>
+
+            <div>
+              <GoldLabel>Start Date</GoldLabel>
+              <input type="date" value={phaseStartDate} onChange={e => setPhaseStartDate(e.target.value)}
+                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm" />
+            </div>
+
+            <div>
+              <GoldLabel>Duration</GoldLabel>
+              <div className="flex gap-3">
+                {PHASE_DURATION_OPTIONS.map(d => (
+                  <button key={d} onClick={() => { setPhaseDuration(d); initPhaseWeeks(d); setPhaseAiSuggestion(null) }}
+                    className={`flex-1 py-3 rounded-lg text-sm font-bold uppercase tracking-widest transition border ${phaseDuration === d ? 'bg-gold/20 text-gold border-gold/40' : 'bg-zinc-800 text-zinc-400 border-zinc-700 hover:border-zinc-600'}`}>{d} weeks</button>
+                ))}
+              </div>
+            </div>
+
+            <button onClick={suggestPhase} disabled={phaseSuggesting}
+              className="w-full py-4 rounded-lg font-bold text-sm uppercase tracking-widest border border-gold/30 text-gold hover:bg-gold/10 transition disabled:opacity-50">
+              {phaseSuggesting ? (
+                <span className="flex items-center justify-center gap-2">
+                  <span className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+                  Analysing your business stage...
+                </span>
+              ) : '⚡ Suggest Phase Based on My Stage'}
+            </button>
+
+            {phaseAiSuggestion?.explanation && (
+              <div className="glass-card p-4 border-gold/20">
+                <GoldLabel>AI Recommendation</GoldLabel>
+                <p className="text-zinc-300 text-sm leading-relaxed whitespace-pre-wrap">{phaseAiSuggestion.explanation}</p>
+              </div>
+            )}
+
+            {phaseWeeks.length > 0 && (
+              <>
+                <div className="grid grid-cols-3 gap-2">
+                  {PHASE_WEEK_TYPES.map(wt => {
+                    const colors = PHASE_WEEK_COLORS[wt.id]
+                    return (
+                      <div key={wt.id} className={`p-3 rounded-lg border ${colors.bg} ${colors.border}`}>
+                        <div className="flex items-center gap-1.5 mb-1">
+                          <span className="text-sm">{wt.icon}</span>
+                          <span className={`text-xs font-bold uppercase tracking-widest ${colors.text}`}>{wt.label}</span>
+                        </div>
+                        <p className="text-zinc-500 text-xs leading-snug">{wt.desc}</p>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-1">
+                  {phaseWeeks.map((w, i) => <div key={i} className={`flex-1 h-3 rounded-full ${PHASE_WEEK_COLORS[w.type]?.dot}`} />)}
+                </div>
+
+                <div className="grid grid-cols-3 gap-3">
+                  {PHASE_WEEK_TYPES.map(wt => {
+                    const count = phaseWeeks.filter(w => w.type === wt.id).length
+                    const pct = phaseWeeks.length > 0 ? Math.round((count / phaseWeeks.length) * 100) : 0
+                    const colors = PHASE_WEEK_COLORS[wt.id]
+                    return (
+                      <div key={wt.id} className={`p-3 rounded-lg border ${colors.bg} ${colors.border}`}>
+                        <span className={`text-xs font-bold ${colors.text}`}>{wt.icon} {count}</span>
+                        <span className="text-zinc-500 text-xs"> / {phaseWeeks.length} ({pct}%)</span>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                <GoldLabel>Plan Each Week</GoldLabel>
+                <div className="space-y-3">
+                  {phaseWeeks.map(w => {
+                    const colors = PHASE_WEEK_COLORS[w.type]
+                    const weekStart = new Date(phaseStartDate || new Date()); weekStart.setDate(weekStart.getDate() + (w.week - 1) * 7)
+                    const weekEnd = new Date(weekStart); weekEnd.setDate(weekEnd.getDate() + 6)
+                    const fmt = d => d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
+                    return (
+                      <div key={w.week} className={`p-4 rounded-lg border ${colors.bg} ${colors.border}`}>
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className={`w-2 h-2 rounded-full ${colors.dot}`} />
+                            <span className="text-white text-sm font-bold">Week {w.week}</span>
+                          </div>
+                          <span className="text-zinc-500 text-xs">{fmt(weekStart)} — {fmt(weekEnd)}</span>
+                        </div>
+                        <div className="flex gap-2">
+                          {PHASE_WEEK_TYPES.map(wt => {
+                            const isActive = w.type === wt.id
+                            const wtC = PHASE_WEEK_COLORS[wt.id]
+                            return (
+                              <button key={wt.id} onClick={() => setPhaseWeeks(prev => prev.map(pw => pw.week === w.week ? { ...pw, type: wt.id } : pw))}
+                                className={`flex-1 py-2 px-2 rounded text-xs font-bold uppercase tracking-wider transition ${isActive ? `${wtC.bg} ${wtC.border} ${wtC.text} border` : 'bg-zinc-800 border border-zinc-700 text-zinc-500 hover:text-zinc-300 hover:border-zinc-600'}`}>
+                                {wt.icon} {wt.label}
+                              </button>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </>
+            )}
+
+            <div className="flex gap-3 pt-4 border-t border-zinc-800">
+              <button onClick={() => { setPhaseView('list'); resetPhaseForm() }} className="flex-1 py-3 rounded-lg text-sm font-semibold text-zinc-400 hover:text-white transition">Cancel</button>
+              <button onClick={savePhase} disabled={!phaseName || !phaseStartDate || phaseWeeks.length === 0 || phaseSaving}
+                className={`flex-1 py-3 rounded-lg font-bold text-sm uppercase tracking-widest transition ${phaseName && phaseStartDate && phaseWeeks.length > 0 && !phaseSaving ? 'bg-gold text-black hover:bg-gold/90' : 'bg-zinc-700 text-zinc-500 cursor-not-allowed'}`}>
+                {phaseSaving ? 'Saving...' : editingPhaseId ? 'Update Phase' : 'Save Phase'}
+              </button>
+            </div>
+          </div>
+        )}
+      </SidebarLayout>
     )
   }
 
@@ -2891,15 +3197,31 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
 const NAV_ITEMS = [
   { id: 'home', label: 'Command Centre', icon: '🏠' },
+  { id: 'phase-planner', label: 'Phase Planner', icon: '📅' },
   { id: 'quick-moment', label: 'Write One Post', icon: '✍️' },
-  { id: 'week-goal', label: 'Plan My Week', icon: '📅' },
+  { id: 'week-goal', label: 'Plan My Week', icon: '📆' },
   { id: 'view-weeks', label: 'Past Weeks', icon: '📚' },
 ]
+
+const PHASE_WEEK_TYPES = [
+  { id: 'reach', label: 'Reach', icon: '📡', desc: 'Grow your audience — shareable, bold, wide-net content' },
+  { id: 'trust', label: 'Trust', icon: '🤝', desc: 'Build authority — value, storytelling, behind-the-scenes' },
+  { id: 'sales', label: 'Sales', icon: '💰', desc: 'Drive conversion — offers, social proof, urgency, CTAs' },
+]
+
+const PHASE_DURATION_OPTIONS = [4, 6, 8, 12]
+
+const PHASE_WEEK_COLORS = {
+  reach: { bg: 'bg-blue-500/20', border: 'border-blue-500/40', text: 'text-blue-400', dot: 'bg-blue-500' },
+  trust: { bg: 'bg-emerald-500/20', border: 'border-emerald-500/40', text: 'text-emerald-400', dot: 'bg-emerald-500' },
+  sales: { bg: 'bg-amber-500/20', border: 'border-amber-500/40', text: 'text-amber-400', dot: 'bg-amber-500' },
+}
 
 function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage, streakCount, children, router }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const activeSection = screen === 'home' ? 'home'
+    : screen === 'phase-planner' ? 'phase-planner'
     : screen.startsWith('quick') || screen.startsWith('magnet') ? 'quick-moment'
     : screen.startsWith('week') || screen === 'board' ? 'week-goal'
     : screen === 'view-weeks' || screen === 'view-week' ? 'view-weeks'
