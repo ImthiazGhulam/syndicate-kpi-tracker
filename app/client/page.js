@@ -297,6 +297,7 @@ export default function ClientPage() {
   const [voiceChatSending, setVoiceChatSending] = useState(false)
   const [voiceExtracting, setVoiceExtracting] = useState(false)
   const [voiceProfileData, setVoiceProfileData] = useState(null)
+  const [voiceRecalibrating, setVoiceRecalibrating] = useState(false)
   const voiceChatEndRef = useRef(null)
   const voiceChatInputRef = useRef(null)
 
@@ -1067,6 +1068,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           const cleaned = result.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
           const profile = JSON.parse(cleaned)
           setVoiceProfileData(profile)
+          setVoiceRecalibrating(false)
           // Save to cc_profiles
           if (clientData) {
             await supabase.from('cc_profiles').upsert({
@@ -4118,7 +4120,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                   <button onClick={() => setVoiceChatOpen(false)} className="text-zinc-600 hover:text-white text-sm transition">✕</button>
                 </div>
 
-                {voiceProfileData && !voiceChatMessages.length && (
+                {voiceProfileData && !voiceChatMessages.length && !voiceRecalibrating && (
                   <div className="p-4 border-b border-zinc-800 bg-emerald-500/5">
                     <p className="text-xs text-emerald-400 font-bold mb-1">Voice profile active</p>
                     <p className="text-xs text-zinc-400">{voiceProfileData.summary}</p>
@@ -4127,12 +4129,12 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                       {voiceProfileData.directness && <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfileData.directness}</span>}
                       {voiceProfileData.swearing && <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfileData.swearing}</span>}
                     </div>
-                    <button onClick={() => { setVoiceChatMessages([]); }} className="text-[10px] text-gold/60 hover:text-gold font-bold uppercase tracking-widest mt-2 transition">Recalibrate →</button>
+                    <button onClick={() => { setVoiceChatMessages([]); setVoiceRecalibrating(true) }} className="text-[10px] text-gold/60 hover:text-gold font-bold uppercase tracking-widest mt-2 transition">Recalibrate →</button>
                   </div>
                 )}
 
                 <div className="max-h-[350px] overflow-y-auto p-4 space-y-3">
-                  {voiceChatMessages.length === 0 && !voiceProfileData && (
+                  {voiceChatMessages.length === 0 && (!voiceProfileData || voiceRecalibrating) && (
                     <div className="text-center py-4">
                       <p className="text-zinc-400 text-sm mb-2">Tell me what you do and who you help — like you're explaining it to someone at a party, not on a website.</p>
                       <p className="text-zinc-600 text-[10px]">Just type like you'd text a mate. Don't think about it too much.</p>
