@@ -1573,6 +1573,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPieceId(null)
       setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null)
       setQuickEngine(null); setQuickFormat(null); setQuickAiQuestions(null)
+      enrichAccRef.current = {}
     }
     if (screenId === 'week-goal') {
       setWeekGoal(null)
@@ -2195,7 +2196,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           )}
 
           <div className="flex flex-col gap-3 mb-7">
-            <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null); setQuickPieceId(null); setQuickEngine(null); setQuickFormat(null); setQuickAiQuestions(null); setScreen('quick-moment') }}
+            <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null); setQuickPieceId(null); setQuickEngine(null); setQuickFormat(null); setQuickAiQuestions(null); enrichAccRef.current = {}; setScreen('quick-moment') }}
               className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
               <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">WRITE ONE POST NOW</p>
               <p className="text-sm text-zinc-500">Something happened — turn it into content in two minutes.</p>
@@ -3453,17 +3454,26 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     }
   }
 
+  const enrichAccRef = useRef({})
+
   async function advanceEnrich(skip) {
     const qs = quickAiQuestions || getEnrichQuestions(quickMoment.type, quickJob)
     const [key] = qs[enrichIdx]
     const val = skip ? '' : (document.getElementById('enrich-input')?.value?.trim() || '')
-    const updated = { ...quickMoment, enrichment: { ...(quickMoment.enrichment || {}), [key]: val } }
+
+    // Accumulate enrichment in ref to avoid stale state between questions
+    enrichAccRef.current = { ...enrichAccRef.current, [key]: val }
+    const updated = { ...quickMoment, enrichment: { ...enrichAccRef.current } }
     setQuickMoment(updated)
-    await updateLogEntry(quickMoment.id, updated.enrichment)
+
+    if (quickMoment.id && !String(quickMoment.id).startsWith('local-')) {
+      updateLogEntry(quickMoment.id, enrichAccRef.current)
+    }
 
     if (enrichIdx < qs.length - 1) {
       setEnrichIdx(enrichIdx + 1)
     } else {
+      enrichAccRef.current = {}
       doQuickWrite(null, updated)
     }
   }
