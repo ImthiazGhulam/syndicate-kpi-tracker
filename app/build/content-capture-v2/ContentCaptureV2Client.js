@@ -1371,6 +1371,7 @@ export default function ContentCaptureV2Client() {
   // Writing state
   const [writing, setWriting] = useState(false)
   const [writingLine, setWritingLine] = useState('')
+  const [writingLabel, setWritingLabel] = useState('')
 
   // Flow context: where to go after stage/channels
   const [afterChannels, setAfterChannels] = useState('home')
@@ -2736,7 +2737,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   if (screen === 'quick-writing') {
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-          <WritingScreen line={writingLine} label="WRITING YOUR PIECE" />
+          <WritingScreen line={writingLine} label={writingLabel || 'WRITING YOUR PIECE'} />
       </SidebarLayout>
     )
   }
@@ -3112,7 +3113,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   if (screen === 'week-writing') {
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
-          <WritingScreen line={writingLine} label={weekPieces.length > 0 ? `WRITING POST ${weekIdx + 1} OF ${weekPieces.length}` : 'CONVERTING TO EMAIL'} />
+          <WritingScreen line={writingLine} label={writingLabel || (weekPieces.length > 0 ? `WRITING POST ${weekIdx + 1} OF ${weekPieces.length}` : 'WRITING YOUR PIECE')} />
       </SidebarLayout>
     )
   }
@@ -3188,7 +3189,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         const fmtPrompt = FORMAT_PROMPTS[f.id]
                         if (!fmtPrompt) return
                         const newCard = { ...sl.cardObj, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label }
-                        setScreen('week-writing'); setWritingLine(sl.moment.line)
+                        setWritingLabel(`CHANGING FORMAT TO ${f.label.toUpperCase()}`); setScreen('week-writing'); setWritingLine(sl.moment.line)
                         try {
                           const piece = await generate(newCard, sl.moment, null, sl.arc, sl.cardKey)
                           setWeekPieces(prev => {
@@ -3211,7 +3212,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               }}
               onToEmail={sl.job !== 'email' && hasList ? async () => {
                 const cardKey = stage === 'launch' ? 'c17' : 'c13'
-                setScreen('week-writing'); setWritingLine(sl.moment.line)
+                setWritingLabel('CONVERTING TO EMAIL'); setScreen('week-writing'); setWritingLine(sl.moment.line)
                 try {
                   const piece = await generate(CARDS[cardKey], sl.moment, null, null, cardKey)
                   setWeekPieces(prev => {
@@ -3229,7 +3230,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                 setScreen('week-review')
               } : undefined}
               onToYT={sl.job !== 'longform' && doesYT ? async () => {
-                setScreen('week-writing'); setWritingLine(sl.moment.line)
+                setWritingLabel('CONVERTING TO YOUTUBE'); setScreen('week-writing'); setWritingLine(sl.moment.line)
                 try {
                   const piece = await generate(CARDS.c9, sl.moment, null, null, 'c9')
                   setWeekPieces(prev => {
@@ -3759,6 +3760,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     setQuickCard(cardKey)
     setQuickRoute(r)
     setQuickArc(arc)
+    setWritingLabel('')
     setScreen('quick-writing')
     const engineLabel = quickEngine ? ENGINES.find(e => e.id === quickEngine)?.label : ''
     setWritingLine(`${card.nm}${engineLabel ? ' · ' + engineLabel : ''}${arc ? ' — ' + arc.n + ' shape' : ''} — from your moment, your words, your numbers.`)
@@ -3800,6 +3802,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   async function doRepurpose(cardKey, label) {
     const card = CARDS[cardKey]
+    setWritingLabel(`CONVERTING TO ${label}`)
     setScreen('quick-writing')
     setWritingLine(quickMoment.line)
     try {
@@ -3860,6 +3863,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
 
   async function doWeekWrite() {
+    setWritingLabel('')
     setScreen('week-writing')
     const pieces = [...weekPieces]
     for (let i = 0; i < pieces.length; i++) {
