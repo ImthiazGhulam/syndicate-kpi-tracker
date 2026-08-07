@@ -290,6 +290,16 @@ export default function ClientPage() {
   const [leadForm, setLeadForm] = useState({ name: '', instagram: '', notes: '' })
   const [mobileStage, setMobileStage] = useState('dm_sent')
 
+  // Voice onboarding
+  const [voiceChatOpen, setVoiceChatOpen] = useState(false)
+  const [voiceChatMessages, setVoiceChatMessages] = useState([])
+  const [voiceChatInput, setVoiceChatInput] = useState('')
+  const [voiceChatSending, setVoiceChatSending] = useState(false)
+  const [voiceExtracting, setVoiceExtracting] = useState(false)
+  const [voiceProfileData, setVoiceProfileData] = useState(null)
+  const voiceChatEndRef = useRef(null)
+  const voiceChatInputRef = useRef(null)
+
   // DM Sales Coach (embedded in Hot List)
   const [coachOpen, setCoachOpen] = useState(false)
   const [coachMessages, setCoachMessages] = useState([])
@@ -952,6 +962,132 @@ export default function ClientPage() {
     }
   }
 
+
+  // ── Voice Onboarding ──────────────────────────────────────────────────────
+
+  useEffect(() => { voiceChatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [voiceChatMessages, voiceChatSending])
+
+  // Load voice profile on init
+  useEffect(() => {
+    if (!clientData) return
+    supabase.from('cc_profiles').select('voice_corrections').eq('client_id', clientData.id).maybeSingle().then(({ data }) => {
+      if (data?.voice_corrections && Object.keys(data.voice_corrections).length > 0) setVoiceProfileData(data.voice_corrections)
+    })
+  }, [clientData])
+
+  const sendVoiceChat = async () => {
+    const msg = voiceChatInput.trim()
+    if (!msg || voiceChatSending) return
+    const userMsg = { role: 'user', content: msg }
+    const all = [...voiceChatMessages, userMsg]
+    setVoiceChatMessages(all)
+    setVoiceChatInput('')
+    setVoiceChatSending(true)
+    try {
+      const systemPrompt = `You are having a genuine, casual conversation with someone. Your HIDDEN purpose is to learn exactly how they talk — their rhythm, slang, colloquialisms, energy, sentence style, swearing habits, and attitude. But you NEVER tell them that directly. You don't interview them. You don't ask "how do you talk?" — that makes people perform instead of being themselves.
+
+Instead, you have a real chat. You're interested in THEM — their business, their world, their opinions. The voice data comes out naturally when people talk about things they care about.
+
+YOUR APPROACH:
+- Ask about them — what they do, who they help, how they got into it. Be curious. React to what they say.
+- Get them to tell you a story — a recent client win, a disaster, something funny. Stories reveal natural register.
+- Get them fired up — ask what winds them up in their industry, what advice they think is rubbish. Emotion strips away performance.
+- Ask them to explain something they're passionate about as if they're talking to a mate, not a camera.
+- React genuinely. Laugh at what's funny. Push back gently. Agree enthusiastically with strong takes.
+
+WHAT YOU'RE SECRETLY LISTENING FOR (never ask about these directly):
+- Regional dialect and spelling (UK/US/AU, Northern/Southern)
+- Swearing habits (frequency, which words)
+- Sentence length and rhythm (choppy? flowing?)
+- Filler words and verbal tics (right, yeah, like, mate, bruv, basically)
+- Energy level (high-intensity or measured?)
+- Words they naturally reach for vs words they'd never use
+- Emoji habits
+- Formality (pub chat or boardroom?)
+
+RULES:
+- ONE question or comment at a time. Keep responses to 1-3 sentences.
+- Match their energy. If they swear, mirror it. If they're formal, stay crisp.
+- NEVER say "I'm trying to learn how you talk" or anything meta about the process.
+- Ask follow-ups that reference specific things they said.
+- If they give short answers, push deeper with a specific follow-up.
+- Encourage natural typing — "just type like you're texting a mate" if they seem stiff.`
+
+      const transcript = all.map(m => `${m.role === 'user' ? 'THEM' : 'YOU'}: ${m.content}`).join('\n\n')
+      const res = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: `${systemPrompt}\n\nCONVERSATION SO FAR:\n${transcript}\n\nRespond as YOU (the interviewer). One short, natural response.`, maxTokens: 300 }),
+      })
+      const result = await res.json()
+      setVoiceChatMessages([...all, { role: 'assistant', content: result.content || 'Connection failed. Try again.' }])
+    } catch {
+      setVoiceChatMessages([...all, { role: 'assistant', content: 'Connection failed. Try again.' }])
+    }
+    setVoiceChatSending(false)
+    setTimeout(() => voiceChatInputRef.current?.focus(), 100)
+  }
+
+  const extractVoiceProfile = async () => {
+    setVoiceExtracting(true)
+    try {
+      const transcript = voiceChatMessages.map(m => `${m.role === 'user' ? 'THEM' : 'INTERVIEWER'}: ${m.content}`).join('\n\n')
+      const res = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You just had a voice calibration conversation with someone. Extract their voice profile from this transcript.
+
+TRANSCRIPT:
+${transcript}
+
+Extract and return ONLY valid JSON (no markdown, no code fences):
+{
+  "summary": "2-3 sentence description of how they sound",
+  "directness": "how direct they are",
+  "formality": "their formality level",
+  "sentence_style": "how they build sentences",
+  "phrases_use": "words and phrases they actually use, comma-separated",
+  "phrases_avoid": "words they would never say, comma-separated",
+  "swearing": "their swearing habits",
+  "emoji_use": "how they use emojis",
+  "region": "their regional dialect/spelling conventions",
+  "energy": "their overall energy",
+  "samples": ["3 example sentences written in their EXACT voice"]
+}`, maxTokens: 1000 }),
+      })
+      const result = await res.json()
+      if (result.content) {
+        try {
+          const cleaned = result.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const profile = JSON.parse(cleaned)
+          setVoiceProfileData(profile)
+          // Save to cc_profiles
+          if (clientData) {
+            await supabase.from('cc_profiles').upsert({
+              client_id: clientData.id,
+              voice_corrections: profile,
+              voice_samples: profile.samples || [],
+            }, { onConflict: 'client_id' })
+          }
+          setVoiceChatOpen(false)
+          flash('Voice profile saved')
+        } catch {
+          if (clientData) {
+            await supabase.from('cc_profiles').upsert({
+              client_id: clientData.id,
+              voice_samples: [transcript],
+            }, { onConflict: 'client_id' })
+          }
+          setVoiceChatOpen(false)
+          flash('Voice saved')
+        }
+      }
+    } catch (err) {
+      console.error('Voice extraction error:', err)
+    }
+    setVoiceExtracting(false)
+  }
 
   // Evening Ops
   const fetchEveningPulse = async (dateStr) => {
@@ -3951,10 +4087,100 @@ export default function ClientPage() {
         {/* ── HOT LIST — Lead Pipeline ─────────────────────────────────────── */}
         {activeTab === 'hot-list' && (
           <div className="fade-in stagger-in">
-            <div className="mb-4">
-              <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
-              <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
+            <div className="mb-4 flex items-start justify-between">
+              <div>
+                <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
+                <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
+              </div>
+              <button onClick={() => setVoiceChatOpen(!voiceChatOpen)}
+                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition border ${
+                  voiceProfileData
+                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                    : 'bg-gold/10 border-gold/30 text-gold hover:bg-gold/20'
+                }`}>
+                {voiceProfileData ? '✓ Voice Set' : '🎤 Set Your Voice'}
+              </button>
             </div>
+
+            {/* Voice Onboarding Chat */}
+            {voiceChatOpen && (
+              <div className="glass-card overflow-hidden mb-4">
+                <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-gold uppercase tracking-widest">Let's Chat</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Quick conversation so your DMs sound like you, not like AI.</p>
+                  </div>
+                  <button onClick={() => setVoiceChatOpen(false)} className="text-zinc-600 hover:text-white text-sm transition">✕</button>
+                </div>
+
+                {voiceProfileData && !voiceChatMessages.length && (
+                  <div className="p-4 border-b border-zinc-800 bg-emerald-500/5">
+                    <p className="text-xs text-emerald-400 font-bold mb-1">Voice profile active</p>
+                    <p className="text-xs text-zinc-400">{voiceProfileData.summary}</p>
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {voiceProfileData.energy && <span className="text-[9px] px-2 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/20">{voiceProfileData.energy}</span>}
+                      {voiceProfileData.directness && <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfileData.directness}</span>}
+                      {voiceProfileData.swearing && <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfileData.swearing}</span>}
+                    </div>
+                    <button onClick={() => { setVoiceChatMessages([]); }} className="text-[10px] text-gold/60 hover:text-gold font-bold uppercase tracking-widest mt-2 transition">Recalibrate →</button>
+                  </div>
+                )}
+
+                <div className="max-h-[350px] overflow-y-auto p-4 space-y-3">
+                  {voiceChatMessages.length === 0 && !voiceProfileData && (
+                    <div className="text-center py-4">
+                      <p className="text-zinc-400 text-sm mb-2">Tell me what you do and who you help — like you're explaining it to someone at a party, not on a website.</p>
+                      <p className="text-zinc-600 text-[10px]">Just type like you'd text a mate. Don't think about it too much.</p>
+                    </div>
+                  )}
+                  {voiceChatMessages.map((msg, i) => (
+                    <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-[80%] px-3 py-2 rounded-lg text-sm ${msg.role === 'user' ? 'bg-gold/10 text-white' : 'glass-card text-zinc-300'}`}>
+                        <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+                      </div>
+                    </div>
+                  ))}
+                  {voiceChatSending && (
+                    <div className="flex justify-start">
+                      <div className="glass-card px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-3 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                          <span className="text-gold text-xs animate-pulse">Listening...</span>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={voiceChatEndRef} />
+                </div>
+
+                <div className="p-3 border-t border-zinc-800">
+                  {voiceChatMessages.length >= 6 && !voiceExtracting && (
+                    <button onClick={extractVoiceProfile}
+                      className="w-full py-2.5 rounded-lg font-bold text-xs uppercase tracking-widest bg-gold text-black hover:bg-gold/90 transition mb-2">
+                      Save My Voice
+                    </button>
+                  )}
+                  {voiceExtracting && (
+                    <div className="flex items-center justify-center gap-2 py-2.5 mb-2">
+                      <div className="w-3 h-3 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                      <span className="text-gold text-[10px] font-bold uppercase tracking-widest animate-pulse">Building your voice profile...</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <textarea rows={1} ref={voiceChatInputRef} value={voiceChatInput}
+                      onChange={e => setVoiceChatInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendVoiceChat() } }}
+                      placeholder="Just type like you'd text a mate..."
+                      className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+                    <button onClick={sendVoiceChat} disabled={voiceChatSending || !voiceChatInput.trim()}
+                      className="px-3 py-2 bg-gold text-black rounded-lg font-bold text-xs disabled:opacity-30 transition">Send</button>
+                  </div>
+                  {voiceChatMessages.length > 0 && voiceChatMessages.length < 6 && (
+                    <p className="text-[10px] text-zinc-600 mt-1.5 text-right">{Math.max(0, 6 - voiceChatMessages.length)} more exchanges to go</p>
+                  )}
+                </div>
+              </div>
+            )}
 
             {/* Stage pills — spread evenly to align with columns */}
             <div className="flex gap-1.5 mb-3 overflow-x-auto scrollbar-none pb-1 sm:grid sm:gap-2" style={{ gridTemplateColumns: `repeat(${LEAD_STAGES.length}, minmax(0, 1fr))` }}>

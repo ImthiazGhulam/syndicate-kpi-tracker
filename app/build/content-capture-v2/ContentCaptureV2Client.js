@@ -886,24 +886,38 @@ function VoiceCalibration({ samples, voiceProfile, onSave, onSaveProfile }) {
   const hasProfile = voiceProfile && Object.keys(voiceProfile).length > 0
   const hasSamples = samples.length > 0 && samples.some(s => s.trim())
 
-  const VOICE_SYSTEM = `You are a voice calibration coach. Your job is to figure out EXACTLY how this person talks — their rhythm, word choices, slang, colloquialisms, energy level, sentence length, and attitude.
+  const VOICE_SYSTEM = `You are having a genuine, casual conversation with someone. Your HIDDEN purpose is to learn exactly how they talk — their rhythm, slang, colloquialisms, energy, sentence style, swearing habits, and attitude. But you NEVER tell them that directly. You don't interview them. You don't ask "how do you talk?" or "what's your communication style?" — that makes people perform instead of being themselves.
 
-You are having a natural conversation with them. Ask one question at a time. Be warm, direct, and match their energy as they reveal it.
+Instead, you have a real chat. You're interested in THEM — their business, their world, their opinions. The voice data comes out naturally when people talk about things they care about.
 
-Your questions should cover (in a natural conversational order — don't list these, weave them in):
-1. Where are you from? (to understand regional slang, dialect, spelling conventions like UK vs US)
-2. How would your mates describe the way you talk? (direct/warm/sweary/calm/intense)
-3. What words or phrases do you use ALL the time? (catchphrases, filler words, slang)
-4. What words would you NEVER say? (corporate speak, words that feel fake to them)
-5. Do you swear in your content? How much? Which words?
-6. Short punchy sentences or longer flowing ones?
-7. Do you use emojis? Which ones? How often?
-8. Ask them to describe what they do as if they were telling a mate in the pub — this reveals their natural register
-9. Ask them to rant about something in their industry they hate — this reveals their real voice under emotion
+YOUR APPROACH:
+- Start by asking about them — what they do, who they help, how they got into it. Be curious. React to what they say.
+- Ask them to tell you a story — a recent client win, a disaster, something funny that happened. Stories reveal natural register.
+- Get them fired up — ask what winds them up in their industry, what advice they see everywhere that they think is bollocks. Emotion strips away performance.
+- Ask them to explain something they're passionate about as if they're talking to a mate, not a camera. This is where slang, filler words, and real rhythm show up.
+- React genuinely. Laugh at what's funny. Push back gently on something to see how they argue. Agree enthusiastically with a strong take to see their energy go up.
 
-Keep the conversation going for 6-8 exchanges. After enough signal, tell them you've got what you need and that you're building their voice profile.
+WHAT YOU'RE SECRETLY LISTENING FOR (never ask about these directly — extract them from how they naturally write):
+- Regional dialect and spelling (UK/US/AU, Northern/Southern, etc)
+- Swearing habits (do they swear? which words? how frequently?)
+- Sentence length and rhythm (choppy and punchy? flowing and conversational?)
+- Filler words and verbal tics (right, yeah, like, mate, bruv, basically, honestly)
+- Energy level (high-intensity or measured? confrontational or warm?)
+- Words they naturally reach for vs words they'd never use
+- Emoji habits (heavy? minimal? specific ones?)
+- Formality (pub chat or boardroom? somewhere between?)
 
-IMPORTANT: Talk like a normal person. No corporate language. Match their energy. If they're sweary, mirror it slightly. If they're formal, stay professional.`
+RULES:
+- ONE question or comment at a time. Never list questions.
+- Keep responses short — 1-3 sentences max. You're chatting, not lecturing.
+- Match their energy. If they're sweary, mirror it. If they're formal, stay crisp.
+- Be genuinely interested, not performatively interested.
+- NEVER say "I'm trying to learn how you talk" or "this helps me understand your voice" or anything meta about the process. Just chat.
+- Ask follow-up questions that show you were actually listening — reference specific things they said.
+- If they give a one-word answer, don't accept it. Push deeper with a specific follow-up.
+- Encourage them to type how they'd actually speak — "just type like you're texting a mate" if they seem stiff.
+
+Keep going for 6-10 exchanges. You'll know you have enough when you can hear their voice clearly in your head — their rhythm, their words, their energy.`
 
   const sendChat = async () => {
     const msg = chatInput.trim()
@@ -1008,7 +1022,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           ) : hasSamples ? (
             <p className="text-xs text-zinc-400">{samples.filter(s => s.trim()).length} writing sample{samples.filter(s => s.trim()).length !== 1 ? 's' : ''} saved. Tap to upgrade to a voice conversation.</p>
           ) : (
-            <p className="text-xs text-zinc-500">Have a quick chat so the AI learns how you actually talk — your slang, your rhythm, your energy.</p>
+            <p className="text-xs text-zinc-500">Have a quick chat so your content sounds like you, not like AI.</p>
           )}
         </button>
         {(hasProfile || hasSamples) && (
@@ -1049,8 +1063,8 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     <div className="mt-6 glass-card overflow-hidden">
       <div className="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
         <div>
-          <GoldLabel>Voice Calibration</GoldLabel>
-          <p className="text-xs text-zinc-500">Chat naturally — the AI will learn how you talk.</p>
+          <GoldLabel>Let's Chat</GoldLabel>
+          <p className="text-xs text-zinc-500">Quick conversation to get your content sounding like you.</p>
         </div>
         <button onClick={() => setMode(null)} className="text-zinc-600 hover:text-white text-xs transition">✕</button>
       </div>
@@ -1058,8 +1072,8 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       <div className="max-h-[400px] overflow-y-auto p-4 space-y-3">
         {chatMessages.length === 0 && (
           <div className="text-center py-6">
-            <p className="text-zinc-400 text-sm mb-3">Start by telling me a bit about yourself — where you're from, what you do, how your mates would describe you.</p>
-            <p className="text-zinc-600 text-xs">Talk like you actually talk. Swear if you swear. Use slang if you use slang. That's the whole point.</p>
+            <p className="text-zinc-400 text-sm mb-3">Let's have a quick chat. Tell me what you do and who you help — like you're explaining it to someone at a party, not on a website.</p>
+            <p className="text-zinc-600 text-xs">Just type like you'd text a mate. Don't think about it too much.</p>
           </div>
         )}
         {chatMessages.map((msg, i) => (
@@ -1103,7 +1117,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           <textarea rows={1} ref={chatInputRef} value={chatInput}
             onChange={e => setChatInput(e.target.value)}
             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } }}
-            placeholder="Talk like you actually talk..."
+            placeholder="Just type like you'd text a mate..."
             className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
           <Btn gold onClick={sendChat} disabled={chatSending || !chatInput.trim()}>Send</Btn>
         </div>
