@@ -289,6 +289,7 @@ export default function ClientPage() {
   const [editingLead, setEditingLead] = useState(null)
   const [leadForm, setLeadForm] = useState({ name: '', instagram: '', notes: '' })
   const [mobileStage, setMobileStage] = useState('dm_sent')
+  const [clientMagnets, setClientMagnets] = useState([])
 
   // Voice onboarding
   const [voiceChatOpen, setVoiceChatOpen] = useState(false)
@@ -583,6 +584,9 @@ export default function ClientPage() {
       setDailyPulse({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', completed: false, completed_at: null })
     }
     if (leadsRes.data) setLeads(leadsRes.data)
+    // Fetch client's lead magnets for the Hot List
+    const { data: magnetsData } = await supabase.from('lead_magnets').select('id, name, keyword, promise').eq('client_id', client.id)
+    if (magnetsData) setClientMagnets(magnetsData)
     if (identityRes.data) setIdentityAffirmations(identityRes.data.affirmations || '')
     if (eveningRes.data) setEveningPulse(eveningRes.data)
     else setEveningPulse({})
@@ -799,7 +803,7 @@ export default function ClientPage() {
   }
 
   const openLeadModal = (lead) => {
-    setLeadForm({ name: lead.name || '', instagram: lead.instagram || '', notes: lead.notes || '', lead_magnet_sent: lead.lead_magnet_sent || false })
+    setLeadForm({ name: lead.name || '', instagram: lead.instagram || '', notes: lead.notes || '', lead_magnet_sent: lead.lead_magnet_sent || false, magnets_sent: lead.magnets_sent || [] })
     setEditingLead(lead)
   }
 
@@ -809,7 +813,8 @@ export default function ClientPage() {
       name: leadForm.name.trim(),
       instagram: leadForm.instagram.trim() || null,
       notes: leadForm.notes.trim() || null,
-      lead_magnet_sent: leadForm.lead_magnet_sent || false,
+      lead_magnet_sent: (leadForm.magnets_sent && leadForm.magnets_sent.length > 0) || leadForm.lead_magnet_sent || false,
+      magnets_sent: leadForm.magnets_sent || [],
       updated_at: new Date().toISOString(),
     }).eq('id', editingLead.id).select().single()
     if (data) setLeads(prev => prev.map(l => l.id === editingLead.id ? data : l))
@@ -4640,14 +4645,63 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                   })()}
                 </div>
                 <div>
-                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Lead Magnet</label>
-                  <button onClick={() => setLeadForm(f => ({ ...f, lead_magnet_sent: !f.lead_magnet_sent }))}
-                    className={`flex items-center gap-2 px-4 py-2.5 rounded border transition text-sm font-semibold ${leadForm.lead_magnet_sent ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}>
-                    <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition ${leadForm.lead_magnet_sent ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`}>
-                      {leadForm.lead_magnet_sent && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                  <label className="block text-xs font-semibold text-zinc-400 uppercase tracking-widest mb-2">Lead Magnets</label>
+
+                  {/* Send a magnet */}
+                  {clientMagnets.length > 0 ? (
+                    <div className="space-y-2">
+                      <div className="flex gap-2">
+                        <select id="magnet-select"
+                          className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer"
+                          defaultValue="">
+                          <option value="" disabled>Pick a lead magnet to send...</option>
+                          {clientMagnets.map(m => (
+                            <option key={m.id} value={m.id}>{m.name}{m.keyword ? ` (${m.keyword})` : ''}</option>
+                          ))}
+                        </select>
+                        <button onClick={() => {
+                          const sel = document.getElementById('magnet-select')
+                          if (!sel || !sel.value) return
+                          const magnet = clientMagnets.find(m => m.id === sel.value)
+                          if (!magnet) return
+                          const entry = { magnet_id: magnet.id, name: magnet.name, keyword: magnet.keyword || '', sent_at: new Date().toISOString() }
+                          setLeadForm(f => ({ ...f, magnets_sent: [...(f.magnets_sent || []), entry] }))
+                          sel.value = ''
+                        }}
+                          className="px-3 py-2 bg-gold hover:bg-gold/90 text-black font-bold text-xs uppercase tracking-widest rounded transition">
+                          Send
+                        </button>
+                      </div>
+
+                      {/* Sent history */}
+                      {leadForm.magnets_sent && leadForm.magnets_sent.length > 0 && (
+                        <div className="space-y-1.5 mt-2">
+                          <p className="text-[10px] text-zinc-600 uppercase tracking-widest font-bold">Sent</p>
+                          {[...leadForm.magnets_sent].reverse().map((ms, idx) => (
+                            <div key={idx} className="flex items-center justify-between px-3 py-2 bg-emerald-500/5 border border-emerald-500/20 rounded text-xs">
+                              <div className="flex items-center gap-2">
+                                <span className="text-emerald-400">✓</span>
+                                <span className="text-white font-semibold">{ms.name}</span>
+                                {ms.keyword && <span className="text-zinc-500">({ms.keyword})</span>}
+                              </div>
+                              <span className="text-zinc-600">{new Date(ms.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                    {leadForm.lead_magnet_sent ? 'Lead Magnet Sent' : 'Not Sent'}
-                  </button>
+                  ) : (
+                    <div>
+                      <button onClick={() => setLeadForm(f => ({ ...f, lead_magnet_sent: !f.lead_magnet_sent }))}
+                        className={`flex items-center gap-2 px-4 py-2.5 rounded border transition text-sm font-semibold ${leadForm.lead_magnet_sent ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400' : 'bg-zinc-800 border-zinc-700 text-zinc-500'}`}>
+                        <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition ${leadForm.lead_magnet_sent ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`}>
+                          {leadForm.lead_magnet_sent && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
+                        </div>
+                        {leadForm.lead_magnet_sent ? 'Lead Magnet Sent' : 'Not Sent'}
+                      </button>
+                      <p className="text-[10px] text-zinc-600 mt-1">Build lead magnets in the Lead Magnets section to track which ones you send.</p>
+                    </div>
+                  )}
                 </div>
                 <div className="bg-zinc-800/50 rounded-lg px-4 py-3">
                   <div className="flex justify-between text-xs text-zinc-600">
