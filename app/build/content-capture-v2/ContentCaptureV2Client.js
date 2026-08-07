@@ -1087,6 +1087,7 @@ export default function ContentCaptureV2Client() {
   const [quickCard, setQuickCard] = useState(null)
   const [quickRoute, setQuickRoute] = useState(null)
   const [quickArc, setQuickArc] = useState(null)
+  const [quickPieceId, setQuickPieceId] = useState(null)
 
   // Weekly mode
   const [weekGoal, setWeekGoal] = useState(null)
@@ -1106,6 +1107,9 @@ export default function ContentCaptureV2Client() {
   // Sidebar
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [streakCount, setStreakCount] = useState(0)
+
+  // Saved single posts
+  const [savedPosts, setSavedPosts] = useState([])
 
   // Modals
   const [modal, setModal] = useState(null)
@@ -1278,6 +1282,10 @@ export default function ContentCaptureV2Client() {
       // Load lead magnets for this client
       const { data: magnets } = await supabase.from('lead_magnets').select('id, name, promise, keyword, dm_flow_live, problem_line, method_steps').eq('client_id', client.id)
       if (magnets && magnets.length > 0) setMemberMagnets(magnets)
+
+      // Fetch saved single posts
+      const { data: postsData } = await supabase.from('cc_pieces').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
+      if (postsData) setSavedPosts(postsData)
 
       // Fetch content phases
       const { data: allPhases } = await supabase.from('content_phases').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
@@ -1558,7 +1566,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   function navigateTo(screenId, data) {
     if (screenId === 'quick-moment') {
-      setQuickMoment(null); setQuickJob(null); setEnrichIdx(0)
+      setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPieceId(null)
     }
     if (screenId === 'week-goal') {
       setWeekGoal(null)
@@ -2935,6 +2943,64 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
   // ── View All Weeks ─────────────────────────────────────────────────────────
 
+  // ── Saved Posts ──────────────────────────────────────────────────────────
+
+  if (screen === 'saved-posts') {
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          <GoldLabel>Saved Posts</GoldLabel>
+          <Question>Your single posts, all in one place.</Question>
+          <DimLabel>Every post you write with "Write One Post" is saved here. Tick them off as you post.</DimLabel>
+
+          {savedPosts.length === 0 ? (
+            <div className="border border-dashed border-zinc-700 rounded-lg p-6 text-center text-zinc-500 text-sm">
+              No saved posts yet. Write your first one from the Command Centre.
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {savedPosts.map(p => (
+                <PieceCard
+                  key={p.id}
+                  title={`${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
+                  subtitle={new Date(p.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  piece={p.draft}
+                  posted={p.status === 'posted'}
+                  onTogglePosted={async () => {
+                    const newStatus = p.status === 'posted' ? 'draft' : 'posted'
+                    await supabase.from('cc_pieces').update({ status: newStatus }).eq('id', p.id)
+                    setSavedPosts(prev => prev.map(sp => sp.id === p.id ? { ...sp, status: newStatus } : sp))
+                  }}
+                  onSave={async (newText) => {
+                    await supabase.from('cc_pieces').update({ draft: newText }).eq('id', p.id)
+                    setSavedPosts(prev => prev.map(sp => sp.id === p.id ? { ...sp, draft: newText } : sp))
+                  }}
+                />
+              ))}
+            </div>
+          )}
+
+          {savedPosts.length > 0 && (() => {
+            const postedCount = savedPosts.filter(p => p.status === 'posted').length
+            const pct = savedPosts.length > 0 ? Math.round((postedCount / savedPosts.length) * 100) : 0
+            return (
+              <div className="glass-card p-4 mt-6">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Progress</span>
+                  <span className={`text-xs font-bold ${postedCount === savedPosts.length ? 'text-emerald-400' : 'text-zinc-500'}`}>{postedCount}/{savedPosts.length} posted</span>
+                </div>
+                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all ${postedCount === savedPosts.length ? 'bg-emerald-500' : 'bg-gold'}`} style={{ width: `${pct}%` }} />
+                </div>
+              </div>
+            )
+          })()}
+
+          <div className="mt-6"><GhostBtn onClick={() => setScreen('home')}>← Back</GhostBtn></div>
+        <Modal open={!!modal} title={modal?.title} body={modal?.body} options={modal?.options || []} onClose={() => setModal(null)} />
+      </SidebarLayout>
+    )
+  }
+
   if (screen === 'view-weeks') {
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
@@ -3352,6 +3418,29 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       if (piece && m.id && !String(m.id).startsWith('local-')) {
         supabase.from('cc_capture_log').update({ used_at: new Date().toISOString() }).eq('id', m.id)
       }
+      // Save to cc_pieces
+      if (piece && !piece.startsWith('{{ERROR:') && clientId) {
+        if (quickPieceId) {
+          // Update existing
+          const { data: updated } = await supabase.from('cc_pieces').update({ draft: piece, format: card.nm, card_key: r.card }).eq('id', quickPieceId).select().single()
+          if (updated) setSavedPosts(prev => prev.map(p => p.id === updated.id ? updated : p))
+        } else {
+          // Insert new
+          const { data: savedPost } = await supabase.from('cc_pieces').insert({
+            client_id: clientId,
+            moment_id: m.id && !String(m.id).startsWith('local-') ? m.id : null,
+            job: quickJob || 'reach',
+            format: card.nm,
+            card_key: r.card,
+            draft: piece,
+            status: 'draft',
+          }).select().single()
+          if (savedPost) {
+            setSavedPosts(prev => [savedPost, ...prev])
+            setQuickPieceId(savedPost.id)
+          }
+        }
+      }
     } catch (err) {
       setQuickPiece(`{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`)
     }
@@ -3547,6 +3636,7 @@ const NAV_ITEMS = [
   { id: 'quick-moment', label: 'Write One Post', icon: '✍️' },
   { id: 'week-goal', label: 'Plan My Week', icon: '📆' },
   { id: 'view-weeks', label: 'Past Weeks', icon: '📚' },
+  { id: 'saved-posts', label: 'Saved Posts', icon: '💾' },
 ]
 
 const PHASE_WEEK_TYPES = [
@@ -3571,6 +3661,7 @@ function SidebarLayout({ screen, onNavigate, savedWeeks, savedPosts, log, stage,
     : screen.startsWith('quick') || screen.startsWith('magnet') ? 'quick-moment'
     : screen.startsWith('week') || screen === 'board' ? 'week-goal'
     : screen === 'view-weeks' || screen === 'view-week' ? 'view-weeks'
+    : screen === 'saved-posts' ? 'saved-posts'
     : 'home'
 
   return (
