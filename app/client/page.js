@@ -755,10 +755,15 @@ export default function ClientPage() {
       }})
       return
     }
-    const { data } = await supabase.from('leads').insert([{
+    const { data, error } = await supabase.from('leads').insert([{
       client_id: clientData.id, name: newLeadName.trim(), status,
       instagram: newLeadIG.trim() || null,
     }]).select().single()
+    if (error) {
+      console.error('Add lead error:', error)
+      alert(`Failed to add lead: ${error.message}`)
+      return
+    }
     if (data) setLeads(prev => [...prev, data])
     setNewLeadName('')
     setNewLeadIG('')
