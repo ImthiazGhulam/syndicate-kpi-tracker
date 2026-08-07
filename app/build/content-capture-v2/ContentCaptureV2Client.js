@@ -2393,7 +2393,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
           <Question>{q}</Question>
           <DimLabel>{hint}</DimLabel>
-          <textarea rows={2} autoFocus defaultValue={enrichVal}
+          <textarea key={`enrich-${enrichIdx}-${quickMoment.id}`} rows={2} autoFocus defaultValue={enrichVal}
             id="enrich-input"
             className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
           <div className="flex justify-between mt-6">
