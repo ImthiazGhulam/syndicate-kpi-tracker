@@ -871,41 +871,251 @@ function EditablePieceCard({ title, piece, onSave, onDelete }) {
   )
 }
 
-function VoiceCalibration({ samples, onSave }) {
-  const [open, setOpen] = useState(false)
+function VoiceCalibration({ samples, voiceProfile, onSave, onSaveProfile }) {
+  const [mode, setMode] = useState(null) // null | 'chat' | 'paste'
   const [drafts, setDrafts] = useState(samples.length > 0 ? [...samples] : ['', '', ''])
+  const [chatMessages, setChatMessages] = useState([])
+  const [chatInput, setChatInput] = useState('')
+  const [chatSending, setChatSending] = useState(false)
+  const [extracting, setExtracting] = useState(false)
+  const chatEndRef = useRef(null)
+  const chatInputRef = useRef(null)
 
-  if (!open) {
+  useEffect(() => { chatEndRef.current?.scrollIntoView({ behavior: 'smooth' }) }, [chatMessages, chatSending])
+
+  const hasProfile = voiceProfile && Object.keys(voiceProfile).length > 0
+  const hasSamples = samples.length > 0 && samples.some(s => s.trim())
+
+  const VOICE_SYSTEM = `You are a voice calibration coach. Your job is to figure out EXACTLY how this person talks — their rhythm, word choices, slang, colloquialisms, energy level, sentence length, and attitude.
+
+You are having a natural conversation with them. Ask one question at a time. Be warm, direct, and match their energy as they reveal it.
+
+Your questions should cover (in a natural conversational order — don't list these, weave them in):
+1. Where are you from? (to understand regional slang, dialect, spelling conventions like UK vs US)
+2. How would your mates describe the way you talk? (direct/warm/sweary/calm/intense)
+3. What words or phrases do you use ALL the time? (catchphrases, filler words, slang)
+4. What words would you NEVER say? (corporate speak, words that feel fake to them)
+5. Do you swear in your content? How much? Which words?
+6. Short punchy sentences or longer flowing ones?
+7. Do you use emojis? Which ones? How often?
+8. Ask them to describe what they do as if they were telling a mate in the pub — this reveals their natural register
+9. Ask them to rant about something in their industry they hate — this reveals their real voice under emotion
+
+Keep the conversation going for 6-8 exchanges. After enough signal, tell them you've got what you need and that you're building their voice profile.
+
+IMPORTANT: Talk like a normal person. No corporate language. Match their energy. If they're sweary, mirror it slightly. If they're formal, stay professional.`
+
+  const sendChat = async () => {
+    const msg = chatInput.trim()
+    if (!msg || chatSending) return
+    const userMsg = { role: 'user', content: msg }
+    const all = chatMessages.length === 0
+      ? [{ role: 'user', content: msg }]
+      : [...chatMessages, userMsg]
+    setChatMessages(all)
+    setChatInput('')
+    setChatSending(true)
+    try {
+      const res = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: all.map(m => `${m.role === 'user' ? 'THEM' : 'YOU'}: ${m.content}`).join('\n\n'),
+          voiceContext: null,
+          maxTokens: 500,
+        }),
+      })
+      const result = await res.json()
+      const reply = result.content || result.error || 'Failed to respond.'
+      setChatMessages([...all, { role: 'assistant', content: reply }])
+    } catch {
+      setChatMessages([...all, { role: 'assistant', content: 'Connection failed. Try again.' }])
+    }
+    setChatSending(false)
+    setTimeout(() => chatInputRef.current?.focus(), 100)
+  }
+
+  const extractVoiceProfile = async () => {
+    setExtracting(true)
+    try {
+      const transcript = chatMessages.map(m => `${m.role === 'user' ? 'THEM' : 'INTERVIEWER'}: ${m.content}`).join('\n\n')
+      const res = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You just had a voice calibration conversation with someone. Extract their voice profile from this transcript.
+
+TRANSCRIPT:
+${transcript}
+
+Extract and return ONLY valid JSON (no markdown, no code fences):
+{
+  "summary": "2-3 sentence description of how they sound — their vibe, energy, register",
+  "directness": "how direct they are (e.g. 'Very direct, no fluff', 'Warm but straight-talking')",
+  "formality": "their formality level (e.g. 'Casual, pub-talk register', 'Professional but human')",
+  "sentence_style": "how they build sentences (e.g. 'Short punchy. Full stops everywhere.', 'Flowing, conversational, joins thoughts with and/but')",
+  "phrases_use": "words and phrases they actually use, comma-separated",
+  "phrases_avoid": "words and phrases they would never say, comma-separated",
+  "swearing": "their swearing habits (e.g. 'None', 'Occasional shit/damn', 'Heavy — fuck is punctuation')",
+  "emoji_use": "how they use emojis (e.g. 'Never', 'Fire and 100 only', 'Heavy — every sentence')",
+  "region": "their regional dialect/spelling conventions if revealed (e.g. 'UK English, Northern slang', 'US English, Southern')",
+  "energy": "their overall energy (e.g. 'High-intensity, confrontational', 'Calm, measured, understated')",
+  "samples": ["3 example sentences written in their EXACT voice — short, punchy, sounds exactly like them based on what you learned"]
+}`,
+          maxTokens: 1000,
+        }),
+      })
+      const result = await res.json()
+      if (result.content) {
+        try {
+          const cleaned = result.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const profile = JSON.parse(cleaned)
+          // Save profile and samples
+          if (profile.samples && Array.isArray(profile.samples)) {
+            onSave(profile.samples)
+          }
+          onSaveProfile(profile)
+          setMode(null)
+        } catch {
+          // Parsing failed — save raw transcript as voice context
+          onSave([transcript])
+          setMode(null)
+        }
+      }
+    } catch (err) {
+      console.error('Voice extraction error:', err)
+    }
+    setExtracting(false)
+  }
+
+  // ── Collapsed state ──
+  if (!mode) {
     return (
       <div className="mt-6">
-        <button onClick={() => { setDrafts(samples.length > 0 ? [...samples] : ['', '', '']); setOpen(true) }}
-          className={`w-full text-left glass-card p-4 transition hover:border-gold/30 ${samples.length > 0 ? '' : 'border-dashed border-gold/20'}`}>
+        <button onClick={() => setMode('chat')}
+          className={`w-full text-left glass-card p-4 transition hover:border-gold/30 ${hasProfile || hasSamples ? '' : 'border-dashed border-gold/20'}`}>
           <GoldLabel>Your voice</GoldLabel>
-          {samples.length > 0 && samples.some(s => s.trim()) ? (
-            <p className="text-xs text-zinc-400">{samples.filter(s => s.trim()).length} writing sample{samples.filter(s => s.trim()).length !== 1 ? 's' : ''} saved — the AI writes in your voice. Tap to edit.</p>
+          {hasProfile ? (
+            <div>
+              <p className="text-xs text-zinc-300 mb-1">{voiceProfile.summary || 'Voice profile saved'}</p>
+              <div className="flex flex-wrap gap-2 mt-2">
+                {voiceProfile.energy && <span className="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold border border-gold/20">{voiceProfile.energy}</span>}
+                {voiceProfile.directness && <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfile.directness}</span>}
+                {voiceProfile.formality && <span className="text-[10px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfile.formality}</span>}
+              </div>
+              <p className="text-[10px] text-zinc-600 mt-2">Tap to recalibrate</p>
+            </div>
+          ) : hasSamples ? (
+            <p className="text-xs text-zinc-400">{samples.filter(s => s.trim()).length} writing sample{samples.filter(s => s.trim()).length !== 1 ? 's' : ''} saved. Tap to upgrade to a voice conversation.</p>
           ) : (
-            <p className="text-xs text-zinc-500">Paste 2-3 pieces of content you've actually written. The AI will match your voice instead of sounding generic.</p>
+            <p className="text-xs text-zinc-500">Have a quick chat so the AI learns how you actually talk — your slang, your rhythm, your energy.</p>
           )}
         </button>
+        {(hasProfile || hasSamples) && (
+          <button onClick={() => { setDrafts(samples.length > 0 ? [...samples] : ['', '', '']); setMode('paste') }}
+            className="text-[10px] text-zinc-600 hover:text-zinc-400 uppercase tracking-widest font-bold mt-2 ml-1 transition">
+            Or paste samples manually
+          </button>
+        )}
       </div>
     )
   }
 
-  return (
-    <div className="mt-6 glass-card p-5">
-      <GoldLabel>Train your voice</GoldLabel>
-      <p className="text-xs text-zinc-500 mb-4">Paste 2-3 captions, emails, or posts you've written yourself. These teach the AI how you actually sound — not how coaches "should" sound.</p>
-      {drafts.map((d, i) => (
-        <div key={i} className="mb-3">
-          <label className="text-xs text-zinc-500 mb-1 block">Sample {i + 1}</label>
-          <textarea rows={4} value={d} onChange={e => { const u = [...drafts]; u[i] = e.target.value; setDrafts(u) }}
-            placeholder={i === 0 ? "Paste a caption or post you wrote..." : "Another one — the more variety, the better the match..."}
-            className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+  // ── Paste mode (legacy) ──
+  if (mode === 'paste') {
+    return (
+      <div className="mt-6 glass-card p-5">
+        <GoldLabel>Paste your writing</GoldLabel>
+        <p className="text-xs text-zinc-500 mb-4">Paste 2-3 captions, emails, or posts you've written yourself.</p>
+        {drafts.map((d, i) => (
+          <div key={i} className="mb-3">
+            <label className="text-xs text-zinc-500 mb-1 block">Sample {i + 1}</label>
+            <textarea rows={4} value={d} onChange={e => { const u = [...drafts]; u[i] = e.target.value; setDrafts(u) }}
+              placeholder={i === 0 ? "Paste a caption or post you wrote..." : "Another one — the more variety, the better the match..."}
+              className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+          </div>
+        ))}
+        <div className="flex gap-3 mt-2">
+          <Btn gold onClick={() => { onSave(drafts.filter(d => d.trim())); setMode(null) }}>Save</Btn>
+          <Btn onClick={() => setMode(null)}>Cancel</Btn>
+          <button onClick={() => { setChatMessages([]); setMode('chat') }} className="text-[10px] text-gold/60 hover:text-gold uppercase tracking-widest font-bold transition ml-auto">Switch to conversation →</button>
         </div>
-      ))}
-      <div className="flex gap-3 mt-2">
-        <Btn gold onClick={() => { onSave(drafts.filter(d => d.trim())); setOpen(false) }}>Save voice samples</Btn>
-        <Btn onClick={() => setOpen(false)}>Cancel</Btn>
+      </div>
+    )
+  }
+
+  // ── Chat mode (voice onboarding conversation) ──
+  return (
+    <div className="mt-6 glass-card overflow-hidden">
+      <div className="px-5 py-3 border-b border-zinc-800 flex items-center justify-between">
+        <div>
+          <GoldLabel>Voice Calibration</GoldLabel>
+          <p className="text-xs text-zinc-500">Chat naturally — the AI will learn how you talk.</p>
+        </div>
+        <button onClick={() => setMode(null)} className="text-zinc-600 hover:text-white text-xs transition">✕</button>
+      </div>
+
+      <div className="max-h-[400px] overflow-y-auto p-4 space-y-3">
+        {chatMessages.length === 0 && (
+          <div className="text-center py-6">
+            <p className="text-zinc-400 text-sm mb-3">Start by telling me a bit about yourself — where you're from, what you do, how your mates would describe you.</p>
+            <p className="text-zinc-600 text-xs">Talk like you actually talk. Swear if you swear. Use slang if you use slang. That's the whole point.</p>
+          </div>
+        )}
+        {chatMessages.map((msg, i) => (
+          <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
+            <div className={`max-w-[80%] px-4 py-2.5 rounded-lg text-sm ${
+              msg.role === 'user'
+                ? 'bg-gold/10 text-white'
+                : 'glass-card text-zinc-300'
+            }`}>
+              <p className="whitespace-pre-wrap leading-relaxed">{msg.content}</p>
+            </div>
+          </div>
+        ))}
+        {chatSending && (
+          <div className="flex justify-start">
+            <div className="glass-card px-4 py-2.5">
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+                <span className="text-gold text-xs animate-pulse">Listening...</span>
+              </div>
+            </div>
+          </div>
+        )}
+        <div ref={chatEndRef} />
+      </div>
+
+      <div className="p-4 border-t border-zinc-800">
+        {chatMessages.length >= 6 && !extracting && (
+          <button onClick={extractVoiceProfile}
+            className="w-full py-3 rounded-lg font-bold text-sm uppercase tracking-widest bg-gold text-black hover:bg-gold/90 transition mb-3">
+            Build My Voice Profile
+          </button>
+        )}
+        {extracting && (
+          <div className="flex items-center justify-center gap-2 py-3 mb-3">
+            <div className="w-4 h-4 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+            <span className="text-gold text-xs font-bold uppercase tracking-widest animate-pulse">Building your voice profile...</span>
+          </div>
+        )}
+        <div className="flex gap-2">
+          <textarea rows={1} ref={chatInputRef} value={chatInput}
+            onChange={e => setChatInput(e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendChat() } }}
+            placeholder="Talk like you actually talk..."
+            className="flex-1 px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
+          <Btn gold onClick={sendChat} disabled={chatSending || !chatInput.trim()}>Send</Btn>
+        </div>
+        <div className="flex justify-between mt-2">
+          <button onClick={() => { setDrafts(samples.length > 0 ? [...samples] : ['', '', '']); setMode('paste') }}
+            className="text-[10px] text-zinc-600 hover:text-zinc-400 uppercase tracking-widest font-bold transition">
+            Paste samples instead
+          </button>
+          {chatMessages.length > 0 && chatMessages.length < 6 && (
+            <span className="text-[10px] text-zinc-600">{Math.max(0, 6 - chatMessages.length)} more exchanges to go</span>
+          )}
+        </div>
       </div>
     </div>
   )
@@ -1167,6 +1377,7 @@ export default function ContentCaptureV2Client() {
   // Playbook data (loaded once for AI context)
   const [playbookContext, setPlaybookContext] = useState(null)
   const [voiceSamples, setVoiceSamples] = useState([])
+  const [voiceProfileData, setVoiceProfileData] = useState(null)
 
   // Lead magnet state
   const [magnetData, setMagnetData] = useState(null)
@@ -1210,6 +1421,7 @@ export default function ContentCaptureV2Client() {
 
       // Load voice samples from profile
       if (profile && profile.voice_samples) setVoiceSamples(profile.voice_samples)
+      if (profile && profile.voice_corrections && Object.keys(profile.voice_corrections).length > 0) setVoiceProfileData(profile.voice_corrections)
 
       // Load playbook data for AI context
       const [ppRes, deRes, soRes] = await Promise.all([
@@ -1444,6 +1656,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     const voiceCtx = {}
     if (playbookContext?.voice) voiceCtx.voice = playbookContext.voice
     if (voiceSamples && voiceSamples.length > 0) voiceCtx.samples = voiceSamples
+    if (voiceProfileData) voiceCtx.profile = voiceProfileData
     const body = { prompt, voiceContext: Object.keys(voiceCtx).length > 0 ? voiceCtx : undefined }
     if (opts.maxTokens) body.maxTokens = opts.maxTokens
     if (redoNote && opts.previousDraft) {
@@ -2277,9 +2490,12 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             )}
           </div>
 
-          <VoiceCalibration samples={voiceSamples} onSave={async (samples) => {
+          <VoiceCalibration samples={voiceSamples} voiceProfile={voiceProfileData} onSave={async (samples) => {
             setVoiceSamples(samples)
             await saveProfile({ voice_samples: samples })
+          }} onSaveProfile={async (profile) => {
+            setVoiceProfileData(profile)
+            await saveProfile({ voice_corrections: profile })
           }} />
 
           {savedWeeks.length > 0 && (

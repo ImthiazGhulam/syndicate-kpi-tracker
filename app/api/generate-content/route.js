@@ -59,7 +59,21 @@ Instead: short sentences that punch. Occasional long one that builds. "but" and 
 
     // Inject voice profile and samples into the system prompt so they shape everything
     if (voiceContext) {
-      if (voiceContext.voice) {
+      if (voiceContext.profile) {
+        const p = voiceContext.profile
+        const vl = []
+        if (p.summary) vl.push(`Voice summary: ${p.summary}`)
+        if (p.directness) vl.push(`Directness: ${p.directness}`)
+        if (p.formality) vl.push(`Formality: ${p.formality}`)
+        if (p.sentence_style) vl.push(`Sentence style: ${p.sentence_style}`)
+        if (p.phrases_use) vl.push(`Words/phrases they USE: ${p.phrases_use}`)
+        if (p.phrases_avoid) vl.push(`Words/phrases they would NEVER say: ${p.phrases_avoid}`)
+        if (p.swearing) vl.push(`Swearing: ${p.swearing}`)
+        if (p.emoji_use) vl.push(`Emoji use: ${p.emoji_use}`)
+        if (p.region) vl.push(`Region/dialect: ${p.region}`)
+        if (p.energy) vl.push(`Energy: ${p.energy}`)
+        if (vl.length > 0) systemPrompt += `\n\nTHIS PERSON'S VOICE (from a calibration conversation — this overrides all other voice cues):\n${vl.join('\n')}`
+      } else if (voiceContext.voice) {
         const vl = []
         if (voiceContext.voice.directness) vl.push(`How direct: ${voiceContext.voice.directness}`)
         if (voiceContext.voice.formality) vl.push(`Formality: ${voiceContext.voice.formality}`)

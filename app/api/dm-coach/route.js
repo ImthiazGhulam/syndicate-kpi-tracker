@@ -85,19 +85,21 @@ async function executeTool(toolName, toolInput, clientId) {
   const supabase = getSupabase()
 
   if (toolName === 'get_voice_profile') {
-    const { data } = await supabase
-      .from('premium_position')
-      .select('brand_star, hero, remarkable')
-      .eq('client_id', clientId)
-      .maybeSingle()
+    const [ppRes, ccRes] = await Promise.all([
+      supabase.from('premium_position').select('brand_star, hero, remarkable').eq('client_id', clientId).maybeSingle(),
+      supabase.from('cc_profiles').select('voice_corrections, voice_samples').eq('client_id', clientId).maybeSingle(),
+    ])
 
-    if (!data) return { voice_profile: null, note: 'No Premium Position data found. Using warm-neutral default voice.' }
+    const data = ppRes.data
+    const ccData = ccRes.data
 
-    const star = data.brand_star || {}
-    const hero = data.hero || {}
-    const remarkable = data.remarkable || {}
+    if (!data && !ccData) return { voice_profile: null, note: 'No Premium Position or voice calibration data found. Using warm-neutral default voice.' }
 
-    return {
+    const star = data?.brand_star || {}
+    const hero = data?.hero || {}
+    const remarkable = data?.remarkable || {}
+
+    const result = {
       voice_profile: {
         name: star.name || '',
         what_they_do: star.what_you_do || '',
@@ -119,6 +121,16 @@ async function executeTool(toolName, toolInput, clientId) {
         category: remarkable.category || '',
       },
     }
+
+    // Add calibrated voice profile if available (from voice onboarding conversation)
+    if (ccData?.voice_corrections && Object.keys(ccData.voice_corrections).length > 0) {
+      result.calibrated_voice = ccData.voice_corrections
+    }
+    if (ccData?.voice_samples && ccData.voice_samples.length > 0) {
+      result.voice_samples = ccData.voice_samples
+    }
+
+    return result
   }
 
   if (toolName === 'get_lead') {
@@ -326,6 +338,8 @@ The framework's mechanics are fixed. The delivery is the client's. Before drafti
 The scripts in this prompt are written in a direct, cheeky register. Treat them as MECHANICS, not wording. Re-skin every one to the client's voice while keeping: the move it executes, the question it ends on, and its honesty.
 
 Universal floor, whatever the profile: messages are short, specific, human, honest, and end in a question or a clear next step. No corporate words (leverage, streamline, unlock, journey, transform) unless the voice profile explicitly uses them. If no voice profile is available, default to warm-neutral, note that you're doing so, and carry on.
+
+IMPORTANT — CALIBRATED VOICE: If get_voice_profile returns a "calibrated_voice" object, this is from a direct conversation with the client about how they actually talk. It overrides all other voice cues. Use their exact slang, colloquialisms, swearing habits, sentence style, and energy level. If it says they swear, swear in the DMs you draft. If it says they're casual, write casual. If it says they use specific phrases, use those phrases. The calibrated voice is the ground truth — it came from them directly, not from a form.
 
 ## THE FRAMEWORK (your only playbook)
 
