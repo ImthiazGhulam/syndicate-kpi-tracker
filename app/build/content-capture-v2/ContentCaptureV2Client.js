@@ -911,13 +911,30 @@ function VoiceCalibration({ samples, onSave }) {
   )
 }
 
-function EnrichCard({ idx, sl, engine, format, onEngineChange, onFormatChange, playbookContext }) {
+function EnrichCard({ idx, sl, engine, format, onEngineChange, onFormatChange, playbookContext, onAiQuestions }) {
   const [open, setOpen] = useState(true)
+  const [aiQs, setAiQs] = useState(null)
+  const [aiQLoading, setAiQLoading] = useState(false)
+  const aiQFetched = useRef(null)
   const m = sl.moment
   const availEngines = getAvailableEngines(sl.job)
   const availFormats = engine ? getFormatsForJobEngine(sl.job, engine) : []
   const fallbackQs = getEnrichQuestions(m.type, sl.job)
   const bothChosen = engine && format
+  const formatLabel = availFormats.find(f => f.id === format)?.label || ''
+
+  // Fetch AI questions when engine + format are both selected
+  useEffect(() => {
+    if (!bothChosen || !m?.line) return
+    const key = `${m.line}-${sl.job}-${engine}-${format}`
+    if (aiQFetched.current === key) return
+    aiQFetched.current = key
+    setAiQLoading(true)
+    onAiQuestions(m.line, m.type, sl.job, engine, formatLabel).then(qs => {
+      if (qs) setAiQs(qs)
+      setAiQLoading(false)
+    })
+  }, [bothChosen, engine, format])
 
   return (
     <div className={`glass-card mb-3 overflow-hidden ${bothChosen ? 'border-gold/20' : ''}`}>
@@ -974,12 +991,20 @@ function EnrichCard({ idx, sl, engine, format, onEngineChange, onFormatChange, p
             </>
           )}
 
-          {/* Questions — static fallback (AI questions removed from this view for reliability) */}
-          {bothChosen && (
+          {/* Questions — AI-tailored when available, static fallback otherwise */}
+          {bothChosen && aiQLoading && (
+            <div className="flex items-center gap-2 mt-4 py-3">
+              <div className="w-4 h-4 border-2 border-gold/30 border-t-gold rounded-full animate-spin" />
+              <span className="text-gold text-[10px] font-bold uppercase tracking-widest animate-pulse">Tailoring questions to your moment...</span>
+            </div>
+          )}
+          {bothChosen && !aiQLoading && (
             <>
-              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2 mt-4">Flesh it out</label>
-              {fallbackQs.map(([key, q, hint]) => (
-                <div key={`${idx}-${key}`} className="mb-3">
+              <label className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest block mb-2 mt-4">
+                {aiQs ? 'AI-tailored questions' : 'Flesh it out'}
+              </label>
+              {(aiQs || fallbackQs).map(([key, q, hint]) => (
+                <div key={`${idx}-${key}-${aiQs ? 'ai' : 'fb'}`} className="mb-3">
                   <label className="block text-xs font-bold text-white mb-1">{q}</label>
                   <p className="text-[10px] text-zinc-500 mb-1">{hint}</p>
                   <textarea rows={2} defaultValue="" id={`enrich-${idx}-${key}`}
@@ -2807,11 +2832,12 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
     function collectAllEnrichment() {
       weekPieces.forEach((sl, i) => {
-        const qs = getEnrichQuestions(sl.moment.type, sl.job)
+        // Read all enrich textareas by scanning for matching IDs
         const enrichment = {}
-        qs.forEach(([key]) => {
+        const keys = ['scene', 'verb', 'num', 'change']
+        keys.forEach(key => {
           const el = document.getElementById(`enrich-${i}-${key}`)
-          if (el) enrichment[key] = el.value.trim()
+          if (el && el.value.trim()) enrichment[key] = el.value.trim()
         })
         sl.moment.enrichment = enrichment
         if (sl.moment.id && !sl.moment.id.toString().startsWith('local-')) {
@@ -2835,6 +2861,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                   onEngineChange={(eng) => { setChosenEngines(prev => ({ ...prev, [i]: eng })); setChosenFormats(prev => { const u = { ...prev }; delete u[i]; return u }) }}
                   onFormatChange={(fmt) => setChosenFormats(prev => ({ ...prev, [i]: fmt }))}
                   playbookContext={playbookContext}
+                  onAiQuestions={generateEnrichQuestions}
                 />
               ))}
             </div>
