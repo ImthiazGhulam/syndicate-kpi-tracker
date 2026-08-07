@@ -445,6 +445,8 @@ export async function POST(req) {
 
     // Track proposed card updates from the coach
     const proposedUpdates = []
+    // Accumulate text from ALL turns (tool_use turns can include text blocks too)
+    const allTextBlocks = []
 
     // Agentic tool-use loop — keep going until the model stops calling tools
     let maxLoops = 8
@@ -480,6 +482,9 @@ export async function POST(req) {
 
       // If the model wants to use tools, execute them and continue the loop
       if (data.stop_reason === 'tool_use') {
+        // Capture any text blocks from this turn (coaching response often comes alongside tool calls)
+        data.content.filter(b => b.type === 'text' && b.text.trim()).forEach(b => allTextBlocks.push(b.text))
+
         // Add assistant's response (which includes tool_use blocks)
         anthropicMessages.push({ role: 'assistant', content: data.content })
 
@@ -517,11 +522,11 @@ export async function POST(req) {
         }
       }
 
-      // Extract text
-      const text = data.content
-        .filter(b => b.type === 'text')
-        .map(b => b.text)
-        .join('\n')
+      // Extract text from this final turn
+      data.content.filter(b => b.type === 'text' && b.text.trim()).forEach(b => allTextBlocks.push(b.text))
+
+      // Use all accumulated text — the coaching response may have come in an earlier turn
+      const text = allTextBlocks.join('\n').trim()
 
       // If no proposed updates but the text contains Hot List notes, try to extract them
       if (proposedUpdates.length === 0 && text) {
