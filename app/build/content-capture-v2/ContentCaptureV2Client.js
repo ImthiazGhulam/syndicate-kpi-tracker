@@ -1088,6 +1088,10 @@ export default function ContentCaptureV2Client() {
   const [quickRoute, setQuickRoute] = useState(null)
   const [quickArc, setQuickArc] = useState(null)
   const [quickPieceId, setQuickPieceId] = useState(null)
+  const [quickEngine, setQuickEngine] = useState(null)
+  const [quickFormat, setQuickFormat] = useState(null)
+  const [quickAiQuestions, setQuickAiQuestions] = useState(null)
+  const [quickAiQLoading, setQuickAiQLoading] = useState(false)
 
   // Weekly mode
   const [weekGoal, setWeekGoal] = useState(null)
@@ -1568,6 +1572,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     if (screenId === 'quick-moment') {
       setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPieceId(null)
       setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null)
+      setQuickEngine(null); setQuickFormat(null); setQuickAiQuestions(null)
     }
     if (screenId === 'week-goal') {
       setWeekGoal(null)
@@ -2190,7 +2195,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           )}
 
           <div className="flex flex-col gap-3 mb-7">
-            <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null); setQuickPieceId(null); setScreen('quick-moment') }}
+            <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null); setQuickPieceId(null); setQuickEngine(null); setQuickFormat(null); setQuickAiQuestions(null); setScreen('quick-moment') }}
               className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
               <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">WRITE ONE POST NOW</p>
               <p className="text-sm text-zinc-500">Something happened — turn it into content in two minutes.</p>
@@ -2364,13 +2369,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     title: 'One honest thing first',
                     body: "Sales posts work on a warm audience, and yours is still growing — right now it'd be closing an empty room. The fastest route to sales is a few weeks of getting noticed and building trust first.",
                     options: [
-                      ['Grow the audience first', () => { setModal(null); setQuickJob('reach'); setEnrichIdx(0); setScreen('quick-enrich') }],
-                      ['I\'ve got warm people — sell anyway', () => { setModal(null); setQuickJob('sales'); setEnrichIdx(0); setScreen('quick-enrich') }],
+                      ['Grow the audience first', () => { setModal(null); setQuickJob('reach'); setQuickEngine(null); setQuickFormat(null); setScreen('quick-engine') }],
+                      ['I\'ve got warm people — sell anyway', () => { setModal(null); setQuickJob('sales'); setQuickEngine(null); setQuickFormat(null); setScreen('quick-engine') }],
                     ],
                   })
                   return
                 }
-                setQuickJob(x.j); setEnrichIdx(0); setScreen('quick-enrich')
+                setQuickJob(x.j); setQuickEngine(null); setQuickFormat(null); setScreen('quick-engine')
               }}>
                 {x.t}{x.j === sug ? ' — suggested' : ''}<span className="block text-zinc-600 text-[12.5px] mt-1">{x.s}</span>
               </OptionButton>
@@ -2382,22 +2387,85 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     )
   }
 
+  // ── Quick Mode: Engine Selection ──────────────────────────────────────────
+
+  if (screen === 'quick-engine' && quickJob) {
+    const engines = getAvailableEngines(quickJob)
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          <Question>How do you want to <span className="text-gold font-medium">tell it</span>?</Question>
+          <DimLabel>Each engine shapes the piece differently — pick the one that fits this moment.</DimLabel>
+          <div className="flex flex-col gap-2">
+            {engines.map(e => (
+              <OptionButton key={e.id} onClick={() => { setQuickEngine(e.id); setQuickFormat(null); setScreen('quick-format') }}>
+                <span className="text-lg mr-2">{e.icon}</span> {e.label}
+                <span className="block text-zinc-500 text-xs mt-1 font-normal">{e.desc}</span>
+              </OptionButton>
+            ))}
+          </div>
+          <div className="mt-6"><GhostBtn onClick={() => setScreen('quick-job')}>← Back</GhostBtn></div>
+      </SidebarLayout>
+    )
+  }
+
+  // ── Quick Mode: Format Selection ────────────────────────────────────────
+
+  if (screen === 'quick-format' && quickJob && quickEngine) {
+    const formats = getFormatsForJobEngine(quickJob, quickEngine)
+    return (
+      <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          <Question>What <span className="text-gold font-medium">format</span>?</Question>
+          <DimLabel>Pick how this piece will look when it's published.</DimLabel>
+          <div className="flex flex-col gap-2">
+            {formats.map(f => (
+              <OptionButton key={f.id} onClick={async () => {
+                setQuickFormat(f.id)
+                setEnrichIdx(0)
+                // Try AI-generated questions first
+                setQuickAiQLoading(true)
+                setScreen('quick-enrich')
+                const aiQs = await generateEnrichQuestions(quickMoment.line, quickMoment.type, quickJob, quickEngine, f.label)
+                if (aiQs) setQuickAiQuestions(aiQs)
+                setQuickAiQLoading(false)
+              }}>
+                <span className="text-lg mr-2">{f.icon}</span> {f.label}
+                <span className="block text-zinc-500 text-xs mt-1 font-normal">{f.desc}</span>
+              </OptionButton>
+            ))}
+          </div>
+          <div className="mt-6"><GhostBtn onClick={() => setScreen('quick-engine')}>← Back</GhostBtn></div>
+      </SidebarLayout>
+    )
+  }
+
   // ── Quick Mode: Enrichment ────────────────────────────────────────────────
 
   if (screen === 'quick-enrich' && quickMoment) {
-    const qs = getEnrichQuestions(quickMoment.type, quickJob)
+    if (quickAiQLoading) {
+      return (
+        <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          <div className="flex flex-col items-center justify-center py-12">
+            <div className="w-8 h-8 border-2 border-gold/30 border-t-gold rounded-full animate-spin mb-4" />
+            <p className="text-gold text-xs font-bold uppercase tracking-widest animate-pulse">Tailoring questions to your moment...</p>
+          </div>
+        </SidebarLayout>
+      )
+    }
+
+    const qs = quickAiQuestions || getEnrichQuestions(quickMoment.type, quickJob)
     const [key, q, hint] = qs[enrichIdx]
     const enrichVal = (quickMoment.enrichment || {})[key] || ''
 
     return (
       <SidebarLayout screen={screen} onNavigate={navigateTo} savedWeeks={savedWeeks} log={log} stage={stage} streakCount={streakCount} router={router}>
+          {quickAiQuestions && <span className="text-[9px] font-bold text-gold/40 uppercase tracking-widest mb-2 block">AI-tailored question {enrichIdx + 1}/{qs.length}</span>}
           <Question>{q}</Question>
           <DimLabel>{hint}</DimLabel>
-          <textarea key={`enrich-${enrichIdx}-${quickMoment.id}`} rows={2} autoFocus defaultValue={enrichVal}
+          <textarea key={`enrich-${enrichIdx}-${quickMoment.id}-${quickEngine}`} rows={2} autoFocus defaultValue={enrichVal}
             id="enrich-input"
             className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none" />
           <div className="flex justify-between mt-6">
-            <GhostBtn onClick={() => { if (enrichIdx > 0) setEnrichIdx(enrichIdx - 1); else setScreen('quick-job') }}>← Back</GhostBtn>
+            <GhostBtn onClick={() => { if (enrichIdx > 0) setEnrichIdx(enrichIdx - 1); else setScreen('quick-format') }}>← Back</GhostBtn>
             <div className="flex gap-3 items-center">
               <button onClick={() => advanceEnrich(true)} className="text-xs font-bold uppercase tracking-widest text-zinc-500 hover:text-white transition">Skip</button>
               <Btn gold onClick={() => advanceEnrich(false)}>{enrichIdx < qs.length - 1 ? 'Next →' : 'Write my post →'}</Btn>
@@ -3386,7 +3454,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   }
 
   async function advanceEnrich(skip) {
-    const qs = getEnrichQuestions(quickMoment.type, quickJob)
+    const qs = quickAiQuestions || getEnrichQuestions(quickMoment.type, quickJob)
     const [key] = qs[enrichIdx]
     const val = skip ? '' : (document.getElementById('enrich-input')?.value?.trim() || '')
     const updated = { ...quickMoment, enrichment: { ...(quickMoment.enrichment || {}), [key]: val } }
@@ -3403,15 +3471,30 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   async function doQuickWrite(redoNote, momentOverride) {
     const m = momentOverride || quickMoment
     const hasNum = !!(m.enrichment && m.enrichment.num && m.enrichment.num.trim())
-    const r = routeMoment(m.type, quickJob, hasNum, stage)
-    const card = CARDS[r.card]
-    const arc = pickArc(m.type, m, r.card)
 
-    setQuickCard(r.card)
+    // Use selected engine + format if available, otherwise fallback to auto-route
+    let card, cardKey, arc, r
+    const fmt = quickFormat && FORMAT_PROMPTS[quickFormat]
+    if (quickEngine && fmt) {
+      // Build card from format prompts + engine
+      r = routeMoment(m.type, quickJob, hasNum, stage)
+      cardKey = r.card
+      const baseCard = CARDS[cardKey] || CARDS.c1
+      card = { ...baseCard, fmt: fmt.fmt, out: fmt.out, nm: FORMAT_MATRIX[`${quickJob}_${quickEngine}`]?.find(f => f.id === quickFormat)?.label || baseCard.nm }
+      arc = quickEngine === 'story' ? pickArc(m.type, m, cardKey) : null
+    } else {
+      r = routeMoment(m.type, quickJob, hasNum, stage)
+      cardKey = r.card
+      card = CARDS[cardKey]
+      arc = pickArc(m.type, m, cardKey)
+    }
+
+    setQuickCard(cardKey)
     setQuickRoute(r)
     setQuickArc(arc)
     setScreen('quick-writing')
-    setWritingLine(`${card.nm}${arc ? ' — ' + arc.n + ' shape' : ''} — from your moment, your words, your numbers.`)
+    const engineLabel = quickEngine ? ENGINES.find(e => e.id === quickEngine)?.label : ''
+    setWritingLine(`${card.nm}${engineLabel ? ' · ' + engineLabel : ''}${arc ? ' — ' + arc.n + ' shape' : ''} — from your moment, your words, your numbers.`)
 
     try {
       const piece = await generate(card, m, redoNote, arc, r.card, redoNote && quickPiece && !quickPiece.startsWith('{{ERROR:') ? { previousDraft: quickPiece } : {})
