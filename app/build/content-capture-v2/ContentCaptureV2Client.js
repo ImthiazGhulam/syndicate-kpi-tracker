@@ -1567,6 +1567,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   function navigateTo(screenId, data) {
     if (screenId === 'quick-moment') {
       setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPieceId(null)
+      setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null)
     }
     if (screenId === 'week-goal') {
       setWeekGoal(null)
@@ -2189,7 +2190,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           )}
 
           <div className="flex flex-col gap-3 mb-7">
-            <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setScreen('quick-moment') }}
+            <button onClick={() => { setQuickMoment(null); setQuickJob(null); setEnrichIdx(0); setQuickPiece(null); setQuickCard(null); setQuickRoute(null); setQuickArc(null); setQuickPieceId(null); setScreen('quick-moment') }}
               className="text-left glass-card p-5 transition hover:border-gold/30 hover:-translate-y-px hover:shadow-glow-gold-sm">
               <p className="text-sm font-bold font-display text-gold uppercase tracking-widest mb-1">WRITE ONE POST NOW</p>
               <p className="text-sm text-zinc-500">Something happened — turn it into content in two minutes.</p>
@@ -2294,7 +2295,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <GoldLabel>From your log</GoldLabel>
               <div className="flex flex-col gap-2 mb-5">
                 {log.map(m => (
-                  <OptionButton key={m.id} onClick={() => { setQuickMoment(m); setScreen('quick-job') }}>
+                  <OptionButton key={m.id} onClick={() => { setQuickMoment({ ...m, enrichment: {} }); setScreen('quick-job') }}>
                     <span className="block text-xs font-bold uppercase tracking-widest text-gold/60 mb-1">{TYPESHORT[m.type]}</span>
                     {m.line}
                   </OptionButton>
