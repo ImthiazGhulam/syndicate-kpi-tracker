@@ -1099,20 +1099,19 @@ SECTION 1 — HERO
 - Below h1: a styled paragraph (slightly larger than body text, ~18px), centred, max-width ~620px.
 - Below paragraph: a 16:9 video embed. If a video URL is provided, embed as iframe. Otherwise render a placeholder div (background: var(--panel-bg), border-radius: 12px, height: 0, padding-top: 56.17%, position: relative) with a centred label that says exactly "Video 1: Call Briefing" so the client knows what goes here.
 
-SECTION 2 — IMPORTANT REMINDER + WHAT TO EXPECT (combined)
+SECTION 2 — IMPORTANT REMINDER + WHAT TO EXPECT + VIDEOS
 - Container: container-lg.
-- Desktop: horizontal flex layout, two columns side by side. Left column ~40% width, right column ~60%.
-- Mobile: stacks vertically (left column first, then right).
-- LEFT COLUMN:
-  - h2: "Important Reminder"
-  - p: One paragraph with cancellation policy and environment instructions.
-  - h2 with top margin: "What to Expect"
-  - p (slightly larger text, ~17px): Motivational paragraph.
-- RIGHT COLUMN: 3 video cards stacked vertically with 24px gap.
-  - Each card: video embed (16:9, same pattern as hero — if no video URL, render a placeholder with a SPECIFIC label) + h3 (bold, ~18px) + p (regular body text).
+- Layout: STACKED vertically — NOT side by side. Two text blocks full-width on top, then three videos in a row underneath.
+- TOP ROW: Two text panels side by side (desktop), stacking on mobile.
+  - Panel 1 (50% width): h2 "Important Reminder" + p (cancellation policy and environment instructions). Background: var(--panel-bg), border-radius 12px, padding 32px.
+  - Panel 2 (50% width): h2 "What to Expect" + p (slightly larger text ~17px, motivational paragraph). Background: var(--panel-bg), border-radius 12px, padding 32px.
+  - Gap between panels: 24px.
+- BOTTOM ROW: 3 video cards in a horizontal row (desktop), stacking on mobile. 24px gap between cards.
+  - Each card: video embed (16:9, same pattern as hero — if no video URL, render a placeholder with a SPECIFIC label) + h3 (bold, ~18px) + p (regular body text). Background: var(--panel-bg), border-radius 12px, padding 20px.
   - Card 1: Programme overview video (placeholder label: "Video 2: Programme Overview") + programme title + pillars sentence.
   - Card 2: Differentiation video (placeholder label: "Video 3: Differentiation Story") + "I'll have your back" + coach commitment text.
   - Card 3: Commitment video (placeholder label: "Video 4: Commitment Filter") + "You have to be committed" + client commitment text.
+- Gap between text row and video row: 32px.
 
 SECTION 3 — LIFE-CHANGING TRANSFORMATIONS
 - Very generous vertical padding (padding-vertical: 96-120px equivalent).
