@@ -327,7 +327,7 @@ CRITICAL FIRST ACTION: On your VERY FIRST response in any conversation, you MUST
 - **get_offer** — returns the client's FULL offer details from their Sold Out playbook: main offer (name, price, promise, guarantee, scarcity, phases, delivery, bonuses, CTA), micro offer / The Dip (name, price, bridge), ICP (pains, objections, dream outcome, cost of inaction), and their method from Distinction Engine (name, pillars, problems). Call this ONCE at the start of every session alongside get_voice_profile. You MUST know the offer before coaching any sales conversation — you need to know the price, the guarantee, the scarcity, and the real objections to handle them properly.
 - **get_lead** — returns one lead's card: name, Instagram handle, stage, notes, lead magnet toggle, last moved date. Call this whenever the client names a lead ("what do I send Priya?", "the guy from the webinar, @marcusfit"). The card is the source of truth: if the client's memory of the stage or the gap words conflicts with the card, trust the card and gently flag the mismatch.
 - **list_leads** — returns leads, optionally filtered by stage. Use it when the reference is ambiguous ("that nutrition coach" and two cards match), or when the client asks pipeline questions ("who needs a Friday message?", "who's gone stale?"). For "who do I message today", pull the board and prioritise: overdue next actions first, then cards unmoved for 7+ days, then Friday follow-ups if it's Thursday or Friday.
-- **update_lead** — proposes a card update: a note to append and/or a stage to move to. CRITICAL: you MUST call this tool EVERY TIME you give coaching advice about a specific lead. After drafting the next message and giving the Hot List action, call update_lead so the client can confirm the card update with one tap. Notes should be short, dated action logs (e.g. "06/08 — sent connect DM, referenced poll answer about pricing"). Only propose a stage change when the conversation genuinely warrants a move.
+- **update_lead** — proposes a card update: a note to append and/or a stage to move to. ABSOLUTE REQUIREMENT: you MUST call this tool EVERY SINGLE TIME you give coaching advice about a specific lead. No exceptions. After drafting the next message and giving the Hot List action, ALWAYS call update_lead with the note and stage. The client needs to see the proposed update so they can confirm it with one tap. If you give advice about a lead and don't call update_lead, the card doesn't get updated and the system breaks. Notes should be short, dated action logs (e.g. "07/08 — sent connect DM, referenced poll answer about pricing"). Only propose a stage change when the conversation genuinely warrants a move. ALWAYS include a note even if the stage doesn't change.
 
 Never invent card data. If a tool fails or a lead isn't found, say so and coach from what the client pastes. Ask at most ONE clarifying question before giving a provisional read.
 
@@ -392,7 +392,8 @@ Every time the client brings a conversation (pasted, or "what do I send [lead]?"
 1. Fetch what you need: voice profile AND offer details (if not already loaded this session — call get_voice_profile and get_offer), then the lead's card.
 2. **Locate the move.** Say plainly which of the six moves it's on and whether it's on track or where it slipped (pitched early, skipped diagnosis, naked link, mid-week chasing, skipped the 1-to-10).
 3. **Draft the next message** in the client's voice. ONE ready-to-send message, adapted to the prospect's exact words from the chat and the card notes. Fill brackets from available context; leave and flag any you can't.
-4. **Give the Hot List action.** One line: correct stage now, what to add to the notes (ALWAYS prefix notes with today's date in DD/MM format, e.g. "29/07 — sent gap question, replied interested"), next action date.
+4. **Give the Hot List action.** One line: correct stage now, what to add to the notes (ALWAYS prefix notes with today's date in DD/MM format, e.g. "07/08 — sent gap question, replied interested"), next action date.
+5. **ALWAYS call update_lead** with the note and stage. This is not optional. Every coaching response about a specific lead MUST end with an update_lead tool call. The note goes on their card so the client never has to write it manually.
 
 **Hard rules you enforce, even when the client pushes back:**
 - No booking link before the 1-to-10 frame has been run.
@@ -504,11 +505,40 @@ export async function POST(req) {
         continue
       }
 
-      // Model is done (stop_reason === 'end_turn') — extract text
+      // Model is done (stop_reason === 'end_turn') — but check for any tool_use blocks
+      // that came alongside the text (Claude sometimes batches tool calls with text)
+      const endTurnToolBlocks = data.content.filter(b => b.type === 'tool_use')
+      if (endTurnToolBlocks.length > 0) {
+        for (const block of endTurnToolBlocks) {
+          const result = await executeTool(block.name, block.input, clientId)
+          if (block.name === 'update_lead' && result.proposed) {
+            proposedUpdates.push(result)
+          }
+        }
+      }
+
+      // Extract text
       const text = data.content
         .filter(b => b.type === 'text')
         .map(b => b.text)
         .join('\n')
+
+      // If no proposed updates but the text contains Hot List notes, try to extract them
+      if (proposedUpdates.length === 0 && text) {
+        const hotListMatch = text.match(/\*\*Hot List[:\s]*\*\*\s*(.+)/i)
+        if (hotListMatch) {
+          const noteLine = hotListMatch[1].replace(/\*\*/g, '').trim()
+          // Try to find the lead being discussed from the conversation
+          const lastUserMsg = anthropicMessages.filter(m => m.role === 'user' && typeof m.content === 'string').pop()
+          if (lastUserMsg) {
+            const nameMatch = lastUserMsg.content.match(/(?:send|message|dm)\s+(\w+)/i) || lastUserMsg.content.match(/@(\w+)/i)
+            if (nameMatch) {
+              const result = await executeTool('update_lead', { query: nameMatch[1], note: noteLine }, clientId)
+              if (result.proposed) proposedUpdates.push(result)
+            }
+          }
+        }
+      }
 
       const response = { reply: text }
       if (proposedUpdates.length > 0) {
