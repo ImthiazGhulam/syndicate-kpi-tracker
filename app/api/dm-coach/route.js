@@ -52,7 +52,7 @@ const TOOLS = [
   },
   {
     name: 'update_lead',
-    description: 'Update a lead\'s Hot List card — append a note and/or move to a new stage. Call this EVERY TIME you give coaching advice about a specific lead. The note should be a short dated action log (e.g. "06/08 — sent gap question, awaiting reply"). Notes are APPENDED to existing notes, never replaced. Stage is only changed if the conversation warrants a move.',
+    description: 'Update an EXISTING lead\'s Hot List card — append a note and/or move to a new stage. Call this EVERY TIME you give coaching advice about a specific lead. The note should be a short dated action log (e.g. "06/08 — sent gap question, awaiting reply"). Notes are APPENDED to existing notes, never replaced. Stage is only changed if the conversation warrants a move. IMPORTANT: only use this for leads that already exist on the board. If the lead is new, use create_lead instead.',
     input_schema: {
       type: 'object',
       properties: {
@@ -65,6 +65,24 @@ const TOOLS = [
         },
       },
       required: ['query'],
+    },
+  },
+  {
+    name: 'create_lead',
+    description: 'Create a NEW lead card on the Hot List. Use this when the client mentions someone who doesn\'t have a card yet — a new follower, someone who engaged with a post, someone from a DM. Always start new leads in the new_follower stage unless the conversation is already further along.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: 'Lead\'s name' },
+        instagram: { type: 'string', description: 'Instagram handle (with or without @)' },
+        stage: {
+          type: 'string',
+          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
+          description: 'Starting stage. Default to new_follower unless the conversation is already past that.',
+        },
+        note: { type: 'string', description: 'Initial note for the card (date-prefixed, e.g. "07/08 — post engagement trigger, liked reel about investing")' },
+      },
+      required: ['name'],
     },
   },
 ]
@@ -312,6 +330,60 @@ async function executeTool(toolName, toolInput, clientId) {
     }
   }
 
+  if (toolName === 'create_lead') {
+    const name = (toolInput.name || '').trim()
+    if (!name) return { error: 'No lead name provided' }
+
+    const ig = (toolInput.instagram || '').trim()
+    const stage = toolInput.stage || 'new_follower'
+    const note = toolInput.note || null
+
+    // Check for duplicates
+    const { data: existing } = await supabase
+      .from('leads')
+      .select('id, name, instagram, status')
+      .eq('client_id', clientId)
+
+    if (existing) {
+      const dup = existing.find(l => {
+        const lName = (l.name || '').toLowerCase()
+        const lIg = (l.instagram || '').replace('@', '').toLowerCase()
+        const inputIg = ig.replace('@', '').toLowerCase()
+        return lName === name.toLowerCase() || (inputIg && lIg === inputIg)
+      })
+      if (dup) {
+        return {
+          error: `Lead "${dup.name}" already exists in ${STAGE_LABELS[dup.status] || dup.status}. Use update_lead instead.`,
+          existing_lead: { name: dup.name, stage: dup.status },
+        }
+      }
+    }
+
+    const { data: newLead, error } = await supabase
+      .from('leads')
+      .insert({
+        client_id: clientId,
+        name,
+        instagram: ig || null,
+        status: stage,
+        notes: note || null,
+      })
+      .select()
+      .single()
+
+    if (error) return { error: `Failed to create lead: ${error.message}` }
+
+    return {
+      created: true,
+      lead_id: newLead.id,
+      name: newLead.name,
+      instagram: newLead.instagram,
+      stage: STAGE_LABELS[newLead.status],
+      stage_id: newLead.status,
+      notes: newLead.notes,
+    }
+  }
+
   return { error: `Unknown tool: ${toolName}` }
 }
 
@@ -327,7 +399,8 @@ CRITICAL FIRST ACTION: On your VERY FIRST response in any conversation, you MUST
 - **get_offer** — returns the client's FULL offer details from their Sold Out playbook: main offer (name, price, promise, guarantee, scarcity, phases, delivery, bonuses, CTA), micro offer / The Dip (name, price, bridge), ICP (pains, objections, dream outcome, cost of inaction), and their method from Distinction Engine (name, pillars, problems). Call this ONCE at the start of every session alongside get_voice_profile. You MUST know the offer before coaching any sales conversation — you need to know the price, the guarantee, the scarcity, and the real objections to handle them properly.
 - **get_lead** — returns one lead's card: name, Instagram handle, stage, notes, lead magnet toggle, last moved date. Call this whenever the client names a lead ("what do I send Priya?", "the guy from the webinar, @marcusfit"). The card is the source of truth: if the client's memory of the stage or the gap words conflicts with the card, trust the card and gently flag the mismatch.
 - **list_leads** — returns leads, optionally filtered by stage. Use it when the reference is ambiguous ("that nutrition coach" and two cards match), or when the client asks pipeline questions ("who needs a Friday message?", "who's gone stale?"). For "who do I message today", pull the board and prioritise: overdue next actions first, then cards unmoved for 7+ days, then Friday follow-ups if it's Thursday or Friday.
-- **update_lead** — proposes a card update: a note to append and/or a stage to move to. ABSOLUTE REQUIREMENT: you MUST call this tool EVERY SINGLE TIME you give coaching advice about a specific lead. No exceptions. After drafting the next message and giving the Hot List action, ALWAYS call update_lead with the note and stage. The client needs to see the proposed update so they can confirm it with one tap. If you give advice about a lead and don't call update_lead, the card doesn't get updated and the system breaks. Notes should be short, dated action logs (e.g. "07/08 — sent connect DM, referenced poll answer about pricing"). Only propose a stage change when the conversation genuinely warrants a move. ALWAYS include a note even if the stage doesn't change.
+- **create_lead** — creates a NEW card on the Hot List. Use this when the client mentions someone who doesn't have a card yet. The card is created immediately (not a proposal — it's live on the board). Always check with get_lead first — if the lead already exists, use update_lead instead. New leads default to New Follower stage.
+- **update_lead** — proposes an update to an EXISTING card: a note to append and/or a stage to move to. ABSOLUTE REQUIREMENT: you MUST call this tool EVERY SINGLE TIME you give coaching advice about a specific lead. No exceptions. After drafting the next message and giving the Hot List action, ALWAYS call update_lead with the note and stage. The client needs to see the proposed update so they can confirm it with one tap. If you give advice about a lead and don't call update_lead, the card doesn't get updated and the system breaks. Notes should be short, dated action logs (e.g. "07/08 — sent connect DM, referenced poll answer about pricing"). Only propose a stage change when the conversation genuinely warrants a move. ALWAYS include a note even if the stage doesn't change.
 
 Never invent card data. If a tool fails or a lead isn't found, say so and coach from what the client pastes. Ask at most ONE clarifying question before giving a provisional read.
 
@@ -502,6 +575,10 @@ export async function POST(req) {
             if (block.name === 'update_lead' && result.proposed) {
               proposedUpdates.push(result)
             }
+            // Capture created leads
+            if (block.name === 'create_lead' && result.created) {
+              proposedUpdates.push({ ...result, confirmed: true })
+            }
           }
         }
 
@@ -518,6 +595,9 @@ export async function POST(req) {
           const result = await executeTool(block.name, block.input, clientId)
           if (block.name === 'update_lead' && result.proposed) {
             proposedUpdates.push(result)
+          }
+          if (block.name === 'create_lead' && result.created) {
+            proposedUpdates.push({ ...result, confirmed: true })
           }
         }
       }

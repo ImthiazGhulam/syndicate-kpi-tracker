@@ -4483,7 +4483,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                                 {msg.proposed_updates.map((update, ui) => (
                                   <div key={ui} className={`p-3 rounded-lg border ${update.confirmed ? 'bg-emerald-500/10 border-emerald-500/30' : 'bg-gold/5 border-gold/30'}`}>
                                     <p className="text-[10px] font-bold uppercase tracking-widest text-gold mb-2">
-                                      {update.confirmed ? '✓ Card Updated' : `Update card: ${update.lead_name}`}
+                                      {update.created ? `✓ Card Created: ${update.name}` : update.confirmed ? '✓ Card Updated' : `Update card: ${update.lead_name}`}
                                     </p>
                                     {update.proposed_note && (
                                       <div className="mb-2">
