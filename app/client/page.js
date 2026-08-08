@@ -290,6 +290,9 @@ export default function ClientPage() {
   const [leadForm, setLeadForm] = useState({ name: '', instagram: '', notes: '' })
   const [mobileStage, setMobileStage] = useState('dm_sent')
   const [clientMagnets, setClientMagnets] = useState([])
+  const [pipelineInsights, setPipelineInsights] = useState(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [insightsOpen, setInsightsOpen] = useState(false)
 
   // Voice onboarding
   const [voiceChatOpen, setVoiceChatOpen] = useState(false)
@@ -973,6 +976,47 @@ export default function ClientPage() {
     }
   }
 
+
+  // ── Pipeline Insights ──────────────────────────────────────────────────────
+
+  const analysePipeline = async () => {
+    if (insightsLoading) return
+    const cardsWithNotes = leads.filter(l => l.notes && l.notes.trim())
+    if (cardsWithNotes.length === 0) return
+    setInsightsLoading(true)
+    try {
+      const cardSummaries = cardsWithNotes.map(l => `${l.name} (${LEAD_STAGES.find(s => s.id === l.status)?.label || l.status}): ${l.notes}`).join('\n---\n')
+      const res = await fetch('/api/generate-content', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: `You are analysing a sales pipeline. Below are the notes from ${cardsWithNotes.length} lead cards on a coach/consultant's Hot List. Each card contains DM conversation notes, gap words, objections, pain points, and desires captured during real sales conversations.
+
+LEAD CARDS:
+${cardSummaries}
+
+Analyse ALL the cards and extract patterns. Return ONLY valid JSON (no markdown, no code fences):
+{
+  "top_objections": ["The 3-5 most common objections or hesitations, in the prospect's own words where possible"],
+  "top_pain_points": ["The 3-5 most common pain points or problems prospects describe"],
+  "top_desires": ["The 3-5 most common desired outcomes or goals prospects mention"],
+  "gap_patterns": ["The 2-3 most common gaps — what's stopping them from getting what they want"],
+  "content_angles": ["5 specific content ideas derived from these patterns — each one should name the pain/objection/desire it addresses and suggest a content type (story, carousel, reel, email)"],
+  "summary": "2-3 sentences summarising what this pipeline is telling you about your audience right now"
+}`,
+          maxTokens: 1500,
+        }),
+      })
+      const result = await res.json()
+      if (result.content) {
+        try {
+          const cleaned = result.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          setPipelineInsights(JSON.parse(cleaned))
+        } catch { setPipelineInsights({ summary: result.content }) }
+      }
+    } catch (err) { console.error('Pipeline analysis error:', err) }
+    setInsightsLoading(false)
+  }
 
   // ── Voice Onboarding ──────────────────────────────────────────────────────
 
@@ -4104,14 +4148,24 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                 <h2 className="text-base font-bold text-white uppercase tracking-widest">Hot List</h2>
                 <p className="text-zinc-600 text-xs mt-1">Track your leads from first contact to closed client.</p>
               </div>
-              <button onClick={() => setVoiceChatOpen(!voiceChatOpen)}
-                className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition border ${
-                  voiceProfileData
-                    ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
-                    : 'bg-gold/10 border-gold/30 text-gold hover:bg-gold/20'
-                }`}>
-                {voiceProfileData ? '✓ Voice Set' : '🎤 Set Your Voice'}
-              </button>
+              <div className="flex items-center gap-2">
+                <button onClick={() => { setInsightsOpen(!insightsOpen); if (!pipelineInsights && !insightsLoading) analysePipeline() }}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition border ${
+                    pipelineInsights
+                      ? 'bg-violet-500/10 border-violet-500/30 text-violet-400 hover:bg-violet-500/20'
+                      : 'bg-zinc-800 border-zinc-700 text-zinc-400 hover:border-zinc-600'
+                  }`}>
+                  📊 Insights
+                </button>
+                <button onClick={() => setVoiceChatOpen(!voiceChatOpen)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs font-bold uppercase tracking-widest transition border ${
+                    voiceProfileData
+                      ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/20'
+                      : 'bg-gold/10 border-gold/30 text-gold hover:bg-gold/20'
+                  }`}>
+                  {voiceProfileData ? '✓ Voice Set' : '🎤 Set Your Voice'}
+                </button>
+              </div>
             </div>
 
             {/* Voice Onboarding Chat */}
@@ -4191,6 +4245,91 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                     <p className="text-[10px] text-zinc-600 mt-1.5 text-right">{Math.max(0, 6 - voiceChatMessages.length)} more exchanges to go</p>
                   )}
                 </div>
+              </div>
+            )}
+
+            {/* Pipeline Insights */}
+            {insightsOpen && (
+              <div className="glass-card overflow-hidden mb-4">
+                <div className="px-4 py-3 border-b border-zinc-800 flex items-center justify-between">
+                  <div>
+                    <p className="text-xs font-bold text-violet-400 uppercase tracking-widest">Pipeline Insights</p>
+                    <p className="text-[10px] text-zinc-500 mt-0.5">Patterns from your DM conversations → content ideas</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button onClick={() => { setPipelineInsights(null); analysePipeline() }}
+                      className="text-[10px] text-zinc-500 hover:text-white uppercase tracking-widest font-bold transition">
+                      Refresh
+                    </button>
+                    <button onClick={() => setInsightsOpen(false)} className="text-zinc-600 hover:text-white text-sm transition">✕</button>
+                  </div>
+                </div>
+
+                {insightsLoading && (
+                  <div className="p-6 flex items-center justify-center gap-2">
+                    <div className="w-4 h-4 border-2 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+                    <span className="text-violet-400 text-xs font-bold uppercase tracking-widest animate-pulse">Analysing your pipeline...</span>
+                  </div>
+                )}
+
+                {pipelineInsights && !insightsLoading && (
+                  <div className="p-4 space-y-4">
+                    {pipelineInsights.summary && (
+                      <p className="text-zinc-300 text-sm leading-relaxed">{pipelineInsights.summary}</p>
+                    )}
+
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                      {pipelineInsights.top_objections && (
+                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
+                          <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2">Top Objections</p>
+                          {pipelineInsights.top_objections.map((o, i) => (
+                            <p key={i} className="text-xs text-zinc-300 mb-1">• {o}</p>
+                          ))}
+                        </div>
+                      )}
+                      {pipelineInsights.top_pain_points && (
+                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
+                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2">Top Pain Points</p>
+                          {pipelineInsights.top_pain_points.map((p, i) => (
+                            <p key={i} className="text-xs text-zinc-300 mb-1">• {p}</p>
+                          ))}
+                        </div>
+                      )}
+                      {pipelineInsights.top_desires && (
+                        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
+                          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">Top Desires</p>
+                          {pipelineInsights.top_desires.map((d, i) => (
+                            <p key={i} className="text-xs text-zinc-300 mb-1">• {d}</p>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {pipelineInsights.gap_patterns && (
+                      <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Gap Patterns — What's Stopping Them</p>
+                        {pipelineInsights.gap_patterns.map((g, i) => (
+                          <p key={i} className="text-xs text-zinc-300 mb-1">• {g}</p>
+                        ))}
+                      </div>
+                    )}
+
+                    {pipelineInsights.content_angles && (
+                      <div className="bg-gold/5 border border-gold/20 rounded-lg p-3">
+                        <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-2">Content Ideas From Your Pipeline</p>
+                        {pipelineInsights.content_angles.map((c, i) => (
+                          <p key={i} className="text-xs text-zinc-300 mb-1.5">{i + 1}. {c}</p>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {!pipelineInsights && !insightsLoading && leads.filter(l => l.notes).length === 0 && (
+                  <div className="p-6 text-center text-zinc-500 text-sm">
+                    No card notes yet. Start conversations and the insights will build from real data.
+                  </div>
+                )}
               </div>
             )}
 
