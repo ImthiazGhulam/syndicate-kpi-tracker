@@ -4188,7 +4188,18 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                       {voiceProfileData.directness && <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfileData.directness}</span>}
                       {voiceProfileData.swearing && <span className="text-[9px] px-2 py-0.5 rounded-full bg-zinc-800 text-zinc-400 border border-zinc-700">{voiceProfileData.swearing}</span>}
                     </div>
-                    <button onClick={() => { setVoiceChatMessages([]); setVoiceRecalibrating(true) }} className="text-[10px] text-gold/60 hover:text-gold font-bold uppercase tracking-widest mt-2 transition">Recalibrate →</button>
+                    <div className="flex items-center gap-3 mt-2">
+                      <button onClick={() => { setVoiceChatMessages([]); setVoiceRecalibrating(true) }} className="text-[10px] text-gold/60 hover:text-gold font-bold uppercase tracking-widest transition">Recalibrate →</button>
+                      <button onClick={async () => {
+                        setVoiceProfileData(null)
+                        setVoiceChatMessages([])
+                        setVoiceRecalibrating(false)
+                        if (clientData) {
+                          await supabase.from('cc_profiles').upsert({ client_id: clientData.id, voice_corrections: {}, voice_samples: [] }, { onConflict: 'client_id' })
+                        }
+                        flash('Voice profile deleted')
+                      }} className="text-[10px] text-red-400/60 hover:text-red-400 font-bold uppercase tracking-widest transition">Delete</button>
+                    </div>
                   </div>
                 )}
 
