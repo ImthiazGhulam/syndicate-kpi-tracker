@@ -1372,6 +1372,7 @@ export default function ContentCaptureV2Client() {
   const [writing, setWriting] = useState(false)
   const [writingLine, setWritingLine] = useState('')
   const [writingLabel, setWritingLabel] = useState('')
+  const enrichAccRef = useRef({})
 
   // Flow context: where to go after stage/channels
   const [afterChannels, setAfterChannels] = useState('home')
@@ -3711,8 +3712,6 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       setCapLine('')
     }
   }
-
-  const enrichAccRef = useRef({})
 
   async function advanceEnrich(skip) {
     const qs = quickAiQuestions || getEnrichQuestions(quickMoment.type, quickJob)
