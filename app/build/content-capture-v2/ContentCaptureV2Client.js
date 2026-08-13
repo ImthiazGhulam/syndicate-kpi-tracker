@@ -1441,7 +1441,7 @@ export default function ContentCaptureV2Client() {
       if (logData) setLog(logData)
 
       // Load saved weeks
-      const { data: weeksData } = await supabase.from('cc_weeks').select('*').eq('client_id', client.id).order('created_at', { ascending: false }).limit(20)
+      const { data: weeksData } = await supabase.from('cc_weeks').select('*').eq('client_id', client.id).order('created_at', { ascending: false })
       if (weeksData) setSavedWeeks(weeksData)
 
       // Load voice samples from profile
@@ -3954,18 +3954,11 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
         mix: { reach: mix.reach, value: mix.value, sales: mix.sales, goal: weekGoal },
         piece_ids: pieceData,
       }
-      // Check for existing week to upsert
-      const { data: existingWeek } = await supabase.from('cc_weeks').select('id').eq('client_id', clientId).eq('week_start', weekStart).maybeSingle()
+      // Always create a new week entry (never overwrite previous batches)
       let savedWeek
-      if (existingWeek) {
-        const { data } = await supabase.from('cc_weeks').update({ mix: weekData.mix, piece_ids: pieceData }).eq('id', existingWeek.id).select().single()
-        savedWeek = data
-        if (savedWeek) setSavedWeeks(prev => prev.map(w => w.id === savedWeek.id ? savedWeek : w))
-      } else {
-        const { data } = await supabase.from('cc_weeks').insert(weekData).select().single()
-        savedWeek = data
-        if (savedWeek) setSavedWeeks(prev => [savedWeek, ...prev])
-      }
+      const { data } = await supabase.from('cc_weeks').insert(weekData).select().single()
+      savedWeek = data
+      if (savedWeek) setSavedWeeks(prev => [savedWeek, ...prev])
 
       // Mark used moments
       const usedIds = pieces.filter(sl => sl.piece && !sl.piece.startsWith('{{ERROR:') && sl.moment?.id && !String(sl.moment.id).startsWith('local-')).map(sl => sl.moment.id)
