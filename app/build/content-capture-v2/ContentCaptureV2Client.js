@@ -301,6 +301,15 @@ const FORMAT_PROMPTS = {
   'launch-email': { fmt: 'a 50–150 word launch email', out: "Write 'SUBJECT:' stating the fact plainly. Then the email: the fact first, the honest reason it exists, one line of proof if given, what changes either side of the line, one link ask stated once. Short sentences." },
 }
 
+// Job-appropriate CTAs when user overrides format (so we don't inherit the wrong card's CTA)
+const JOB_CTA = {
+  reach: 'Ask them to follow — nothing else, this reaches strangers.',
+  value: 'A comment word that sends the full version or freebie. Never "buy".',
+  sales: 'Buy, book, or message — stated once.',
+  email: 'Close by inviting a genuine reply.',
+  longform: 'Join the email list — the one ask, at the close.',
+}
+
 const BUILD_LINES = [
   'Reading your moment...', 'Picking the shape...', 'Writing in your voice...', 'Sharpening the hook...', 'Checking the ask matches the job...',
 ]
@@ -2101,7 +2110,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             <div className="flex gap-3">
               <Btn onClick={() => { setWeekSlots(suggestFill([...weekSlots])) }}>Suggest for me</Btn>
               <Btn gold disabled={!filled} onClick={() => {
-                const assigned = weekSlots.filter(s => s.moment).map(s => ({ ...s, moment: { ...s.moment, enrichment: {} } }))
+                const assigned = weekSlots.filter(s => s.moment).map(s => ({ ...s, moment: { ...s.moment, enrichment: s.moment.enrichment || {} } }))
                 setWeekPieces(assigned)
                 setWeekIdx(0); setChosenEngines({}); setChosenFormats({}); setAiQuestions(null); setScreen('week-enrich')
               }}>Flesh them out ({filled}/{weekSlots.length}) →</Btn>
@@ -2785,7 +2794,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                       setModal(null)
                       const fmtPrompt = FORMAT_PROMPTS[f.id]
                       if (!fmtPrompt) return
-                      const newCard = { ...card, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label }
+                      const newCard = { ...card, fmt: fmtPrompt.fmt, out: fmtPrompt.out, cta: JOB_CTA[quickJob_] || card.cta, nm: f.label }
                       setScreen('quick-writing'); setWritingLine(quickMoment.line)
                       try {
                         const piece = await generate(newCard, quickMoment, null, quickArc, quickCard)
@@ -3000,7 +3009,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
               <Btn gold disabled={!filled} onClick={() => {
                 const assigned = weekSlots.filter(s => s.moment).map(s => ({
                   ...s,
-                  moment: { ...s.moment, enrichment: {} }
+                  moment: { ...s.moment, enrichment: s.moment.enrichment || {} }
                 }))
                 setWeekPieces(assigned)
                 setWeekIdx(0); setChosenEngines({}); setChosenFormats({}); setAiQuestions(null); setScreen('week-enrich')
@@ -3064,16 +3073,17 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
     function collectAllEnrichment() {
       weekPieces.forEach((sl, i) => {
-        // Read all enrich textareas by scanning for matching IDs
+        // Read all enrich textareas — scan for any key that exists in the DOM
         const enrichment = {}
         const keys = ['scene', 'verb', 'num', 'change']
         keys.forEach(key => {
           const el = document.getElementById(`enrich-${i}-${key}`)
           if (el && el.value.trim()) enrichment[key] = el.value.trim()
         })
-        sl.moment.enrichment = enrichment
+        // Merge with any existing enrichment rather than replacing it
+        sl.moment.enrichment = { ...(sl.moment.enrichment || {}), ...enrichment }
         if (sl.moment.id && !sl.moment.id.toString().startsWith('local-')) {
-          updateLogEntry(sl.moment.id, enrichment)
+          updateLogEntry(sl.moment.id, sl.moment.enrichment)
         }
       })
     }
@@ -3189,7 +3199,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         setModal(null)
                         const fmtPrompt = FORMAT_PROMPTS[f.id]
                         if (!fmtPrompt) return
-                        const newCard = { ...sl.cardObj, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label }
+                        const newCard = { ...sl.cardObj, fmt: fmtPrompt.fmt, out: fmtPrompt.out, cta: JOB_CTA[sl.job] || sl.cardObj.cta, nm: f.label }
                         setWritingLabel(`CHANGING FORMAT TO ${f.label.toUpperCase()}`); setScreen('week-writing'); setWritingLine(sl.moment.line)
                         try {
                           const piece = await generate(newCard, sl.moment, null, sl.arc, sl.cardKey)
@@ -3555,7 +3565,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         const fmtPrompt = FORMAT_PROMPTS[f.id]
                         if (!fmtPrompt) return
                         const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
-                        const card = { fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label, cta: CARDS[p.cardKey || 'c1']?.cta || '', dont: [] }
+                        const card = { fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label, cta: JOB_CTA[job] || CARDS[p.cardKey || 'c1']?.cta || '', dont: [] }
                         setScreen('week-writing'); setWritingLine(moment.line)
                         try {
                           const newPiece = await generate(card, moment, null, null, p.cardKey || 'c1')
@@ -3743,11 +3753,11 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
     let card, cardKey, arc, r
     const fmt = quickFormat && FORMAT_PROMPTS[quickFormat]
     if (quickEngine && fmt) {
-      // Build card from format prompts + engine
+      // Build card from format prompts + engine, with job-appropriate CTA
       r = routeMoment(m.type, quickJob, hasNum, stage)
       cardKey = r.card
       const baseCard = CARDS[cardKey] || CARDS.c1
-      card = { ...baseCard, fmt: fmt.fmt, out: fmt.out, nm: FORMAT_MATRIX[`${quickJob}_${quickEngine}`]?.find(f => f.id === quickFormat)?.label || baseCard.nm }
+      card = { ...baseCard, fmt: fmt.fmt, out: fmt.out, cta: JOB_CTA[quickJob] || baseCard.cta, nm: FORMAT_MATRIX[`${quickJob}_${quickEngine}`]?.find(f => f.id === quickFormat)?.label || baseCard.nm }
       arc = quickEngine === 'story' ? pickArc(m.type, m, cardKey) : null
     } else {
       r = routeMoment(m.type, quickJob, hasNum, stage)
@@ -3903,7 +3913,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       // Use chosen format if one was picked, otherwise use the routed card
       const fmt = chosenFormats[i]
       const fmtPrompt = fmt && FORMAT_PROMPTS[fmt]
-      const card = fmtPrompt ? { ...baseCard, fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: (FORMAT_OPTIONS[sl.job] || FORMAT_OPTIONS.reach).find(f => f.id === fmt)?.label || baseCard.nm } : baseCard
+      const card = fmtPrompt ? { ...baseCard, fmt: fmtPrompt.fmt, out: fmtPrompt.out, cta: JOB_CTA[sl.job] || baseCard.cta, nm: (FORMAT_OPTIONS[sl.job] || FORMAT_OPTIONS.reach).find(f => f.id === fmt)?.label || baseCard.nm } : baseCard
 
       sl.cardObj = card
       sl.cardKey = r.card
