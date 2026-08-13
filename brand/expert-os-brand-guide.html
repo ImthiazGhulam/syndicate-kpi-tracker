@@ -1,0 +1,649 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Expert OS — Brand Guide</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Orbitron:wght@400;500;600;700;800;900&family=Space+Grotesk:wght@300;400;500;600&family=JetBrains+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void:#0B0B0C;
+    --gold:#C9A24B;
+    --ink:#EDEAE3;
+    --ink-dim:rgba(237,234,227,0.62);
+    --ink-faint:rgba(237,234,227,0.38);
+    --gold-dim:rgba(201,162,75,0.55);
+    --gold-faint:rgba(201,162,75,0.18);
+    --hairline:rgba(201,162,75,0.32);
+    --glass:rgba(237,234,227,0.03);
+    --radius:3px;
+    --radius-lg:4px;
+    --display:'Orbitron',sans-serif;
+    --body:'Space Grotesk',sans-serif;
+    --mono:'JetBrains Mono',monospace;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:var(--void);
+    color:var(--ink);
+    font-family:var(--body);
+    font-weight:300;
+    line-height:1.7;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  /* ambient gold grid */
+  .grid-bg{
+    position:fixed;inset:0;z-index:0;pointer-events:none;
+    background-image:
+      linear-gradient(rgba(201,162,75,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,162,75,0.05) 1px, transparent 1px);
+    background-size:64px 64px;
+    mask-image:radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 75%);
+    -webkit-mask-image:radial-gradient(ellipse 90% 70% at 50% 0%, black 0%, transparent 75%);
+    animation:gridDrift 24s linear infinite;
+  }
+  @keyframes gridDrift{from{background-position:0 0,0 0;}to{background-position:64px 64px,64px 64px;}}
+  @media (prefers-reduced-motion: reduce){
+    .grid-bg{animation:none;}
+    *{animation-duration:0.001s !important;transition-duration:0.001s !important;}
+  }
+
+  .page{position:relative;z-index:1;max-width:960px;margin:0 auto;padding:0 32px 120px;}
+
+  /* ------ type utilities ------ */
+  .eyebrow{
+    font-family:var(--mono);
+    font-size:11px;font-weight:400;
+    letter-spacing:0.32em;text-transform:uppercase;
+    color:var(--gold);
+  }
+  .section-num{
+    font-family:var(--mono);font-size:11px;color:var(--gold-dim);
+    letter-spacing:0.2em;
+  }
+  h1{
+    font-family:var(--display);font-weight:700;
+    font-size:clamp(30px,5.4vw,52px);
+    letter-spacing:0.06em;line-height:1.15;
+    text-transform:uppercase;
+  }
+  h2{
+    font-family:var(--display);font-weight:600;
+    font-size:clamp(19px,2.6vw,25px);
+    letter-spacing:0.08em;text-transform:uppercase;
+    color:var(--ink);
+  }
+  h3{
+    font-family:var(--body);font-weight:500;
+    font-size:15px;letter-spacing:0.04em;text-transform:uppercase;
+    color:var(--gold);
+  }
+  p{max-width:64ch;color:var(--ink-dim);font-size:16px;}
+  p strong{color:var(--ink);font-weight:500;}
+  .lede{font-size:18px;color:var(--ink);}
+
+  /* ------ layout ------ */
+  header.masthead{
+    padding:96px 0 72px;
+    border-bottom:1px solid var(--hairline);
+    display:flex;flex-direction:column;gap:28px;
+  }
+  .mast-row{display:flex;align-items:center;gap:20px;flex-wrap:wrap;}
+  section{padding:80px 0 8px;}
+  .section-head{
+    display:flex;align-items:baseline;gap:16px;
+    padding-bottom:14px;margin-bottom:36px;
+    border-bottom:1px solid var(--hairline);
+  }
+  .stack{display:flex;flex-direction:column;gap:20px;}
+
+  /* ------ glass card ------ */
+  .card{
+    background:var(--glass);
+    border:1px solid var(--hairline);
+    border-radius:var(--radius-lg);
+    padding:28px;
+    backdrop-filter:blur(6px);
+  }
+  .card + .card{margin-top:20px;}
+  .card-label{
+    font-family:var(--mono);font-size:10px;letter-spacing:0.28em;
+    text-transform:uppercase;color:var(--gold-dim);margin-bottom:16px;
+  }
+
+  /* ------ mark ------ */
+  .mark-stage{
+    display:grid;grid-template-columns:1fr 1fr;gap:20px;
+  }
+  .mark-cell{
+    background:var(--void);
+    border:1px solid var(--hairline);border-radius:var(--radius-lg);
+    min-height:200px;display:flex;align-items:center;justify-content:center;
+    flex-direction:column;gap:18px;padding:32px;
+  }
+  .wordmark{
+    font-family:var(--display);font-weight:700;font-size:22px;
+    letter-spacing:0.18em;text-transform:uppercase;color:var(--ink);
+  }
+  .wordmark .os{color:var(--gold);}
+  .glow{filter:drop-shadow(0 0 6px rgba(201,162,75,0.4)) drop-shadow(0 0 16px rgba(201,162,75,0.15));}
+  .donts{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;margin-top:20px;}
+  .dont{
+    border:1px solid var(--hairline);border-radius:var(--radius);
+    padding:14px 16px;font-size:13px;color:var(--ink-dim);
+    font-family:var(--mono);letter-spacing:0.02em;
+  }
+  .dont::before{content:"✕ ";color:var(--gold);}
+
+  /* ------ colour ------ */
+  .swatches{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;}
+  .swatch{border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:hidden;}
+  .swatch-chip{height:96px;}
+  .swatch-meta{padding:14px 16px;display:flex;flex-direction:column;gap:4px;background:var(--glass);}
+  .swatch-name{font-family:var(--body);font-weight:500;font-size:14px;color:var(--ink);}
+  .swatch-hex{font-family:var(--mono);font-size:12px;color:var(--gold);letter-spacing:0.08em;}
+  .swatch-use{font-size:12px;color:var(--ink-faint);line-height:1.5;}
+
+  /* ------ typography specimens ------ */
+  .specimen{border-top:1px solid var(--hairline);padding:26px 0;}
+  .specimen:first-of-type{border-top:none;padding-top:6px;}
+  .spec-meta{
+    display:flex;gap:24px;flex-wrap:wrap;margin-bottom:14px;
+    font-family:var(--mono);font-size:11px;color:var(--gold-dim);letter-spacing:0.12em;
+  }
+  .spec-orbitron{font-family:var(--display);font-weight:700;font-size:clamp(26px,4.4vw,42px);letter-spacing:0.1em;text-transform:uppercase;}
+  .spec-inter{font-family:'Inter',system-ui,sans-serif;font-weight:400;font-size:14px;max-width:60ch;color:var(--ink-dim);line-height:1.7;}
+  .spec-mono{font-family:var(--mono);font-weight:400;font-size:13px;letter-spacing:0.14em;color:var(--gold);text-transform:uppercase;}
+
+  /* ------ production glass card demo ------ */
+  .prod-card{
+    background:rgba(255,255,255,0.07);
+    border:1px solid rgba(201,168,76,0.15);
+    border-radius:0.75rem;
+    padding:24px;
+    backdrop-filter:blur(20px);
+    -webkit-backdrop-filter:blur(20px);
+    box-shadow:0 0 20px rgba(201,168,76,0.06), 0 4px 30px rgba(0,0,0,0.4);
+  }
+  .prod-card-label{
+    font-family:'Inter',system-ui,sans-serif;font-size:10px;font-weight:700;letter-spacing:0.2em;
+    text-transform:uppercase;color:#52525b;margin-bottom:12px;
+  }
+  .prod-card p{font-family:'Inter',system-ui,sans-serif;font-size:14px;font-weight:400;color:#a1a1aa;}
+
+  /* ------ production button demos ------ */
+  .btn-prod{
+    display:inline-block;
+    font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:12px;
+    letter-spacing:0.1em;text-transform:uppercase;
+    padding:14px 16px;border-radius:4px;
+    text-decoration:none;cursor:pointer;
+    transition:all .25s ease;
+  }
+  .btn-prod-primary{
+    background:#C9A84C;color:#09090b;
+    border:1px solid #C9A84C;
+  }
+  .btn-prod-primary:hover{background:#D4B96A;}
+  .btn-prod-ghost{
+    background:#27272a;color:#C9A84C;
+    border:1px solid rgba(201,168,76,0.3);
+  }
+  .btn-prod-ghost:hover{background:#3f3f46;}
+
+  /* ------ production chip demo ------ */
+  .chip-prod{
+    display:inline-flex;align-items:center;gap:6px;
+    font-family:'Inter',system-ui,sans-serif;font-size:12px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;
+    color:#C9A84C;border:1px solid rgba(201,168,76,0.3);
+    border-radius:4px;padding:6px 12px;background:rgba(201,168,76,0.1);
+  }
+
+  /* ------ production grid demo ------ */
+  .prod-grid-demo{
+    height:120px;border-radius:var(--radius-lg);overflow:hidden;
+    border:1px solid var(--hairline);
+    background-color:#09090b;
+    background-image:
+      linear-gradient(rgba(201,168,76,0.08) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(201,168,76,0.08) 1px, transparent 1px);
+    background-size:40px 40px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .prod-grid-demo span{font-family:var(--mono);font-size:11px;color:var(--gold-dim);letter-spacing:0.12em;}
+
+  /* ------ components demo (guide-styled, kept for layout) ------ */
+  .demo-row{display:flex;gap:16px;flex-wrap:wrap;align-items:center;}
+  .btn{
+    display:inline-block;
+    font-family:var(--display);font-weight:600;font-size:12px;
+    letter-spacing:0.22em;text-transform:uppercase;
+    padding:14px 28px;border-radius:var(--radius);
+    text-decoration:none;cursor:pointer;
+    transition:all .25s ease;
+  }
+  .btn-primary{
+    background:var(--gold);color:var(--void);
+    border:1px solid var(--gold);
+  }
+  .btn-primary:hover{box-shadow:0 0 22px rgba(201,162,75,0.4);}
+  .btn-ghost{
+    background:transparent;color:var(--gold);
+    border:1px solid var(--hairline);
+  }
+  .btn-ghost:hover{border-color:var(--gold);}
+  .chip{
+    display:inline-flex;align-items:center;gap:8px;
+    font-family:var(--mono);font-size:11px;letter-spacing:0.2em;text-transform:uppercase;
+    color:var(--gold);border:1px solid var(--hairline);
+    border-radius:var(--radius);padding:7px 14px;background:var(--glass);
+  }
+  .chip::before{content:"";width:5px;height:5px;background:var(--gold);border-radius:1px;}
+  .usage-note{font-size:13px;color:var(--ink-faint);font-family:var(--mono);letter-spacing:0.02em;margin-top:14px;line-height:1.6;}
+
+  /* ------ naming table ------ */
+  .name-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--hairline);border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:hidden;}
+  .name-cell{background:var(--void);padding:16px 20px;}
+  .name-cell .nm{font-family:var(--display);font-weight:600;font-size:14px;letter-spacing:0.1em;text-transform:uppercase;color:var(--ink);}
+  .name-cell .role{font-size:12px;color:var(--ink-faint);margin-top:4px;display:block;}
+
+  /* ------ imagery rules ------ */
+  .rules{display:flex;flex-direction:column;gap:0;border:1px solid var(--hairline);border-radius:var(--radius-lg);overflow:hidden;}
+  .rule{
+    display:flex;gap:16px;padding:18px 22px;align-items:baseline;
+    border-top:1px solid var(--hairline);background:var(--glass);
+  }
+  .rule:first-child{border-top:none;}
+  .rule .tick{font-family:var(--mono);color:var(--gold);font-size:13px;flex-shrink:0;}
+  .rule p{font-size:14px;max-width:none;}
+
+  footer{
+    margin-top:100px;padding-top:28px;border-top:1px solid var(--hairline);
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:12px;
+    font-family:var(--mono);font-size:11px;letter-spacing:0.18em;text-transform:uppercase;color:var(--ink-faint);
+  }
+
+  @media (max-width:680px){
+    .mark-stage{grid-template-columns:1fr;}
+    .name-grid{grid-template-columns:1fr;}
+    .page{padding:0 20px 80px;}
+    header.masthead{padding:64px 0 48px;}
+  }
+
+  @media print{
+    body{background:#0B0B0C !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+    .grid-bg{display:none;}
+    section{page-break-inside:avoid;padding:40px 0 8px;}
+  }
+</style>
+</head>
+<body>
+<div class="grid-bg" aria-hidden="true"></div>
+<div class="page">
+
+  <header class="masthead">
+    <div class="mast-row">
+      <!-- OS chip mark — canonical SVG from Motherboard codebase (app/components/ExpertOSMark.js) -->
+      <svg class="glow" width="56" height="56" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Expert OS chip mark">
+        <line x1="0" y1="24" x2="6" y2="24" stroke="#C9A24B" stroke-width="1"/>
+        <circle cx="6" cy="24" r="1.5" fill="none" stroke="#C9A24B" stroke-width="0.8"/>
+        <rect x="8" y="4" width="36" height="40" rx="3" ry="3" fill="none" stroke="#C9A24B" stroke-width="1"/>
+        <path d="M15 16h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2z" fill="none" stroke="#EDEAE3" stroke-width="2.5" stroke-linejoin="round"/>
+        <path d="M30 16h6.5a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H30a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6.5" fill="none" stroke="#EDEAE3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <div>
+        <div class="eyebrow">Brand Guide · V1</div>
+        <h1>The Expert <span style="color:var(--gold)">OS</span></h1>
+      </div>
+    </div>
+    <p class="lede">How the brand looks, sounds and behaves. If you make anything that carries this name — a page, a post, a thumbnail, an email — it follows this document. Extend the system. Never redesign it.</p>
+  </header>
+
+  <!-- 01 STORY -->
+  <section id="story">
+    <div class="section-head">
+      <span class="section-num">01</span>
+      <h2>Brand Story &amp; Positioning</h2>
+    </div>
+    <div class="stack">
+      <p class="lede">Imthiaz spent six figures on business, branding and content mentors. The best of it was locked behind £10K+ price tags and drip-fed over twelve months. Out of reach for the coaches who need it most.</p>
+      <p>The Expert OS is that knowledge condensed into one system. It was proven first in his own business, six figures in twelve months, and then in his clients'. TJ went from a collapsed gym business to strong monthly revenue in five months. Ash went from £1K to £8K months in the same window. Imogen went from zero to £12K launches.</p>
+      <p>The core idea: <strong>coaches don't have a business problem. They have a systems problem.</strong> The Expert OS is positioned as an operating system, not a course. That is why the entire visual identity borrows from premium hardware and software: the chip mark, the circuit grids, the Motherboard™.</p>
+
+      <div class="card">
+        <div class="card-label">The Villain</div>
+        <p>Overpriced, gatekept, drip-fed mentorship.</p>
+      </div>
+      <div class="card">
+        <div class="card-label">The Promise</div>
+        <p>Consistent monthly revenue through a system, not hustle.</p>
+      </div>
+      <div class="card">
+        <div class="card-label">Voice</div>
+        <p>Direct. Short sentences. Plain British English. Specific numbers over vague claims. No rhetorical flourish, no em-dashes, no "it's not X, it's Y" constructions. Sounds like a real person, not a template.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 02 MARK -->
+  <section id="mark">
+    <div class="section-head">
+      <span class="section-num">02</span>
+      <h2>Logo &amp; Mark</h2>
+    </div>
+    <div class="stack">
+      <p>Two assets. The <strong>chip mark</strong> for icons, favicons, loading states and small spaces. The <strong>wordmark</strong> for headers, documents and anywhere the full name should read. Both live on void. Nothing else sits behind them.</p>
+
+      <div class="mark-stage">
+        <div class="mark-cell">
+          <!-- Canonical chip mark SVG from Motherboard codebase (app/components/ExpertOSMark.js, viewBox 0 0 48 48) -->
+          <svg class="glow" width="88" height="88" viewBox="0 0 48 48" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Chip mark">
+            <line x1="0" y1="24" x2="6" y2="24" stroke="#C9A24B" stroke-width="1"/>
+            <circle cx="6" cy="24" r="1.5" fill="none" stroke="#C9A24B" stroke-width="0.8"/>
+            <rect x="8" y="4" width="36" height="40" rx="3" ry="3" fill="none" stroke="#C9A24B" stroke-width="1"/>
+            <path d="M15 16h7a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-7a2 2 0 0 1-2-2V18a2 2 0 0 1 2-2z" fill="none" stroke="#EDEAE3" stroke-width="2.5" stroke-linejoin="round"/>
+            <path d="M30 16h6.5a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H30a2 2 0 0 0-2 2v4a2 2 0 0 0 2 2h6.5" fill="none" stroke="#EDEAE3" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+          <span class="usage-note">Chip mark · viewBox 48×48 · min 20px · clear space = mark height</span>
+        </div>
+        <div class="mark-cell">
+          <span class="wordmark">The Expert <span class="os">OS</span></span>
+          <span class="usage-note">Wordmark · Orbitron 700 · 0.18em tracking · min 14px</span>
+        </div>
+      </div>
+
+      <div class="donts">
+        <div class="dont">No recolouring</div>
+        <div class="dont">No stretching</div>
+        <div class="dont">No drop shadows</div>
+        <div class="dont">No busy backgrounds</div>
+        <div class="dont">No rotation</div>
+        <div class="dont">No outline-only text</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 03 COLOUR -->
+  <section id="colour">
+    <div class="section-head">
+      <span class="section-num">03</span>
+      <h2>Colour</h2>
+    </div>
+    <div class="stack">
+      <p>Three core colours. Gold is an <strong>accent only</strong>: hairlines, labels, highlights, glows. It never fills large areas except primary buttons. The Motherboard extends the palette with zinc greys for layered surfaces.</p>
+      <div class="swatches">
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#09090b;border-bottom:1px solid var(--hairline);"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Void</span>
+            <span class="swatch-hex">#09090B</span>
+            <span class="swatch-use">Page background (Tailwind zinc-950). Every full-bleed surface.</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#C9A84C;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Gold</span>
+            <span class="swatch-hex">#C9A84C</span>
+            <span class="swatch-use">Primary accent. Hairlines, eyebrows, CTAs, glows. Primary button fill.</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#FFFFFF;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Ink</span>
+            <span class="swatch-hex">#FFFFFF</span>
+            <span class="swatch-use">Primary text (text-white). Headlines and strong body copy.</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#D4B96A;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Gold Light</span>
+            <span class="swatch-hex">#D4B96A</span>
+            <span class="swatch-use">Button hover state (bg-gold-light). Never used for text.</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#18181b;border-bottom:1px solid var(--hairline);"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Card</span>
+            <span class="swatch-hex">#18181B</span>
+            <span class="swatch-use">Card and panel backgrounds (zinc-900). One step lighter than void.</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#27272a;border-bottom:1px solid var(--hairline);"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Input</span>
+            <span class="swatch-hex">#27272A</span>
+            <span class="swatch-use">Input fields and secondary surfaces (zinc-800).</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#EDEAE3;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Mark Ink</span>
+            <span class="swatch-hex">#EDEAE3</span>
+            <span class="swatch-use">OS mark letterforms only. Not used for body text.</span>
+          </div>
+        </div>
+        <div class="swatch">
+          <div class="swatch-chip" style="background:#C9A24B;"></div>
+          <div class="swatch-meta">
+            <span class="swatch-name">Mark Gold</span>
+            <span class="swatch-hex">#C9A24B</span>
+            <span class="swatch-use">OS mark chip frame and circuit trace. Variant of primary gold.</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-label">Working Tints (from production CSS)</div>
+        <p style="font-family:var(--mono);font-size:13px;line-height:2.2;">
+          Glass card border — gold at 15% <span style="color:var(--gold)">rgba(201,168,76,0.15)</span><br>
+          Glass card border hover — gold at 40% <span style="color:var(--gold)">rgba(201,168,76,0.40)</span><br>
+          Glass card fill — white at 7% <span style="color:var(--gold)">rgba(255,255,255,0.07)</span><br>
+          Glass card fill hover — white at 12% <span style="color:var(--gold)">rgba(255,255,255,0.12)</span><br>
+          Sidebar border — gold at 12% <span style="color:var(--gold)">rgba(201,168,76,0.12)</span><br>
+          Grid line — gold at 8% <span style="color:var(--gold)">rgba(201,168,76,0.08)</span><br>
+          Gold glow outer — gold at 6% <span style="color:var(--gold)">rgba(201,168,76,0.06)</span><br>
+          Active bg — gold at 20% <span style="color:var(--gold)">bg-gold/20</span><br>
+          Secondary text — zinc-500 <span style="color:var(--gold)">#71717A</span><br>
+          Tertiary text — zinc-400 <span style="color:var(--gold)">#A1A1AA</span><br>
+          Faint text — zinc-600 <span style="color:var(--gold)">#52525B</span><br>
+          Placeholder — zinc-600 <span style="color:var(--gold)">#52525B</span>
+        </p>
+      </div>
+      <div class="card">
+        <div class="card-label">Gold Gradient (used sparingly)</div>
+        <p style="font-family:var(--mono);font-size:13px;line-height:2;">
+          linear-gradient(135deg, #C9A84C 0%, #E8D48B 50%, #C9A84C 100%)<br>
+          Applied as .gold-gradient (fills) or .gold-gradient-text (clipped to text).
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 04 TYPE -->
+  <section id="type">
+    <div class="section-head">
+      <span class="section-num">04</span>
+      <h2>Typography</h2>
+    </div>
+    <div class="stack">
+      <p>Two faces, two jobs in the Motherboard. Orbitron for display, Inter for everything else. Never swap the jobs around.</p>
+
+      <div class="card">
+        <div class="specimen">
+          <div class="spec-meta"><span>ORBITRON</span><span>DISPLAY / HEADINGS</span><span>400–900 LOADED</span><span>UPPERCASE</span><span>+0.1EM (HEADING-DISPLAY CLASS)</span></div>
+          <div class="spec-orbitron">Consistent Monthly Revenue</div>
+        </div>
+        <div class="specimen">
+          <div class="spec-meta"><span>INTER</span><span>BODY / LABELS / DATA</span><span>300–900 LOADED</span><span>MIXED CASE</span><span>12–16PX</span></div>
+          <div class="spec-inter">Most coaches don't have a business problem. They have a systems problem. Body copy is set in Inter at 14px (text-sm) for most content. Bold at weight 700 for emphasis. Semibold (600) for form labels. Black (900) for stage badges and initials.</div>
+        </div>
+        <div class="specimen">
+          <div class="spec-meta"><span>INTER LABEL PATTERN</span><span>EYEBROWS / TAGS / SECTION HEADS</span><span>600–700</span><span>UPPERCASE</span><span>+0.1–0.3EM</span></div>
+          <div style="font-family:'Inter',system-ui,sans-serif;font-weight:700;font-size:10px;letter-spacing:0.25em;color:var(--gold);text-transform:uppercase;">This Week at a Glance · Stage 3 · Audience</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Rules (verified against Motherboard)</div>
+        <p style="font-size:14px;line-height:2;">
+          Orbitron is always uppercase, always tracked out (+0.1em via .heading-display), and never used for paragraphs.<br>
+          Inter carries everything else: body copy, labels, buttons, data, tags — all roles the draft assigned to both Space Grotesk and JetBrains Mono.<br>
+          Labels use Inter at 10–12px, font-bold (700) or font-semibold (600), uppercase, tracked between 0.1em (tracking-widest) and 0.3em (tracking-[0.3em]).<br>
+          Heading sizes in the Motherboard: text-xl (20px) to text-2xl (24px) for page titles. No clamp function used — Tailwind utility classes only.
+        </p>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Unverified — Landing Page / Marketing</div>
+        <p style="font-size:14px;line-height:1.8;">
+          The draft specified Space Grotesk (body) and JetBrains Mono (labels/data). Neither font is loaded or used anywhere in the Motherboard codebase. No landing page or how-it-works page currently exists in the codebase or at marketing.imthiazghulam.com. If these fonts are intended for a future marketing site, they should be documented separately when that site is built.
+        </p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 05 COMPONENTS -->
+  <section id="components">
+    <div class="section-head">
+      <span class="section-num">05</span>
+      <h2>Components</h2>
+    </div>
+    <div class="stack">
+
+      <div class="card">
+        <div class="card-label">Glass Card — Production CSS</div>
+        <div class="prod-card" style="margin-bottom:16px;">
+          <div class="prod-card-label">Example Card Label</div>
+          <p>This is a production-accurate glass card. White at 7% over void, 1px gold hairline at 15%, 12px radius (0.75rem), blur(20px). Box shadow: 0 0 20px gold/6%, 0 4px 30px black/40%.</p>
+        </div>
+        <div class="usage-note">
+          background: rgba(255,255,255,0.07) · border: 1px solid rgba(201,168,76,0.15) · border-radius: 0.75rem (12px) · backdrop-filter: blur(20px) · box-shadow: 0 0 20px rgba(201,168,76,0.06), 0 4px 30px rgba(0,0,0,0.4)<br><br>
+          Hover variant (.glass-card-hover): fill to white/12%, border to gold/40%, shadow to 0 0 40px gold/20%, lift -3px. Transition: all 0.25s ease.<br><br>
+          Solid card alternative: bg-zinc-900 (#18181B) with border border-zinc-800 (#27272A), rounded-lg (8px). Used for login forms, settings panels.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Buttons — Production CSS</div>
+        <div class="demo-row" style="margin-bottom:16px;">
+          <a class="btn-prod btn-prod-primary" href="#" onclick="return false;">Send Magic Link</a>
+          <a class="btn-prod btn-prod-ghost" href="#" onclick="return false;">Edit Playbook</a>
+        </div>
+        <div class="usage-note">
+          Primary: bg-gold (#C9A84C), hover bg-gold-light (#D4B96A), text-zinc-950 (#09090B), font-bold (Inter 700), text-xs (12px), uppercase, tracking-widest (0.1em), rounded (4px).<br><br>
+          Ghost/Secondary: bg-zinc-800, hover bg-zinc-700, text-gold, border border-gold/30, same text treatment.<br><br>
+          One primary per view. Labels are Inter 700 — not Orbitron — in the Motherboard. Text says exactly what happens.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Chips &amp; Badges — Production CSS</div>
+        <div class="demo-row" style="margin-bottom:16px;">
+          <span class="chip-prod">Motherboard™</span>
+          <span class="chip-prod">Stage 3</span>
+          <span class="chip-prod">Audience</span>
+        </div>
+        <div class="usage-note">
+          Inter 700, 12px, uppercase, tracking-widest (0.1em), text-gold, border border-gold/30 rgba(201,168,76,0.3), rounded (4px), bg-gold/10 rgba(201,168,76,0.1).<br><br>
+          No mono font in production. All labels, tags, and badges use Inter bold uppercase.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Hairlines &amp; Radii</div>
+        <p style="font-size:14px;">All borders are 1px. Glass card radius is 12px (0.75rem). Solid cards and buttons use 4–8px (rounded / rounded-lg). The chip mark frame uses 3px. No thick strokes, no pills, no full rounding. The hairline discipline is what makes the system feel like precision hardware — break it anywhere and the whole page cheapens.</p>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Gold Grid Background — Production CSS</div>
+        <div class="prod-grid-demo" style="margin-bottom:16px;">
+          <span>40PX CELLS · GOLD AT 8% · STATIC</span>
+        </div>
+        <div class="usage-note">
+          background-image: linear-gradient(rgba(201,168,76,0.08) 1px, transparent 1px), linear-gradient(90deg, rgba(201,168,76,0.08) 1px, transparent 1px) · background-size: 40px 40px.<br><br>
+          In the Motherboard (.bg-grid): static, no mask, no animation. Applied to main content areas via the bg-grid class.<br><br>
+          The brand guide's own decorative grid uses 64px cells, gold at 5%, with a radial mask and slow drift animation — this is a presentation treatment, not the production value.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-label">Glow Effects</div>
+        <div class="usage-note">
+          Logo glow (.logo-glow): drop-shadow(0 0 12px rgba(201,168,76,0.5)) drop-shadow(0 0 30px rgba(201,168,76,0.2))<br><br>
+          OS mark glow (.os-mark-glow): drop-shadow(0 0 6px rgba(201,162,75,0.4)) drop-shadow(0 0 16px rgba(201,162,75,0.15))<br><br>
+          OS mark pulse (.os-mark-pulse): opacity 1 → 0.4 → 1 over 1.5s ease-in-out, infinite. Used on loading states.<br><br>
+          Gold glow border (.gold-glow-border): border gold/40%, box-shadow 0 0 25px gold/15% + inset 0 0 20px gold/5%.<br><br>
+          Box shadow utilities: shadow-glow-gold (20px, 15%), shadow-glow-gold-lg (40px, 20%), shadow-glow-gold-sm (10px, 10%).
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- 06 NAMING -->
+  <section id="naming">
+    <div class="section-head">
+      <span class="section-num">06</span>
+      <h2>Product Naming</h2>
+    </div>
+    <div class="stack">
+      <p>Named mechanisms carry the ™ on first use in any piece, then drop it. In content, one named system per piece, described in plain English through the beats, with the name landing once, late, as scenery. Never as the pitch.</p>
+      <div class="name-grid">
+        <div class="name-cell"><span class="nm">The Expert OS</span><span class="role">The system. The brand. Always "The Expert OS", never "Expert OS system".</span></div>
+        <div class="name-cell"><span class="nm">Motherboard™</span><span class="role">The AI-powered platform. Always first in the product hierarchy.</span></div>
+        <div class="name-cell"><span class="nm">ICP Sniper™</span><span class="role">Motherboard tool — ideal client targeting.</span></div>
+        <div class="name-cell"><span class="nm">Sold Out™</span><span class="role">Motherboard tool — offer building.</span></div>
+        <div class="name-cell"><span class="nm">Premium Position™</span><span class="role">Motherboard tool — positioning.</span></div>
+        <div class="name-cell"><span class="nm">Hot List™</span><span class="role">Motherboard tool — pipeline.</span></div>
+        <div class="name-cell"><span class="nm">Content Capture™</span><span class="role">Motherboard tool — content system.</span></div>
+        <div class="name-cell"><span class="nm">Distinction Engine™</span><span class="role">Motherboard tool — differentiation.</span></div>
+        <div class="name-cell"><span class="nm">Morning Ops™</span><span class="role">Motherboard tool — daily rhythm. Framed as a business tool, never personal development.</span></div>
+        <div class="name-cell"><span class="nm">Source Code™</span><span class="role">Masterclasses. Positioned as bonus, third in hierarchy. Never the lead.</span></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Hierarchy</div>
+        <p style="font-size:14px;">Motherboard™ first (the system). Imthiaz's direct access second (calls, WhatsApp). Source Code™ third (bonus). Every sales surface follows this order.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- 07 IMAGERY -->
+  <section id="imagery">
+    <div class="section-head">
+      <span class="section-num">07</span>
+      <h2>Imagery &amp; Thumbnails</h2>
+    </div>
+    <div class="stack">
+      <p>Everything visual reads like a premium operating system booting up in the dark. Portraits are lit, not filtered.</p>
+      <div class="rules">
+        <div class="rule"><span class="tick">■</span><p>Void-dark backgrounds on everything. No white, no colour fields.</p></div>
+        <div class="rule"><span class="tick">■</span><p>Portraits get warm gold rim lighting on one side, bright enough to separate the subject from the dark.</p></div>
+        <div class="rule"><span class="tick">■</span><p>Circuit-grid and chip motifs as texture, brighter near the subject, fading to the edges.</p></div>
+        <div class="rule"><span class="tick">■</span><p>Text on thumbnails: Orbitron style, off-white with faint gold glow, large enough to read in a feed grid.</p></div>
+        <div class="rule"><span class="tick">■</span><p>Flat and crisp. No 3D extrusion, no bevels, no chrome, no perspective tilt.</p></div>
+        <div class="rule"><span class="tick">■</span><p>No stock-photo feel, no colours outside the palette, no more than one named mechanism per image.</p></div>
+      </div>
+      <div class="card">
+        <div class="card-label">Module Cover Recipe</div>
+        <p style="font-size:14px;">16:9 · void background · faint gold grid · 1px gold hairline inset border · OS chip mark top-left · small gold eyebrow "THE EXPERT OS" · module name large and centred in ink with faint gold glow. Every cover in a set is identical except the words.</p>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <span>The Expert OS · Brand Guide V1</span>
+    <span>marketing.imthiazghulam.com</span>
+  </footer>
+
+</div>
+</body>
+</html>

@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
+import ExpertOSMark from '../../components/ExpertOSMark'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -131,7 +132,9 @@ function LoadingOverlay({ lines }) {
   return (
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="text-center">
-        <div className="w-10 h-10 border-2 border-gold/30 border-t-gold rounded-full animate-spin mx-auto mb-4" />
+        <div className="flex justify-center mb-5">
+          <img src="/logo.png" alt="Expert OS" className="h-16 w-auto os-mark-pulse logo-glow" />
+        </div>
         <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[idx]}</p>
       </div>
     </div>

@@ -142,6 +142,19 @@
     letter-spacing: 0.1em;
     text-transform: uppercase;
   }
+
+  /* ── Expert OS Mark ──────────────────────────────────────── */
+  .os-mark-glow {
+    filter: drop-shadow(0 0 6px rgba(201, 162, 75, 0.4)) drop-shadow(0 0 16px rgba(201, 162, 75, 0.15));
+  }
+
+  .os-mark-pulse {
+    animation: osPulse 1.5s ease-in-out infinite;
+  }
+  @keyframes osPulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
 }
 
 @layer utilities {

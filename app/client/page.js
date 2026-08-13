@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import ExpertOSMark from '../components/ExpertOSMark'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -2079,7 +2080,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</div>
+      <div className="text-center"><img src="/logo.png" alt="Expert OS" className="h-16 w-auto mx-auto mb-4 os-mark-pulse logo-glow" /><p className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</p></div>
     </div>
   )
 
@@ -2190,7 +2191,10 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     <nav className="flex flex-col h-full">
       {/* Logo */}
       <div className="p-5 pb-4 border-b border-white/[0.06]">
-        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
+        <div className="flex items-center gap-2">
+          <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
+          <ExpertOSMark size={28} glow />
+        </div>
       </div>
 
       {/* User card */}
@@ -2297,7 +2301,10 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-zinc-400 hover:text-white active:text-white transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
+          <div className="flex items-center gap-1.5">
+            <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
+            <ExpertOSMark size={20} glow />
+          </div>
           <div className="w-9" />
         </header>
 
@@ -4581,8 +4588,11 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto px-4 sm:px-6 py-3 scrollbar-thin">
                     {coachMessages.length === 0 && !coachSending && (
-                      <div className="text-center py-6">
-                        <p className="text-zinc-500 text-xs mb-3">Click the chat icon on any lead card, or type below.</p>
+                      <div className="text-center py-6 relative">
+                        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                          <ExpertOSMark size={120} className="opacity-[0.06]" />
+                        </div>
+                        <p className="text-zinc-500 text-xs mb-3 relative">Click the chat icon on any lead card, or type below.</p>
                         <div className="flex flex-wrap gap-1.5 justify-center">
                           {[
                             { label: 'Who needs a message today?', icon: '📋' },
@@ -5856,12 +5866,14 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
             {/* Project List */}
             {projects.length === 0 && !showProjectForm ? (
-              <div className="text-center py-16">
-                <div className="inline-flex items-center justify-center w-12 h-12 bg-zinc-900 border border-zinc-800 rounded-lg mb-4">
-                  <svg className="w-6 h-6 text-zinc-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" /></svg>
+              <div className="text-center py-16 relative">
+                <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+                  <ExpertOSMark size={120} className="opacity-[0.06]" />
                 </div>
-                <p className="text-zinc-500 text-sm font-medium">No projects yet</p>
-                <p className="text-zinc-700 text-xs mt-1">Click "+ Add Project" to create one.</p>
+                <div className="relative">
+                  <p className="text-zinc-500 text-sm font-medium">No projects yet</p>
+                  <p className="text-zinc-700 text-xs mt-1">Click &quot;+ Add Project&quot; to create one.</p>
+                </div>
               </div>
             ) : (
               <div className="space-y-3">

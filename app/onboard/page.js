@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { supabase } from '../../lib/supabase'
+import ExpertOSMark from '../components/ExpertOSMark'
 
 export default function OnboardPage() {
   const [form, setForm] = useState({
@@ -85,6 +86,9 @@ export default function OnboardPage() {
       <div className="w-full max-w-md">
         {/* Branding */}
         <div className="text-center mb-8">
+          <div className="flex justify-center mb-4">
+            <ExpertOSMark size={64} glow />
+          </div>
           <img src="/logo.png" alt="The Syndicate" className="h-16 w-auto mx-auto mb-4" />
           <p className="text-zinc-600 text-xs tracking-widest uppercase">Client Onboarding</p>
         </div>
