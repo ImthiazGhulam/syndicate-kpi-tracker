@@ -3525,70 +3525,97 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             })()}
           </div>
 
-          {pieces.map((p, i) => (
-            <PieceCard key={`${viewingWeek.id}-${i}`}
-              title={`${p.day || ''} · ${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
-              piece={p.piece}
-              posted={p.posted || false}
-              onTogglePosted={async () => {
-                const updated = [...pieces]
-                updated[i] = { ...updated[i], posted: !updated[i].posted }
-                setViewingWeek(prev => ({ ...prev, piece_ids: updated }))
-                await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
-              }}
-              onSave={(newText) => updatePiece(i, newText)}
-              onToEmail={p.job !== 'email' ? () => convertToEmail(i) : undefined}
-              onRewrite={() => {
-                setModal({
-                  title: "What's off about it?",
-                  body: 'Pick the closest — the correction shapes the rewrite.',
-                  options: [
-                    ['Too salesy — soften it', () => { setModal(null); rewriteSavedPiece(i, 'It read too salesy. Softer, more human, the offer lighter.') }],
-                    ['Too formal — loosen it up', () => { setModal(null); rewriteSavedPiece(i, 'Too formal and written. Looser, more like talking.') }],
-                    ["Doesn't sound like me — plainer", () => { setModal(null); rewriteSavedPiece(i, "Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
-                    ['Just try a different angle', () => { setModal(null); rewriteSavedPiece(i, 'Take a completely different angle on the same moment.') }],
-                  ],
-                })
-              }}
-              onChangeFormat={() => {
-                const job = p.job || 'reach'
-                const availableEngines = getAvailableEngines(job)
-                setModal({
-                  title: 'Change the format',
-                  body: 'Pick a new engine and format — the piece will be rewritten.',
-                  options: availableEngines.flatMap(eng => {
-                    const formats = getFormatsForJobEngine(job, eng.id)
-                    return formats.map(f => ([
-                      `${eng.icon} ${eng.label} → ${f.label}`,
-                      async () => {
-                        setModal(null)
-                        const fmtPrompt = FORMAT_PROMPTS[f.id]
-                        if (!fmtPrompt) return
-                        const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
-                        const card = { fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label, cta: JOB_CTA[job] || CARDS[p.cardKey || 'c1']?.cta || '', dont: [] }
-                        setScreen('week-writing'); setWritingLine(moment.line)
-                        try {
-                          const newPiece = await generate(card, moment, null, null, p.cardKey || 'c1')
-                          updatePiece(i, newPiece)
+          {(() => {
+            const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any day', '']
+            const grouped = {}
+            pieces.forEach((p, i) => {
+              const day = p.day || 'Any day'
+              if (!grouped[day]) grouped[day] = []
+              grouped[day].push({ ...p, _idx: i })
+            })
+            const sortedDays = Object.keys(grouped).sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+
+            return sortedDays.map(day => {
+              const dayPieces = grouped[day]
+              const dayPosted = dayPieces.filter(p => p.posted).length
+              const allPosted = dayPosted === dayPieces.length
+              return (
+                <div key={day} className={`rounded-xl border ${allPosted ? 'border-emerald-500/30' : 'border-gold/25'} p-4 mb-4`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className={`text-xs font-bold uppercase tracking-widest ${allPosted ? 'text-emerald-400' : 'text-gold'}`}>{day}</h3>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${allPosted ? 'text-emerald-400' : 'text-zinc-500'}`}>{dayPosted}/{dayPieces.length} posted</span>
+                  </div>
+                  {dayPieces.map(p => {
+                    const i = p._idx
+                    return (
+                      <PieceCard key={`${viewingWeek.id}-${i}`}
+                        title={`${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
+                        piece={p.piece}
+                        posted={p.posted || false}
+                        onTogglePosted={async () => {
                           const updated = [...pieces]
-                          updated[i] = { ...updated[i], piece: newPiece, format: f.label }
-                          const newWeek = { ...viewingWeek, piece_ids: updated }
+                          updated[i] = { ...updated[i], posted: !updated[i].posted }
+                          setViewingWeek(prev => ({ ...prev, piece_ids: updated }))
                           await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
-                          setViewingWeek(newWeek)
-                          setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
-                        } catch (err) {
-                          const updated = [...pieces]
-                          updated[i] = { ...updated[i], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
-                          setViewingWeek({ ...viewingWeek, piece_ids: updated })
-                        }
-                        setScreen('view-week')
-                      }
-                    ]))
-                  }),
-                })
-              }}
-            />
-          ))}
+                        }}
+                        onSave={(newText) => updatePiece(i, newText)}
+                        onToEmail={p.job !== 'email' ? () => convertToEmail(i) : undefined}
+                        onRewrite={() => {
+                          setModal({
+                            title: "What's off about it?",
+                            body: 'Pick the closest — the correction shapes the rewrite.',
+                            options: [
+                              ['Too salesy — soften it', () => { setModal(null); rewriteSavedPiece(i, 'It read too salesy. Softer, more human, the offer lighter.') }],
+                              ['Too formal — loosen it up', () => { setModal(null); rewriteSavedPiece(i, 'Too formal and written. Looser, more like talking.') }],
+                              ["Doesn't sound like me — plainer", () => { setModal(null); rewriteSavedPiece(i, "Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
+                              ['Just try a different angle', () => { setModal(null); rewriteSavedPiece(i, 'Take a completely different angle on the same moment.') }],
+                            ],
+                          })
+                        }}
+                        onChangeFormat={() => {
+                          const job = p.job || 'reach'
+                          const availableEngines = getAvailableEngines(job)
+                          setModal({
+                            title: 'Change the format',
+                            body: 'Pick a new engine and format — the piece will be rewritten.',
+                            options: availableEngines.flatMap(eng => {
+                              const formats = getFormatsForJobEngine(job, eng.id)
+                              return formats.map(f => ([
+                                `${eng.icon} ${eng.label} → ${f.label}`,
+                                async () => {
+                                  setModal(null)
+                                  const fmtPrompt = FORMAT_PROMPTS[f.id]
+                                  if (!fmtPrompt) return
+                                  const moment = { line: p.momentLine || p.piece?.slice(0, 80) || '', type: p.momentType || 'client', enrichment: {} }
+                                  const card = { fmt: fmtPrompt.fmt, out: fmtPrompt.out, nm: f.label, cta: JOB_CTA[job] || CARDS[p.cardKey || 'c1']?.cta || '', dont: [] }
+                                  setScreen('week-writing'); setWritingLine(moment.line)
+                                  try {
+                                    const newPiece = await generate(card, moment, null, null, p.cardKey || 'c1')
+                                    updatePiece(i, newPiece)
+                                    const updated = [...pieces]
+                                    updated[i] = { ...updated[i], piece: newPiece, format: f.label }
+                                    const newWeek = { ...viewingWeek, piece_ids: updated }
+                                    await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+                                    setViewingWeek(newWeek)
+                                    setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+                                  } catch (err) {
+                                    const updated = [...pieces]
+                                    updated[i] = { ...updated[i], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
+                                    setViewingWeek({ ...viewingWeek, piece_ids: updated })
+                                  }
+                                  setScreen('view-week')
+                                }
+                              ]))
+                            }),
+                          })
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              )
+            })
+          })()}
 
           <div className="flex justify-between mt-6">
             <button onClick={deleteWeek} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest">Delete entire week</button>
@@ -3618,38 +3645,57 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
             <DimLabel>Edit any piece below. Changes save automatically.</DimLabel>
           </div>
 
-          {pieces.map((p, i) => (
-            <div key={`edit-${viewingWeek.id}-${i}`} className="glass-card p-5 mb-3">
-              <div className="flex justify-between items-baseline mb-3">
-                <h4 className="text-xs font-bold text-gold uppercase tracking-widest">{p.day || ''} · {JOBNAMES[p.job] || p.job || ''} · {p.format || ''}</h4>
-                <button onClick={async () => {
-                  const updated = [...pieces]
-                  updated.splice(i, 1)
-                  const newWeek = { ...viewingWeek, piece_ids: updated }
-                  await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
-                  setViewingWeek(newWeek)
-                  setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
-                }} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest">Remove</button>
+          {(() => {
+            const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any day', '']
+            const grouped = {}
+            pieces.forEach((p, i) => {
+              const day = p.day || 'Any day'
+              if (!grouped[day]) grouped[day] = []
+              grouped[day].push({ ...p, _idx: i })
+            })
+            const sortedDays = Object.keys(grouped).sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+
+            return sortedDays.map(day => (
+              <div key={day} className="rounded-xl border border-gold/25 p-4 mb-4">
+                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-3">{day}</h3>
+                {grouped[day].map(p => {
+                  const i = p._idx
+                  return (
+                    <div key={`edit-${viewingWeek.id}-${i}`} className="glass-card p-5 mb-3">
+                      <div className="flex justify-between items-baseline mb-3">
+                        <h4 className="text-xs font-bold text-gold uppercase tracking-widest">{JOBNAMES[p.job] || p.job || ''} · {p.format || ''}</h4>
+                        <button onClick={async () => {
+                          const updated = [...pieces]
+                          updated.splice(i, 1)
+                          const newWeek = { ...viewingWeek, piece_ids: updated }
+                          await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+                          setViewingWeek(newWeek)
+                          setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+                        }} className="text-xs font-bold text-red-500/60 hover:text-red-400 uppercase tracking-widest">Remove</button>
+                      </div>
+                      {p.momentLine && <p className="text-xs text-zinc-500 mb-2">Moment: {p.momentLine}</p>}
+                      <textarea
+                        rows={8}
+                        defaultValue={p.piece || ''}
+                        onBlur={async (e) => {
+                          const val = e.target.value
+                          if (val !== p.piece) {
+                            const updated = [...pieces]
+                            updated[i] = { ...updated[i], piece: val }
+                            const newWeek = { ...viewingWeek, piece_ids: updated }
+                            await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
+                            setViewingWeek(newWeek)
+                            setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
+                          }
+                        }}
+                        className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
+                      />
+                    </div>
+                  )
+                })}
               </div>
-              {p.momentLine && <p className="text-xs text-zinc-500 mb-2">Moment: {p.momentLine}</p>}
-              <textarea
-                rows={8}
-                defaultValue={p.piece || ''}
-                onBlur={async (e) => {
-                  const val = e.target.value
-                  if (val !== p.piece) {
-                    const updated = [...pieces]
-                    updated[i] = { ...updated[i], piece: val }
-                    const newWeek = { ...viewingWeek, piece_ids: updated }
-                    await supabase.from('cc_weeks').update({ piece_ids: updated }).eq('id', viewingWeek.id)
-                    setViewingWeek(newWeek)
-                    setSavedWeeks(prev => prev.map(w => w.id === viewingWeek.id ? newWeek : w))
-                  }
-                }}
-                className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm resize-none"
-              />
-            </div>
-          ))}
+            ))
+          })()}
 
           <div className="flex gap-3 mt-6">
             <Btn gold onClick={() => navigateTo('view-week', viewingWeek)}>Done editing</Btn>
