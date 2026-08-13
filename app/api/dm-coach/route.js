@@ -166,7 +166,17 @@ async function executeTool(toolName, toolInput, clientId) {
     const matches = leads.filter(l => {
       const name = (l.name || '').toLowerCase()
       const ig = (l.instagram || '').replace('@', '').toLowerCase()
-      return name.includes(query) || ig.includes(query) || query.includes(name) || query.includes(ig)
+      return name.includes(query) || ig.includes(query) || (query.includes(name) && name.length > 1) || (query.includes(ig) && ig.length > 1)
+    }).sort((a, b) => {
+      // Prioritise exact and starts-with matches
+      const score = (l) => {
+        const n = (l.name || '').toLowerCase(), h = (l.instagram || '').replace('@', '').toLowerCase()
+        if (n === query || h === query) return 4
+        if (n.startsWith(query) || h.startsWith(query)) return 3
+        if (n.includes(query) || h.includes(query)) return 2
+        return 1
+      }
+      return score(b) - score(a)
     })
 
     if (matches.length === 0) return { leads: [], note: `No lead matching "${toolInput.query}" found.` }
@@ -309,11 +319,23 @@ async function executeTool(toolName, toolInput, clientId) {
 
     if (!leads || leads.length === 0) return { error: 'No leads found on the Hot List.' }
 
-    const match = leads.find(l => {
+    // Prioritised matching: exact → starts-with → includes (avoids "Jo" matching before "John")
+    const scoreLead = (l) => {
       const name = (l.name || '').toLowerCase()
       const ig = (l.instagram || '').replace('@', '').toLowerCase()
-      return name.includes(query) || ig.includes(query) || query.includes(name) || query.includes(ig)
-    })
+      if (name === query || ig === query) return 4                  // exact
+      if (name.startsWith(query) || ig.startsWith(query)) return 3  // starts-with
+      if (name.includes(query) || ig.includes(query)) return 2      // name contains query
+      if (query.includes(name) && name.length > 1) return 1         // query contains name (loose)
+      if (query.includes(ig) && ig.length > 1) return 1
+      return 0
+    }
+    let match = null
+    let bestScore = 0
+    for (const l of leads) {
+      const s = scoreLead(l)
+      if (s > bestScore) { bestScore = s; match = l }
+    }
 
     if (!match) return { error: `No lead matching "${toolInput.query}" found. Card not updated.` }
 

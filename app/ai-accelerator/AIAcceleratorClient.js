@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import ExpertOSMark from '../components/ExpertOSMark'
 
+
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const AI_STATUS_LINES = [
@@ -29,7 +30,7 @@ function LoadingOverlay({ lines }) {
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="text-center">
         <div className="flex justify-center mb-5">
-          <img src="/logo.png" alt="Expert OS" className="h-16 w-auto os-mark-pulse logo-glow" />
+          <ExpertOSMark size={40} glow className="os-mark-pulse" />
         </div>
         <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
       </div>
@@ -260,7 +261,7 @@ export default function AIAcceleratorPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="text-center"><img src="/logo.png" alt="Expert OS" className="h-16 w-auto mx-auto mb-4 os-mark-pulse logo-glow" /><p className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</p></div>
+      <div className="text-center"><ExpertOSMark size={40} glow className="os-mark-pulse" /><p className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</p></div>
     </div>
   )
 
@@ -362,10 +363,7 @@ export default function AIAcceleratorPage() {
             <span className="tracking-wide">All Tools</span>
           </button>
         </div>
-        <div className="flex items-center gap-1.5">
-          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
-          <ExpertOSMark size={20} glow />
-        </div>
+        <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
       </header>
 
       <div className="max-w-3xl mx-auto p-4 md:px-8 md:py-8">

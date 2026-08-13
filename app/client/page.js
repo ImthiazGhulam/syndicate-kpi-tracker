@@ -2080,7 +2080,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="text-center"><img src="/logo.png" alt="Expert OS" className="h-16 w-auto mx-auto mb-4 os-mark-pulse logo-glow" /><p className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</p></div>
+      <div className="text-center"><ExpertOSMark size={40} glow className="os-mark-pulse" /><p className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</p></div>
     </div>
   )
 
@@ -2191,10 +2191,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     <nav className="flex flex-col h-full">
       {/* Logo */}
       <div className="p-5 pb-4 border-b border-white/[0.06]">
-        <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
-          <ExpertOSMark size={28} glow />
-        </div>
+        <img src="/logo.png" alt="The Syndicate" className="h-12 w-auto logo-glow" />
       </div>
 
       {/* User card */}
@@ -2301,10 +2298,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           <button onClick={() => setSidebarOpen(true)} className="p-2 -ml-2 text-zinc-400 hover:text-white active:text-white transition">
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
           </button>
-          <div className="flex items-center gap-1.5">
-            <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
-            <ExpertOSMark size={20} glow />
-          </div>
+          <img src="/logo.png" alt="The Syndicate" className="h-8 w-auto logo-glow" />
           <div className="w-9" />
         </header>
 

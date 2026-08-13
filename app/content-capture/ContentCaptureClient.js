@@ -183,7 +183,7 @@ function LoadingOverlay({ lines }) {
     <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
       <div className="text-center">
         <div className="flex justify-center mb-5">
-          <img src="/logo.png" alt="Expert OS" className="h-16 w-auto os-mark-pulse logo-glow" />
+          <ExpertOSMark size={40} glow className="os-mark-pulse" />
         </div>
         <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
       </div>
