@@ -2040,68 +2040,72 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
           <div className="mt-2">
             {(() => {
-              const grouped = []
-              let lastDay = null
+              const dayGroups = {}
               weekSlots.forEach((sl, i) => {
                 const dayBase = sl.day.split(' · ')[0]
-                if (dayBase !== lastDay) { grouped.push({ type: 'day', day: dayBase }); lastDay = dayBase }
-                grouped.push({ type: 'slot', sl, i })
+                if (!dayGroups[dayBase]) dayGroups[dayBase] = []
+                dayGroups[dayBase].push({ sl, i })
               })
-              return grouped.map((item, gi) =>
-                item.type === 'day' ? (
-                  <div key={'day-' + gi} className="mt-4 mb-2 first:mt-0">
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{item.day}</span>
+              const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any day']
+              const sortedDays = Object.keys(dayGroups).sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+
+              return sortedDays.map(day => (
+                <div key={day} className="rounded-xl border border-gold/25 p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-gold uppercase tracking-widest">{day}</h3>
+                    <span className="text-[10px] text-zinc-500">{dayGroups[day].length} post{dayGroups[day].length !== 1 ? 's' : ''}</span>
                   </div>
-                ) : (
-                  <div key={item.i}>
-                    <SlotCard job={item.sl.job} moment={item.sl.moment}
-                      onPick={() => setPicker(item.i)}
-                      onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
-                      salesAngle={salesAngles[item.i]}
-                      onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
-                      offerContext={playbookContext?.offer}
-                      onCapture={async (type, line, enrichment, angle) => {
-                        try {
-                          const entry = await addLogEntry(type, line)
-                          if (entry) {
-                            entry.enrichment = enrichment || {}
-                            if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
-                            setLog(prev => [entry, ...prev])
-                            setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: entry }; return updated })
-                            if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
-                          } else {
+                  {dayGroups[day].map(item => (
+                    <div key={item.i}>
+                      <SlotCard job={item.sl.job} moment={item.sl.moment}
+                        onPick={() => setPicker(item.i)}
+                        onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
+                        salesAngle={salesAngles[item.i]}
+                        onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
+                        offerContext={playbookContext?.offer}
+                        onCapture={async (type, line, enrichment, angle) => {
+                          try {
+                            const entry = await addLogEntry(type, line)
+                            if (entry) {
+                              entry.enrichment = enrichment || {}
+                              if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
+                              setLog(prev => [entry, ...prev])
+                              setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: entry }; return updated })
+                              if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
+                            } else {
+                              const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
+                              setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: localMoment }; return updated })
+                            }
+                          } catch (err) {
                             const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
                             setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: localMoment }; return updated })
                           }
-                        } catch (err) {
-                          const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
-                          setWeekSlots(prev => { const updated = [...prev]; updated[item.i] = { ...updated[item.i], moment: localMoment }; return updated })
-                        }
-                      }} />
-                    {item.sl.job === 'value' && memberMagnets.length > 0 && (
-                      <div className="ml-4 mb-2 flex items-center gap-2">
-                        <button onClick={() => {
-                          const isOn = !freePushSlots[item.i]
-                          setFreePushSlots(prev => ({ ...prev, [item.i]: isOn }))
-                          if (!isOn) setFreePushMagnet(prev => { const u = { ...prev }; delete u[item.i]; return u })
-                        }} className={`text-[10px] font-bold uppercase tracking-widest transition ${freePushSlots[item.i] ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                          {freePushSlots[item.i] ? '● Freebie push ON' : '○ Freebie push'}
-                        </button>
-                        {freePushSlots[item.i] && memberMagnets.length > 1 && (
-                          <select value={freePushMagnet[item.i] || ''} onChange={e => setFreePushMagnet(prev => ({ ...prev, [item.i]: e.target.value }))}
-                            className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer">
-                            <option value="">Pick magnet...</option>
-                            {memberMagnets.map(mg => <option key={mg.id} value={mg.id}>{mg.name} ({mg.keyword})</option>)}
-                          </select>
-                        )}
-                        {freePushSlots[item.i] && memberMagnets.length === 1 && (
-                          <span className="text-[10px] text-zinc-500">{memberMagnets[0].name} ({memberMagnets[0].keyword})</span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                )
-              )
+                        }} />
+                      {item.sl.job === 'value' && memberMagnets.length > 0 && (
+                        <div className="ml-4 mb-2 flex items-center gap-2">
+                          <button onClick={() => {
+                            const isOn = !freePushSlots[item.i]
+                            setFreePushSlots(prev => ({ ...prev, [item.i]: isOn }))
+                            if (!isOn) setFreePushMagnet(prev => { const u = { ...prev }; delete u[item.i]; return u })
+                          }} className={`text-[10px] font-bold uppercase tracking-widest transition ${freePushSlots[item.i] ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                            {freePushSlots[item.i] ? '● Freebie push ON' : '○ Freebie push'}
+                          </button>
+                          {freePushSlots[item.i] && memberMagnets.length > 1 && (
+                            <select value={freePushMagnet[item.i] || ''} onChange={e => setFreePushMagnet(prev => ({ ...prev, [item.i]: e.target.value }))}
+                              className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer">
+                              <option value="">Pick magnet...</option>
+                              {memberMagnets.map(mg => <option key={mg.id} value={mg.id}>{mg.name} ({mg.keyword})</option>)}
+                            </select>
+                          )}
+                          {freePushSlots[item.i] && memberMagnets.length === 1 && (
+                            <span className="text-[10px] text-zinc-500">{memberMagnets[0].name} ({memberMagnets[0].keyword})</span>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              ))
             })()}
           </div>
 
@@ -2907,98 +2911,99 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
 
           <div className="mt-2">
             {(() => {
-              const grouped = []
-              let lastDay = null
+              const dayGroups = {}
               weekSlots.forEach((sl, i) => {
                 const dayBase = sl.day.split(' · ')[0]
-                if (dayBase !== lastDay) {
-                  grouped.push({ type: 'day', day: dayBase })
-                  lastDay = dayBase
-                }
-                grouped.push({ type: 'slot', sl, i })
+                if (!dayGroups[dayBase]) dayGroups[dayBase] = []
+                dayGroups[dayBase].push({ sl, i })
               })
-              return grouped.map((item, gi) =>
-                item.type === 'day' ? (
-                  <div key={'day-' + gi} className="mt-4 mb-2 first:mt-0">
-                    <span className="text-xs font-bold text-zinc-500 uppercase tracking-widest">{item.day}</span>
+              const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any day']
+              const sortedDays = Object.keys(dayGroups).sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+
+              return sortedDays.map(day => (
+                <div key={day} className="rounded-xl border border-gold/25 p-4 mb-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="text-xs font-bold text-gold uppercase tracking-widest">{day}</h3>
+                    <span className="text-[10px] text-zinc-500">{dayGroups[day].length} post{dayGroups[day].length !== 1 ? 's' : ''}</span>
                   </div>
-                ) : (
-                  <div key={item.i}>
-                  <SlotCard job={item.sl.job} moment={item.sl.moment}
-                    onPick={() => setPicker(item.i)}
-                    onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
-                    salesAngle={salesAngles[item.i]}
-                    onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
-                    offerContext={playbookContext?.offer}
-                    onCapture={async (type, line, enrichment, angle) => {
-                      try {
-                        const entry = await addLogEntry(type, line)
-                        if (entry) {
-                          entry.enrichment = enrichment || {}
-                          if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
-                          setLog(prev => [entry, ...prev])
-                          setWeekSlots(prev => {
-                            const updated = [...prev]
-                            updated[item.i] = { ...updated[item.i], moment: entry }
-                            return updated
-                          })
-                          if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
-                        } else {
-                          const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
-                          setWeekSlots(prev => {
-                            const updated = [...prev]
-                            updated[item.i] = { ...updated[item.i], moment: localMoment }
-                            return updated
-                          })
-                        }
-                      } catch (err) {
-                        console.error('Capture failed:', err)
-                        const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
-                        setWeekSlots(prev => {
-                          const updated = [...prev]
-                          updated[item.i] = { ...updated[item.i], moment: localMoment }
-                          return updated
-                        })
-                      }
-                    }} />
-                  {item.sl.job === 'value' && memberMagnets.length > 0 && (
-                    <div className="ml-4 mb-2 flex items-center gap-2">
-                      <button onClick={() => {
-                        const isOn = !freePushSlots[item.i]
-                        setFreePushSlots(prev => ({ ...prev, [item.i]: isOn }))
-                        if (!isOn) setFreePushMagnet(prev => { const u = { ...prev }; delete u[item.i]; return u })
-                        if (isOn && stage === 'launch' && playbookContext?.offer?.offerName) {
-                          setModal({ title: 'Heads up', body: `This week is selling ${playbookContext.offer.offerName} — a freebie push splits the ask.`, options: [['Got it', () => setModal(null)]] })
-                        }
-                      }}
-                        className={`text-[10px] font-bold uppercase tracking-widest transition ${freePushSlots[item.i] ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
-                        {freePushSlots[item.i] ? '● Freebie push ON' : '○ Freebie push'}
-                      </button>
-                      {freePushSlots[item.i] && memberMagnets.length > 1 && (
-                        <select value={freePushMagnet[item.i] || ''} onChange={e => setFreePushMagnet(prev => ({ ...prev, [item.i]: e.target.value }))}
-                          className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer">
-                          <option value="">Pick magnet...</option>
-                          {memberMagnets.map(mg => <option key={mg.id} value={mg.id}>{mg.name} ({mg.keyword})</option>)}
-                        </select>
+                  {dayGroups[day].map(item => (
+                    <div key={item.i}>
+                      <SlotCard job={item.sl.job} moment={item.sl.moment}
+                        onPick={() => setPicker(item.i)}
+                        onClear={() => { const updated = [...weekSlots]; updated[item.i].moment = null; setWeekSlots(updated) }}
+                        salesAngle={salesAngles[item.i]}
+                        onSalesAngle={(angle) => setSalesAngles(prev => ({ ...prev, [item.i]: angle }))}
+                        offerContext={playbookContext?.offer}
+                        onCapture={async (type, line, enrichment, angle) => {
+                          try {
+                            const entry = await addLogEntry(type, line)
+                            if (entry) {
+                              entry.enrichment = enrichment || {}
+                              if (Object.keys(entry.enrichment).length > 0) await updateLogEntry(entry.id, entry.enrichment)
+                              setLog(prev => [entry, ...prev])
+                              setWeekSlots(prev => {
+                                const updated = [...prev]
+                                updated[item.i] = { ...updated[item.i], moment: entry }
+                                return updated
+                              })
+                              if (angle) setSalesAngles(prev => ({ ...prev, [item.i]: angle }))
+                            } else {
+                              const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
+                              setWeekSlots(prev => {
+                                const updated = [...prev]
+                                updated[item.i] = { ...updated[item.i], moment: localMoment }
+                                return updated
+                              })
+                            }
+                          } catch (err) {
+                            console.error('Capture failed:', err)
+                            const localMoment = { id: `local-${Date.now()}`, type, line, enrichment: enrichment || {}, created_at: new Date().toISOString() }
+                            setWeekSlots(prev => {
+                              const updated = [...prev]
+                              updated[item.i] = { ...updated[item.i], moment: localMoment }
+                              return updated
+                            })
+                          }
+                        }} />
+                      {item.sl.job === 'value' && memberMagnets.length > 0 && (
+                        <div className="ml-4 mb-2 flex items-center gap-2">
+                          <button onClick={() => {
+                            const isOn = !freePushSlots[item.i]
+                            setFreePushSlots(prev => ({ ...prev, [item.i]: isOn }))
+                            if (!isOn) setFreePushMagnet(prev => { const u = { ...prev }; delete u[item.i]; return u })
+                            if (isOn && stage === 'launch' && playbookContext?.offer?.offerName) {
+                              setModal({ title: 'Heads up', body: `This week is selling ${playbookContext.offer.offerName} — a freebie push splits the ask.`, options: [['Got it', () => setModal(null)]] })
+                            }
+                          }}
+                            className={`text-[10px] font-bold uppercase tracking-widest transition ${freePushSlots[item.i] ? 'text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                            {freePushSlots[item.i] ? '● Freebie push ON' : '○ Freebie push'}
+                          </button>
+                          {freePushSlots[item.i] && memberMagnets.length > 1 && (
+                            <select value={freePushMagnet[item.i] || ''} onChange={e => setFreePushMagnet(prev => ({ ...prev, [item.i]: e.target.value }))}
+                              className="px-2 py-1 bg-zinc-800 border border-zinc-700 rounded text-[10px] text-white focus:outline-none focus:ring-1 focus:ring-gold appearance-none cursor-pointer">
+                              <option value="">Pick magnet...</option>
+                              {memberMagnets.map(mg => <option key={mg.id} value={mg.id}>{mg.name} ({mg.keyword})</option>)}
+                            </select>
+                          )}
+                          {freePushSlots[item.i] && memberMagnets.length === 1 && (
+                            <span className="text-[10px] text-zinc-500">{memberMagnets[0].name} ({memberMagnets[0].keyword})</span>
+                          )}
+                          {freePushSlots[item.i] && (() => {
+                            const chosenMg = memberMagnets.length === 1 ? memberMagnets[0] : memberMagnets.find(m => String(m.id) === freePushMagnet[item.i])
+                            if (!chosenMg) return null
+                            const lastC19 = savedWeeks.flatMap(w => (w.piece_ids || []).filter(p => p.cardKey === 'c19')).find(p => {
+                              const d = new Date(p.date || 0)
+                              return (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000
+                            })
+                            if (!lastC19) return null
+                            return <span className="text-[10px] text-zinc-500 italic">You pushed this freebie recently — keyword CTAs on regular posts are still working for it.</span>
+                          })()}
+                        </div>
                       )}
-                      {freePushSlots[item.i] && memberMagnets.length === 1 && (
-                        <span className="text-[10px] text-zinc-500">{memberMagnets[0].name} ({memberMagnets[0].keyword})</span>
-                      )}
-                      {freePushSlots[item.i] && (() => {
-                        const chosenMg = memberMagnets.length === 1 ? memberMagnets[0] : memberMagnets.find(m => String(m.id) === freePushMagnet[item.i])
-                        if (!chosenMg) return null
-                        const lastC19 = savedWeeks.flatMap(w => (w.piece_ids || []).filter(p => p.cardKey === 'c19')).find(p => {
-                          const d = new Date(p.date || 0)
-                          return (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000
-                        })
-                        if (!lastC19) return null
-                        return <span className="text-[10px] text-zinc-500 italic">You pushed this freebie recently — keyword CTAs on regular posts are still working for it.</span>
-                      })()}
                     </div>
-                  )}
-                  </div>
-                )
-              )
+                  ))}
+                </div>
+              ))
             })()}
           </div>
 
