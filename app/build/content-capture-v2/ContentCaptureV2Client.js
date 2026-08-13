@@ -3479,7 +3479,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
         const emailPiece = await generate(card, moment, null, null, cardKey)
         const freshPieces = [...(viewingWeek.piece_ids || [])]
         freshPieces.splice(idx + 1, 0, {
-          day: 'Thursday',
+          day: p.day || 'Thursday',
           job: 'email',
           format: card.nm,
           momentLine: momentLine,
