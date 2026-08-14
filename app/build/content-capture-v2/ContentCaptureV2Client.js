@@ -555,6 +555,8 @@ ${brandContext}
 
 The moment: ${facts.join('. ')}
 
+HOOK: The opening line must stop the scroll. Lead with the sharpest, most specific detail from the moment above. A number, a result, a confronting truth. Not a setup, not context, not backstory. The thing that makes someone pause mid-thumb. If the hook could belong on anyone else's page, rewrite it.
+
 Only use facts from above. Anything missing: write {{WHAT'S NEEDED}} in gold caps. Never invent.
 ${redoNote ? `\nLast draft wasn't right: ${redoNote}` : ''}`
 }

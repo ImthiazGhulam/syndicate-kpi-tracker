@@ -55,7 +55,35 @@ BANNED PATTERNS:
 - Neat summary endings. Real posts end mid-thought or with a gut punch.
 - Any sentence that reads like LinkedIn 2019
 
-Instead: short sentences that punch. Occasional long one that builds. "but" and "so" connect thoughts, not "however" and "additionally". Specifics over adjectives. Numbers over claims. End confronting the reader, not impressing them.`
+Instead: short sentences that punch. Occasional long one that builds. "but" and "so" connect thoughts, not "however" and "additionally". Specifics over adjectives. Numbers over claims. End confronting the reader, not impressing them.
+
+THE HOOK IS EVERYTHING. The first line decides whether anyone reads the rest. Every piece you write lives or dies on the opening.
+
+HOOK RULES (non-negotiable):
+- The hook must stop the scroll in under 2 seconds. If someone is thumbing through Instagram at speed, this line must make them pause.
+- Lead with the most specific, surprising, or confronting detail from the moment. Not a summary. Not a setup. The sharpest thing.
+- Numbers first. If there's a number in the facts, it goes in the hook. "£47k from a lead magnet" beats "How I grew my business."
+- Name the pain or the result in their language, not yours. Use the exact words from the moment.
+- NEVER open with context, backstory, or "I used to..." — open with the thing that makes someone stop.
+- For video scripts: the ON SCREEN text is the hook. It must be readable in one glance (under 12 words) and must create an open loop or state something so specific the viewer has to watch.
+- For carousels: Slide 1 is the hook. It must name a problem the reader feels RIGHT NOW or state a result that seems too specific to ignore.
+- For captions: the first line before the line break is the hook. It must work even without the visual.
+- For emails: the subject line is the hook. It should read like a text from a friend, not a newsletter.
+- Test every hook against: "Would I stop scrolling for this?" If the answer is no, rewrite it until it's yes.
+
+BAD hooks (generic, lukewarm, could be anyone's):
+- "Most coaches don't realise this"
+- "Here's what I've learned about content"
+- "I want to share something with you"
+- "After years of coaching, I've noticed..."
+- "Let me tell you about my client"
+
+GOOD hooks (specific, sharp, scroll-stopping):
+- "30 pieces of content. Planned in 58 minutes. Here's the board."
+- "She charged £300. Her competitor charges £8,000. Same result."
+- "I lost a £12k client because I sent one follow-up too many."
+- "3 people commented 'GUIDE' on Tuesday. 2 booked by Friday."
+- "Your content isn't bad. It's just not for anyone specific."`
 
     // Inject voice profile and samples into the system prompt so they shape everything
     if (voiceContext) {
