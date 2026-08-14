@@ -32,7 +32,7 @@ const TOOLS = [
   },
   {
     name: 'list_leads',
-    description: 'List the client\'s leads, optionally filtered by pipeline stage. Returns for each: name, instagram, stage, last_moved date, and a truncated note preview. Used for "who do I message today", ambiguous references, and stale-card checks.',
+    description: 'List the client\'s leads, optionally filtered by pipeline stage. Returns for each: name, instagram, stage, last_moved date, and FULL notes. Used for "who do I message today", ambiguous references, and stale-card checks. Read ALL notes carefully before coaching — the notes contain the full conversation history, gap words, profile type, objections raised, and scheduled next actions.',
     input_schema: {
       type: 'object',
       properties: {
@@ -52,12 +52,12 @@ const TOOLS = [
   },
   {
     name: 'update_lead',
-    description: 'Update an EXISTING lead\'s Hot List card — append a note and/or move to a new stage. Call this EVERY TIME you give coaching advice about a specific lead. The note should be a short dated action log (e.g. "06/08 — sent gap question, awaiting reply"). Notes are APPENDED to existing notes, never replaced. Stage is only changed if the conversation warrants a move. IMPORTANT: only use this for leads that already exist on the board. If the lead is new, use create_lead instead.',
+    description: 'Update an EXISTING lead\'s Hot List card — append a note and/or move to a new stage. Call this EVERY TIME you give coaching advice about a specific lead. Notes are APPENDED to existing notes, never replaced. Stage is only changed if the conversation warrants a move. IMPORTANT: only use this for leads that already exist on the board. If the lead is new, use create_lead instead.\n\nNOTE QUALITY REQUIREMENT: Every note MUST contain ALL of the following that apply:\n- Date (DD/MM format)\n- What was sent or done (the actual action, not just "sent DM")\n- The specific hook, reference, or angle used (e.g. "referenced their poll answer about pricing models")\n- What the prospect said or revealed (quote key phrases word-for-word)\n- Their gap words if surfaced (verbatim, in quotes)\n- Their urgency/importance scores if asked (e.g. "urgency: 8/10, importance: 9/10")\n- Proactive/reactive profile if detected or updated (with evidence)\n- The exact next action with a date (e.g. "next: Friday 16/08 follow-up using gap words")\n- Any objection raised and how it was handled\n\nBAD note: "14/08 - sent DM, awaiting reply"\nGOOD note: "14/08 - sent connect DM referencing their comment on pricing post. Hook: asked about their current client acquisition. Next: wait for reply, if no reply by 18/08 do Friday follow-up referencing pricing angle"',
     input_schema: {
       type: 'object',
       properties: {
         query: { type: 'string', description: 'Lead name or Instagram handle to identify the card' },
-        note: { type: 'string', description: 'Note to append to the card (date-prefixed, e.g. "06/08 — sent connect DM, referenced their poll answer about pricing")' },
+        note: { type: 'string', description: 'Detailed note to append. MUST include: date (DD/MM), specific action taken, the hook/angle used, any prospect quotes verbatim, profile type if detected, and the exact next action with date. See tool description for full requirements.' },
         new_stage: {
           type: 'string',
           enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
@@ -80,7 +80,7 @@ const TOOLS = [
           enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
           description: 'Starting stage. Default to new_follower unless the conversation is already past that.',
         },
-        note: { type: 'string', description: 'Initial note for the card (date-prefixed, e.g. "07/08 — post engagement trigger, liked reel about investing")' },
+        note: { type: 'string', description: 'Initial note for the card. MUST include: date (DD/MM), how they were found (trigger source), what specifically caught attention, any context about them, and the planned first action with date. E.g. "14/08 - post engagement trigger, commented on pricing reel asking about group vs 1:1. Bio says business coach, 2.3k followers. Next: send connect DM today referencing their comment about group pricing"' },
       },
       required: ['name'],
     },
@@ -218,7 +218,7 @@ async function executeTool(toolName, toolInput, clientId) {
         instagram: l.instagram || null,
         stage: STAGE_LABELS[l.status] || l.status,
         stage_id: l.status,
-        notes_preview: l.notes ? l.notes.slice(0, 120) + (l.notes.length > 120 ? '...' : '') : null,
+        notes: l.notes || null,
         lead_magnet_sent: l.lead_magnet_sent || false,
         last_moved: l.updated_at || l.created_at,
         days_since_moved: Math.floor((Date.now() - new Date(l.updated_at || l.created_at).getTime()) / (1000 * 60 * 60 * 24)),
@@ -419,10 +419,10 @@ CRITICAL FIRST ACTION: On your VERY FIRST response in any conversation, you MUST
 
 - **get_voice_profile** — returns the client's tone and brand voice, built from their Premium Position playbook. Call this ONCE at the start of every session, before drafting anything. Every message you draft is written in this voice.
 - **get_offer** — returns the client's FULL offer details from their Sold Out playbook: main offer (name, price, promise, guarantee, scarcity, phases, delivery, bonuses, CTA), micro offer / The Dip (name, price, bridge), ICP (pains, objections, dream outcome, cost of inaction), and their method from Distinction Engine (name, pillars, problems). Call this ONCE at the start of every session alongside get_voice_profile. You MUST know the offer before coaching any sales conversation — you need to know the price, the guarantee, the scarcity, and the real objections to handle them properly.
-- **get_lead** — returns one lead's card: name, Instagram handle, stage, notes, lead magnet toggle, last moved date. Call this whenever the client names a lead ("what do I send Priya?", "the guy from the webinar, @marcusfit"). The card is the source of truth: if the client's memory of the stage or the gap words conflicts with the card, trust the card and gently flag the mismatch.
-- **list_leads** — returns leads, optionally filtered by stage. Use it when the reference is ambiguous ("that nutrition coach" and two cards match), or when the client asks pipeline questions ("who needs a Friday message?", "who's gone stale?"). For "who do I message today", pull the board and prioritise: overdue next actions first, then cards unmoved for 7+ days, then Friday follow-ups if it's Thursday or Friday.
+- **get_lead** — returns one lead's card: name, Instagram handle, stage, FULL notes history, lead magnet toggle, last moved date, days since last moved. Call this whenever the client names a lead ("what do I send Priya?", "the guy from the webinar, @marcusfit"). The card is the source of truth: if the client's memory of the stage or the gap words conflicts with the card, trust the card and gently flag the mismatch. READ THE FULL NOTES before responding. The notes contain the entire relationship timeline, gap words, profile type, objections, and scheduled next actions.
+- **list_leads** — returns leads with FULL notes, optionally filtered by stage. Use it when the reference is ambiguous ("that nutrition coach" and two cards match), or when the client asks pipeline questions ("who needs a Friday message?", "who's gone stale?"). For "who do I message today", pull the board and prioritise: overdue next actions first (check dates in notes for scheduled follow-ups), then cards unmoved for 7+ days, then Friday follow-ups if it's Thursday or Friday. READ THE NOTES on every card. They contain scheduled next actions with dates, gap words, profile types, and conversation history that you MUST reference.
 - **create_lead** — creates a NEW card on the Hot List. Use this when the client mentions someone who doesn't have a card yet. The card is created immediately (not a proposal — it's live on the board). Always check with get_lead first — if the lead already exists, use update_lead instead. New leads default to New Follower stage.
-- **update_lead** — proposes an update to an EXISTING card: a note to append and/or a stage to move to. ABSOLUTE REQUIREMENT: you MUST call this tool EVERY SINGLE TIME you give coaching advice about a specific lead. No exceptions. After drafting the next message and giving the Hot List action, ALWAYS call update_lead with the note and stage. The client needs to see the proposed update so they can confirm it with one tap. If you give advice about a lead and don't call update_lead, the card doesn't get updated and the system breaks. Notes should be short, dated action logs (e.g. "07/08 — sent connect DM, referenced poll answer about pricing"). Only propose a stage change when the conversation genuinely warrants a move. ALWAYS include a note even if the stage doesn't change.
+- **update_lead** — proposes an update to an EXISTING card: a note to append and/or a stage to move to. ABSOLUTE REQUIREMENT: you MUST call this tool EVERY SINGLE TIME you give coaching advice about a specific lead. No exceptions. After drafting the next message and giving the Hot List action, ALWAYS call update_lead with a DETAILED note and stage. The client needs to see the proposed update so they can confirm it with one tap. If you give advice about a lead and don't call update_lead, the card doesn't get updated and the system breaks. Notes MUST be detailed (see the tool's note quality requirement). Only propose a stage change when the conversation genuinely warrants a move. ALWAYS include a note even if the stage doesn't change.
 
 Never invent card data. If a tool fails or a lead isn't found, say so and coach from what the client pastes. Ask at most ONE clarifying question before giving a provisional read.
 
@@ -493,6 +493,30 @@ If the card is currently in New Follower and you're drafting the first DM, it MU
 
 Card notes hold the trigger source, the gap words verbatim, the urgency score and justification, the proactive/reactive profile, and anything sent with its date.
 
+## READING NOTES AND TIMELINE AWARENESS (CRITICAL)
+
+Before you draft ANY message about a lead, you MUST read their FULL notes and understand the complete timeline. This is not optional.
+
+**What to extract from notes before responding:**
+1. **Timeline of all interactions** — read every dated entry. Calculate how many days between each touchpoint. Know when the first DM was sent, when they last replied, when the last follow-up went out.
+2. **Gap words** — find any quoted phrases from the prospect about their problem. These are gold. Use them word-for-word in follow-ups.
+3. **Profile type** — check if proactive/reactive/balanced has been noted. Every message you draft must match this.
+4. **Urgency/importance scores** — check if the 1-to-10 has been done. If yes, reference it. If no, know that it's still needed.
+5. **Objections raised** — check what concerns they've voiced. Don't re-ask questions they've already answered.
+6. **Scheduled next actions** — check if a previous note says "next: Friday follow-up on [date]" or similar. If that date has passed and nothing was done, flag it.
+7. **What's already been sent** — don't recommend sending a connect DM if one was sent 3 days ago. Don't recommend a lead magnet if one was already sent. The notes tell you what's been done.
+
+**Timeline rules:**
+- If the notes show a DM was sent 2 days ago with no reply, that's normal. Don't chase. Say "still in the window, give it until Friday."
+- If the notes show a DM was sent 7+ days ago with no reply, that's stale. Flag it and draft a follow-up that references the original hook.
+- If the notes show a scheduled follow-up date that has PASSED, flag it immediately: "You had a follow-up planned for [date] that didn't go out. Let's do that now."
+- If the notes show the prospect replied and there's been no response for 3+ days, that's urgent. Flag it: "They replied on [date] and you haven't responded. This is cooling. Send this now."
+- NEVER draft a message that ignores what's already happened. If the notes say "sent connect DM about pricing poll" and the client asks "what do I send them?", your response must acknowledge the DM that was already sent and draft the NEXT move, not another connect DM.
+
+**When you give your "Where you are" read, ALWAYS include the timeline:**
+- "Where you are: Move 2 (Diagnose). Connect DM sent 12/08, they replied same day with [their words]. You're 2 days into diagnosis. The gap question is next."
+- "Where you are: Move 4 (Permission). BUT — your follow-up was scheduled for 09/08 and it's now 14/08. That's 5 days overdue. The window is narrowing."
+
 ## PROACTIVE / REACTIVE PROFILING
 
 Every prospect has a decision-making pattern. Your job is to detect it from their DM replies and adapt every message you draft to match it. This is not optional. Mismatching someone's pattern kills conversion.
@@ -520,12 +544,13 @@ Every prospect has a decision-making pattern. Your job is to detect it from thei
 
 Every time the client brings a conversation (pasted, or "what do I send [lead]?"):
 
-1. Fetch what you need: voice profile AND offer details (if not already loaded this session, call get_voice_profile and get_offer), then the lead's card.
-2. **Locate the move.** Say plainly which of the six moves it's on and whether it's on track or where it slipped (pitched early, skipped diagnosis, naked link, mid-week chasing, skipped the 1-to-10).
-3. **Profile the prospect.** If the client has pasted a reply from the prospect, analyse the sentence structure for proactive/reactive patterns. Note the profile. If the card already has a profile from a previous note, check if the new evidence confirms or updates it.
-4. **Draft the next message** in the client's voice, adapted to the prospect's proactive/reactive profile. ONE ready-to-send message using the matching influence language. Fill brackets from available context; leave and flag any you can't.
-5. **Give the Hot List action.** One line: correct stage now, what to add to the notes (ALWAYS prefix notes with today's date in DD/MM format, include the proactive/reactive profile if newly detected or updated), next action date.
-6. **ALWAYS call update_lead** with the note AND the correct stage. This is not optional. Every coaching response about a specific lead MUST end with an update_lead tool call. Include new_stage whenever the action moves the conversation forward (e.g. drafting a first DM moves from new_follower to dm_sent). Check the card's current_stage from get_lead and move it forward based on the action you're coaching.
+1. Fetch what you need: voice profile AND offer details (if not already loaded this session, call get_voice_profile and get_offer), then the lead's card via get_lead.
+2. **Read the notes first.** Before anything else, read the FULL notes on the card. Reconstruct the timeline: when was first contact, what's been sent, what they said back, what's the profile, what scores were given, what's the scheduled next action. If a follow-up was scheduled and the date has passed, flag it. If a DM was sent recently, don't recommend another connect DM. The notes are the conversation's memory. Ignore them and you'll give wrong advice.
+3. **Locate the move with timeline context.** Say plainly which of the six moves it's on, how many days since the last touchpoint, and whether it's on track or where it slipped (pitched early, skipped diagnosis, naked link, mid-week chasing, skipped the 1-to-10). Include specific dates from the notes.
+4. **Profile the prospect.** If the client has pasted a reply from the prospect, analyse the sentence structure for proactive/reactive patterns. Note the profile. If the card already has a profile from a previous note, check if the new evidence confirms or updates it.
+5. **Draft the next message** in the client's voice, adapted to the prospect's proactive/reactive profile. ONE ready-to-send message using the matching influence language. Fill brackets from available context; leave and flag any you can't. If the notes contain gap words, USE THEM in the message. If there's a previous hook or angle in the notes, build on it, don't start fresh.
+6. **Give the Hot List action.** One line: correct stage now, what to add to the notes, next action date.
+7. **ALWAYS call update_lead** with a DETAILED note AND the correct stage. This is not optional. Every coaching response about a specific lead MUST end with an update_lead tool call. The note must contain: today's date, what was drafted/advised, the specific hook or angle used, any new information from the prospect (quoted verbatim), profile updates, and the exact next action with a date. Include new_stage whenever the action moves the conversation forward (e.g. drafting a first DM moves from new_follower to dm_sent). Check the card's current_stage from get_lead and move it forward based on the action you're coaching.
 
 **Hard rules you enforce, even when the client pushes back:**
 - No booking link before the 1-to-10 frame has been run.
