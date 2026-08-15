@@ -1283,11 +1283,91 @@ Return ONLY valid JSON in this exact format (no markdown, no code fences, no exp
 }`
     }
 
+    // ── Amplifier Ads™ Script Builder ──────────────────────────────────────
+
+    if (type === 'amplifier-ads-generate') {
+      const VOICE_RULES = `Voice rules (non-negotiable):
+- British English
+- Short, direct sentences
+- Specific numbers over vague claims
+- No em-dashes anywhere
+- No rhetorical flourish
+- Never use the "it's not X, it's Y" contrast pattern
+- No tricolons (three-part parallel lists)
+- Sounds like a person talking to camera, never like marketing copy`
+
+      systemPrompt = `You are writing three spoken video ad scripts for a coach's Instagram Amplifier Ad. The ad's only job is to get the right stranger to FOLLOW the page. Nothing is being sold.
+
+The 6-part framework every script must follow:
+1. Call-out: open with the exact ICP keywords so Meta routes the ad
+2. Aspiration or pain: name what they want or what keeps stopping them
+3. CTA early: tell them to follow the page within the first 5 to 10 seconds of speech (roughly the first 25 words)
+4. Proof: the client result(s), with the numbers and timeframe exactly as given
+5. Old way and its flaws: their old way, the coach's named method, the difference stated plainly
+6. Repeat the CTA to close
+
+Rules for all three:
+- 90 to 130 spoken words each
+- The follow CTA must appear within the first 25 words AND again at the end
+- Use the proof numbers exactly as given, never invent or round them
+- Mention the named method once, late, described in plain English, as scenery not a pitch
+
+${VOICE_RULES}
+
+Respond with ONLY this JSON, no markdown fences, no preamble:
+{"variants":[{"angle":"Straight Call-Out","script":"..."},{"angle":"Receipt Drop","script":"..."},{"angle":"Contrarian Proof","script":"..."}]}`
+
+      const proof2Line = data.proof2 ? `- Proof 2: ${data.proof2}` : ''
+      userPrompt = `Coach's data:
+- ICP call-out keywords: ${data.icp || ''}
+- Aspiration: ${data.aspiration || ''}
+- Pain: ${data.pain || ''}
+- Daily content topic: ${data.topic || ''}
+- Proof 1: ${data.proof1 || ''}
+${proof2Line}
+- Without (thing they hate doing): ${data.hateDoing || ''}
+- Old way: ${data.oldWay || ''}
+- What the old way costs them: ${data.oldWayCost || ''}
+- Named method: ${data.method || ''}
+- What the method does: ${data.methodDoes || ''}
+
+Write exactly three scripts, one per angle:
+1. "Straight Call-Out": opens on the ICP and their pain, classic structure
+2. "Receipt Drop": opens on the strongest number from the proof, then reveals whose result it is, then the framework beats
+3. "Contrarian Proof": opens by attacking the old way, then proof, then the method`
+    }
+
+    if (type === 'amplifier-ads-refine') {
+      const VOICE_RULES = `Voice rules (non-negotiable):
+- British English
+- Short, direct sentences
+- Specific numbers over vague claims
+- No em-dashes anywhere
+- No rhetorical flourish
+- Never use the "it's not X, it's Y" contrast pattern
+- No tricolons (three-part parallel lists)
+- Sounds like a person talking to camera, never like marketing copy`
+
+      systemPrompt = `You rewrite spoken Instagram ad scripts. The ad's only job is getting the right stranger to follow the page. Keep the 6-part structure intact: call-out, aspiration/pain, early follow CTA (within the first 25 words), proof with exact numbers, old way vs named method, closing follow CTA. Keep it 90 to 130 spoken words.
+
+${VOICE_RULES}
+
+Respond with ONLY the rewritten script text. No quotes, no preamble, no markdown.`
+
+      userPrompt = `Here is a spoken Instagram ad script whose only job is getting the right stranger to follow the page:
+
+"${data.currentScript || ''}"
+
+Rewrite it following this instruction: ${data.instruction || ''}`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
-    const maxTokens = type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
+    const maxTokens = type === 'amplifier-ads-generate' ? 2000
+      : type === 'amplifier-ads-refine' ? 1000
+      : type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
       : (type === 'show-up-page' || type === 'show-up-page-html') ? 16000
       : (type === 'sold-out-bangbang-draft' || type === 'sold-out-dip-draft' || type === 'comeback-compose') ? 4000
       : (type === 'sold-out-niche-research' || type === 'content-capture' || type === 'content-capture-structure' || type === 'comeback-map' || type === 'phase-suggestion') ? 3000
@@ -1296,6 +1376,30 @@ Return ONLY valid JSON in this exact format (no markdown, no code fences, no exp
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // Amplifier Ads — parse JSON variants or return refined script
+    if (type === 'amplifier-ads-generate') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ variants: parsed.variants || [] })
+      } catch (parseErr) {
+        // Retry once with explicit JSON instruction
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 2000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const retryParsed = JSON.parse(retryCleaned)
+          return NextResponse.json({ variants: retryParsed.variants || [] })
+        } catch {
+          return NextResponse.json({ error: 'Failed to parse scripts. Please try again.' }, { status: 500 })
+        }
+      }
+    }
+
+    if (type === 'amplifier-ads-refine') {
+      return NextResponse.json({ script: text.replace(/^["']|["']$/g, '').trim() })
+    }
 
     // For Show Up Page HTML — return raw HTML string
     if (type === 'show-up-page-html') {
