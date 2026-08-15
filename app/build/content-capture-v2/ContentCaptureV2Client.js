@@ -403,7 +403,7 @@ function routeMoment(momId, job, hasNum, userStage) {
   return { card: 'c3' }
 }
 
-function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
+function buildPrompt(c, m, redoNote, arc, ctx, cardKey, salesAngle) {
   const e = m.enrichment || {}
   const facts = [`The moment, in their words: "${m.line}"`]
   if (e.scene) facts.push(`The scene: "${e.scene}"`)
@@ -545,13 +545,39 @@ function buildPrompt(c, m, redoNote, arc, ctx, cardKey) {
 
   }
 
+  // Sales angle context
+  let salesContext = ''
+  if (salesAngle && ctx) {
+    const angleLabels = { 'main-offer': 'main offer', 'micro-offer': 'micro offer / The Dip', 'seasonal': 'seasonal or event-based offer', 'new-launch': 'new launch', 'waitlist': 'waitlist / coming soon', 'testimonial-push': 'proof-driven sale' }
+    const angleLabel = angleLabels[salesAngle] || salesAngle
+    salesContext = `\nSALES FOCUS: This post is selling the ${angleLabel}.`
+    if (salesAngle === 'main-offer' && ctx.offer) {
+      if (ctx.offer.offerName) salesContext += ` Offer: ${ctx.offer.offerName}.`
+      if (ctx.offer.price) salesContext += ` Price: £${ctx.offer.price}.`
+      if (ctx.offer.corePromise) salesContext += ` Promise: ${ctx.offer.corePromise}.`
+      if (ctx.offer.guaranteeType) salesContext += ` Guarantee: ${ctx.offer.guaranteeType}.`
+      if (ctx.offer.scarcity) salesContext += ` Scarcity: ${ctx.offer.scarcity}.`
+      if (ctx.offer.ctaAction) salesContext += ` CTA: ${ctx.offer.ctaAction}.`
+    }
+    if (salesAngle === 'micro-offer' && ctx.offer) {
+      if (ctx.offer.dipName) salesContext += ` Offer: ${ctx.offer.dipName}.`
+      if (ctx.offer.dipPrice) salesContext += ` Price: £${ctx.offer.dipPrice}.`
+      if (ctx.offer.dipPromise) salesContext += ` Promise: ${ctx.offer.dipPromise}.`
+      if (ctx.offer.dipBridge) salesContext += ` Bridge to main: ${ctx.offer.dipBridge}.`
+    }
+    if (salesAngle === 'waitlist') salesContext += ' Build urgency and interest. The door isn\'t open yet. Make them want to be first in line.'
+    if (salesAngle === 'seasonal') salesContext += ' Tie the offer to a specific date, event, or season. Create a reason to act now.'
+    if (salesAngle === 'new-launch') salesContext += ' This is new. Lean into the freshness, the reason it was built, who it\'s for.'
+    if (salesAngle === 'testimonial-push') salesContext += ' Let the proof do the selling. The result is the headline, the offer is the last line.'
+  }
+
   return `Write ${c.fmt}.
 
 ${c.out}
 
 CTA: ${c.cta}
 ${arc ? `\nUse the ${arc.n} shape:\n${arc.beats}` : ''}
-${brandContext}
+${brandContext}${salesContext}
 
 The moment: ${facts.join('. ')}
 
@@ -1679,7 +1705,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   const lastGenModel = useRef(null)
 
   async function generate(card, moment, redoNote, arc, cardKey, opts = {}) {
-    const prompt = buildPrompt(card, moment, redoNote, arc, opts.contextOverride || playbookContext, cardKey)
+    const prompt = buildPrompt(card, moment, redoNote, arc, opts.contextOverride || playbookContext, cardKey, opts.salesAngle || null)
     const voiceCtx = {}
     if (playbookContext?.voice) voiceCtx.voice = playbookContext.voice
     if (voiceSamples && voiceSamples.length > 0) voiceCtx.samples = voiceSamples
@@ -3182,9 +3208,12 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                     <h3 className={`text-xs font-bold uppercase tracking-widest ${allPosted ? 'text-emerald-400' : 'text-gold'}`}>{day}</h3>
                     <span className={`text-[10px] font-bold uppercase tracking-widest ${allPosted ? 'text-emerald-400' : 'text-zinc-500'}`}>{postedCount}/{dayItems.length} posted</span>
                   </div>
-                  {dayItems.map(({ sl, i }) => (
+                  {dayItems.map(({ sl, i }) => {
+                    const ANGLE_LABELS = { 'main-offer': 'Main offer', 'micro-offer': 'Micro offer', 'seasonal': 'Seasonal', 'new-launch': 'New launch', 'waitlist': 'Waitlist', 'testimonial-push': 'Proof push' }
+                    return (
                     <PieceCard key={i}
                       title={`${JOBNAMES[sl.job]} · ${sl.cardObj.nm}`}
+                      subtitle={sl.salesAngle ? `Selling: ${ANGLE_LABELS[sl.salesAngle] || sl.salesAngle}` : undefined}
                       piece={sl.piece}
                       swap={sl.swap}
                       dont={sl.cardObj.dont}
@@ -3289,7 +3318,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                         setScreen('week-review')
                       } : undefined}
                     />
-                  ))}
+                  )})}
                 </div>
               )
             })
@@ -3581,9 +3610,11 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
                   </div>
                   {dayPieces.map(p => {
                     const i = p._idx
+                    const ANGLE_LABELS = { 'main-offer': 'Main offer', 'micro-offer': 'Micro offer', 'seasonal': 'Seasonal', 'new-launch': 'New launch', 'waitlist': 'Waitlist', 'testimonial-push': 'Proof push' }
                     return (
                       <PieceCard key={`${viewingWeek.id}-${i}`}
                         title={`${JOBNAMES[p.job] || p.job || ''} · ${p.format || ''}`}
+                        subtitle={p.salesAngle ? `Selling: ${ANGLE_LABELS[p.salesAngle] || p.salesAngle}` : undefined}
                         piece={p.piece}
                         posted={p.posted || false}
                         onTogglePosted={async () => {
@@ -4000,8 +4031,9 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
       sl.chosenFormat = fmt
       sl.swap = r.swap
       sl.arc = arc
+      sl.salesAngle = salesAngles[i] || null
       try {
-        sl.piece = await generate(card, m, null, arc, r.card)
+        sl.piece = await generate(card, m, null, arc, r.card, { salesAngle: salesAngles[i] || null })
         sl.model = lastGenModel.current
       } catch (err) {
         sl.piece = `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}`
@@ -4027,6 +4059,7 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           cardKey: sl.cardKey || '',
           model: sl.model || null,
           posted: sl.posted || false,
+          salesAngle: sl.salesAngle || null,
         }))
       const weekData = {
         client_id: clientId,
