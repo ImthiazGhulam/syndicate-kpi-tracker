@@ -3102,8 +3102,11 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           <DimLabel>Pick engine + format for each post, answer the questions, then write them all.</DimLabel>
 
           {dayGroups.map((group, gi) => (
-            <div key={gi} className="mb-6">
-              <p className="text-xs font-bold text-zinc-500 uppercase tracking-widest mb-3 mt-4 border-b border-zinc-800 pb-2">{group.day}</p>
+            <div key={gi} className="rounded-xl border border-gold/25 p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-xs font-bold text-gold uppercase tracking-widest">{group.day}</h3>
+                <span className="text-[10px] text-zinc-500">{group.pieces.length} post{group.pieces.length !== 1 ? 's' : ''}</span>
+              </div>
               {group.pieces.map(({ sl, i }) => (
                 <EnrichCard key={i} idx={i} sl={sl}
                   engine={chosenEngines[i]} format={chosenFormats[i]}
@@ -3159,114 +3162,138 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           <Question><span className="text-gold font-medium">{finishedCount}</span> posts, ready to go.</Question>
           <DimLabel>Each one from a real moment of yours. Copy them out, or rewrite any that don't sound right.</DimLabel>
 
-          {weekPieces.map((sl, i) => (
-            <PieceCard key={i}
-              title={`${sl.day} · ${JOBNAMES[sl.job]} · ${sl.cardObj.nm}`}
-              piece={sl.piece}
-              swap={sl.swap}
-              dont={sl.cardObj.dont}
-              posted={sl.posted || false}
-              onTogglePosted={() => {
-                setWeekPieces(prev => {
-                  const updated = [...prev]
-                  updated[i] = { ...updated[i], posted: !updated[i].posted }
-                  return updated
-                })
-              }}
-              onSave={(newText) => {
-                setWeekPieces(prev => {
-                  const updated = [...prev]
-                  updated[i] = { ...updated[i], piece: newText }
-                  return updated
-                })
-              }}
-              onRewrite={() => {
-                setModal({
-                  title: "What's off about it?",
-                  body: 'Pick the closest — the correction shapes the rewrite.',
-                  options: [
-                    ['Too salesy — soften it', () => { setModal(null); rewriteWeekPiece(i, 'It read too salesy. Softer, more human, the offer lighter.') }],
-                    ['Too formal — loosen it up', () => { setModal(null); rewriteWeekPiece(i, 'Too formal and written. Looser, more like talking.') }],
-                    ["Doesn't sound like me — plainer", () => { setModal(null); rewriteWeekPiece(i, "Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
-                    ['Just try a different angle', () => { setModal(null); rewriteWeekPiece(i, 'Take a completely different angle on the same moment.') }],
-                  ],
-                })
-              }}
-              onChangeFormat={() => {
-                const engine = sl.chosenEngine || (sl.arc ? 'story' : 'teaching')
-                const availableEngines = getAvailableEngines(sl.job)
-                setModal({
-                  title: 'Change the format',
-                  body: 'Pick a new engine and format — the piece will be rewritten.',
-                  options: availableEngines.flatMap(eng => {
-                    const formats = getFormatsForJobEngine(sl.job, eng.id)
-                    return formats.map(f => ([
-                      `${eng.icon} ${eng.label} → ${f.label}`,
-                      async () => {
-                        setModal(null)
-                        const fmtPrompt = FORMAT_PROMPTS[f.id]
-                        if (!fmtPrompt) return
-                        const newCard = { ...sl.cardObj, fmt: fmtPrompt.fmt, out: fmtPrompt.out, cta: JOB_CTA[sl.job] || sl.cardObj.cta, nm: f.label }
-                        setWritingLabel(`CHANGING FORMAT TO ${f.label.toUpperCase()}`); setScreen('week-writing'); setWritingLine(sl.moment.line)
+          {(() => {
+            const DAY_ORDER = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday', 'Any day', '']
+            const grouped = {}
+            weekPieces.forEach((sl, i) => {
+              const day = (sl.day || 'Any day').split(' · ')[0]
+              if (!grouped[day]) grouped[day] = []
+              grouped[day].push({ sl, i })
+            })
+            const sortedDays = Object.keys(grouped).sort((a, b) => DAY_ORDER.indexOf(a) - DAY_ORDER.indexOf(b))
+
+            return sortedDays.map(day => {
+              const dayItems = grouped[day]
+              const postedCount = dayItems.filter(({ sl }) => sl.posted).length
+              const allPosted = postedCount === dayItems.length
+              return (
+                <div key={day} className={`rounded-xl border ${allPosted ? 'border-emerald-500/30' : 'border-gold/25'} p-4 mb-4`}>
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className={`text-xs font-bold uppercase tracking-widest ${allPosted ? 'text-emerald-400' : 'text-gold'}`}>{day}</h3>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${allPosted ? 'text-emerald-400' : 'text-zinc-500'}`}>{postedCount}/{dayItems.length} posted</span>
+                  </div>
+                  {dayItems.map(({ sl, i }) => (
+                    <PieceCard key={i}
+                      title={`${JOBNAMES[sl.job]} · ${sl.cardObj.nm}`}
+                      piece={sl.piece}
+                      swap={sl.swap}
+                      dont={sl.cardObj.dont}
+                      posted={sl.posted || false}
+                      onTogglePosted={() => {
+                        setWeekPieces(prev => {
+                          const updated = [...prev]
+                          updated[i] = { ...updated[i], posted: !updated[i].posted }
+                          return updated
+                        })
+                      }}
+                      onSave={(newText) => {
+                        setWeekPieces(prev => {
+                          const updated = [...prev]
+                          updated[i] = { ...updated[i], piece: newText }
+                          return updated
+                        })
+                      }}
+                      onRewrite={() => {
+                        setModal({
+                          title: "What's off about it?",
+                          body: 'Pick the closest — the correction shapes the rewrite.',
+                          options: [
+                            ['Too salesy — soften it', () => { setModal(null); rewriteWeekPiece(i, 'It read too salesy. Softer, more human, the offer lighter.') }],
+                            ['Too formal — loosen it up', () => { setModal(null); rewriteWeekPiece(i, 'Too formal and written. Looser, more like talking.') }],
+                            ["Doesn't sound like me — plainer", () => { setModal(null); rewriteWeekPiece(i, "Didn't sound like a real person. Plainer, blunter, shorter sentences.") }],
+                            ['Just try a different angle', () => { setModal(null); rewriteWeekPiece(i, 'Take a completely different angle on the same moment.') }],
+                          ],
+                        })
+                      }}
+                      onChangeFormat={() => {
+                        const engine = sl.chosenEngine || (sl.arc ? 'story' : 'teaching')
+                        const availableEngines = getAvailableEngines(sl.job)
+                        setModal({
+                          title: 'Change the format',
+                          body: 'Pick a new engine and format — the piece will be rewritten.',
+                          options: availableEngines.flatMap(eng => {
+                            const formats = getFormatsForJobEngine(sl.job, eng.id)
+                            return formats.map(f => ([
+                              `${eng.icon} ${eng.label} → ${f.label}`,
+                              async () => {
+                                setModal(null)
+                                const fmtPrompt = FORMAT_PROMPTS[f.id]
+                                if (!fmtPrompt) return
+                                const newCard = { ...sl.cardObj, fmt: fmtPrompt.fmt, out: fmtPrompt.out, cta: JOB_CTA[sl.job] || sl.cardObj.cta, nm: f.label }
+                                setWritingLabel(`CHANGING FORMAT TO ${f.label.toUpperCase()}`); setScreen('week-writing'); setWritingLine(sl.moment.line)
+                                try {
+                                  const piece = await generate(newCard, sl.moment, null, sl.arc, sl.cardKey)
+                                  setWeekPieces(prev => {
+                                    const updated = [...prev]
+                                    updated[i] = { ...updated[i], piece, cardObj: newCard, chosenFormat: f.id, chosenEngine: eng.id }
+                                    return updated
+                                  })
+                                } catch (err) {
+                                  setWeekPieces(prev => {
+                                    const updated = [...prev]
+                                    updated[i] = { ...updated[i], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
+                                    return updated
+                                  })
+                                }
+                                setScreen('week-review')
+                              }
+                            ]))
+                          }),
+                        })
+                      }}
+                      onToEmail={sl.job !== 'email' && hasList ? async () => {
+                        const cardKey = stage === 'launch' ? 'c17' : 'c13'
+                        setWritingLabel('CONVERTING TO EMAIL'); setScreen('week-writing'); setWritingLine(sl.moment.line)
                         try {
-                          const piece = await generate(newCard, sl.moment, null, sl.arc, sl.cardKey)
+                          const piece = await generate(CARDS[cardKey], sl.moment, null, null, cardKey)
                           setWeekPieces(prev => {
                             const updated = [...prev]
-                            updated[i] = { ...updated[i], piece, cardObj: newCard, chosenFormat: f.id, chosenEngine: eng.id }
+                            updated.splice(i + 1, 0, { job: 'email', day: sl.day || 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece, swap: null, arc: null })
                             return updated
                           })
                         } catch (err) {
                           setWeekPieces(prev => {
                             const updated = [...prev]
-                            updated[i] = { ...updated[i], piece: `{{ERROR:The writer couldn't connect — ${err.message || 'unknown error'}. Tap rewrite to retry.}}` }
+                            updated.splice(i + 1, 0, { job: 'email', day: sl.day || 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece: `{{ERROR:${err.message || 'Generation failed'}. Tap rewrite.}}`, swap: null, arc: null })
                             return updated
                           })
                         }
                         setScreen('week-review')
-                      }
-                    ]))
-                  }),
-                })
-              }}
-              onToEmail={sl.job !== 'email' && hasList ? async () => {
-                const cardKey = stage === 'launch' ? 'c17' : 'c13'
-                setWritingLabel('CONVERTING TO EMAIL'); setScreen('week-writing'); setWritingLine(sl.moment.line)
-                try {
-                  const piece = await generate(CARDS[cardKey], sl.moment, null, null, cardKey)
-                  setWeekPieces(prev => {
-                    const updated = [...prev]
-                    updated.splice(i + 1, 0, { job: 'email', day: 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece, swap: null, arc: null })
-                    return updated
-                  })
-                } catch (err) {
-                  setWeekPieces(prev => {
-                    const updated = [...prev]
-                    updated.splice(i + 1, 0, { job: 'email', day: 'Thursday', moment: sl.moment, cardObj: CARDS[cardKey], cardKey, piece: `{{ERROR:${err.message || 'Generation failed'}. Tap rewrite.}}`, swap: null, arc: null })
-                    return updated
-                  })
-                }
-                setScreen('week-review')
-              } : undefined}
-              onToYT={sl.job !== 'longform' && doesYT ? async () => {
-                setWritingLabel('CONVERTING TO YOUTUBE'); setScreen('week-writing'); setWritingLine(sl.moment.line)
-                try {
-                  const piece = await generate(CARDS.c9, sl.moment, null, null, 'c9')
-                  setWeekPieces(prev => {
-                    const updated = [...prev]
-                    updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece, swap: null, arc: null })
-                    return updated
-                  })
-                } catch (err) {
-                  setWeekPieces(prev => {
-                    const updated = [...prev]
-                    updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece: `{{ERROR:${err.message || 'Generation failed'}. Tap rewrite.}}`, swap: null, arc: null })
-                    return updated
-                  })
-                }
-                setScreen('week-review')
-              } : undefined}
-            />
-          ))}
+                      } : undefined}
+                      onToYT={sl.job !== 'longform' && doesYT ? async () => {
+                        setWritingLabel('CONVERTING TO YOUTUBE'); setScreen('week-writing'); setWritingLine(sl.moment.line)
+                        try {
+                          const piece = await generate(CARDS.c9, sl.moment, null, null, 'c9')
+                          setWeekPieces(prev => {
+                            const updated = [...prev]
+                            updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece, swap: null, arc: null })
+                            return updated
+                          })
+                        } catch (err) {
+                          setWeekPieces(prev => {
+                            const updated = [...prev]
+                            updated.splice(i + 1, 0, { job: 'longform', day: 'Sunday', moment: sl.moment, cardObj: CARDS.c9, cardKey: 'c9', piece: `{{ERROR:${err.message || 'Generation failed'}. Tap rewrite.}}`, swap: null, arc: null })
+                            return updated
+                          })
+                        }
+                        setScreen('week-review')
+                      } : undefined}
+                    />
+                  ))}
+                </div>
+              )
+            })
+          })()}
 
           {unwiredWeekMagnets.length > 0 && unwiredWeekMagnets.map(mg => (
             <NoteBox key={mg.id} gold>
