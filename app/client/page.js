@@ -2080,7 +2080,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="text-center"><ExpertOSMark size={40} glow className="os-mark-pulse" /><p className="text-gold text-xs font-semibold tracking-widest uppercase animate-pulse">Loading</p></div>
+      <div className="text-center"><div className="loading-logo-container inline-flex"><img src="/logo.png" alt="The Syndicate" className="h-14 w-auto loading-logo" /><div className="loading-ring" /></div></div>
     </div>
   )
 
