@@ -593,16 +593,33 @@ export default function SalesScriptPage() {
 
   // ── Validation ────────────────────────────────────────────────────────────
 
-  const requiredFields = [
-    icpDescription, pains[0], desiredOutcome, problems[0],
-    engineName, pillars[0], pillars[1], pillars[2],
-    pillarDescriptions[0], pillarDescriptions[1], pillarDescriptions[2],
-    promise, programmeName, price, deliverables, firstName, niche,
-    results[0]?.name || results[0]?.started,
-  ]
-  const allRequired = useOwnStory
-    ? requiredFields.every(Boolean)
-    : requiredFields.slice(0, -1).every(Boolean) && results[0]?.name && results[0]?.started && results[0]?.changed && results[0]?.now
+  const requiredFieldMap = {
+    'ICP Description': icpDescription,
+    'Pain 1': pains[0],
+    'Desired Outcome': desiredOutcome,
+    'Problem 1': problems[0],
+    'Engine Name': engineName,
+    'Pillar 1': pillars[0],
+    'Pillar 2': pillars[1],
+    'Pillar 3': pillars[2],
+    'Pillar 1 Description': pillarDescriptions[0],
+    'Pillar 2 Description': pillarDescriptions[1],
+    'Pillar 3 Description': pillarDescriptions[2],
+    'Promise': promise,
+    'Programme Name': programmeName,
+    'Price': price,
+    'Deliverables': deliverables,
+    'First Name': firstName,
+    'Niche': niche,
+  }
+  const missingFields = Object.entries(requiredFieldMap).filter(([, v]) => !v).map(([k]) => k)
+  if (!useOwnStory) {
+    if (!results[0]?.name) missingFields.push('Result 1 Name')
+    if (!results[0]?.started) missingFields.push('Result 1 Started')
+    if (!results[0]?.changed) missingFields.push('Result 1 Changed')
+    if (!results[0]?.now) missingFields.push('Result 1 Now')
+  }
+  const allRequired = missingFields.length === 0
 
   // ── Generate ──────────────────────────────────────────────────────────────
 
@@ -1223,6 +1240,14 @@ export default function SalesScriptPage() {
                   <p className="text-zinc-500 text-sm">Your own transformation story will be used. The AI will reference your name and niche.</p>
                 )}
               </div>
+
+              {/* Missing fields */}
+              {missingFields.length > 0 && (
+                <div className="mb-4 p-4 rounded-lg border border-red-500/20 bg-red-500/5">
+                  <p className="text-xs font-bold text-red-400 uppercase tracking-widest mb-2">Missing fields ({missingFields.length})</p>
+                  <p className="text-xs text-red-400/70">{missingFields.join(', ')}</p>
+                </div>
+              )}
 
               {/* Generate */}
               <button
