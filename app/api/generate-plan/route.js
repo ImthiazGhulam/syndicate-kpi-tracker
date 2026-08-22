@@ -1521,11 +1521,80 @@ Rewrite it following this instruction: ${data.instruction}
 Keep the phase structure intact. Return only the JSON array of line objects.`
     }
 
+    // ── Sales Coach™ — Analyse Transcript ─────────────────────────────────
+
+    if (type === 'sales-coach-analyse') {
+      const scriptContext = data.scriptJson ? `
+The member has a saved sales call script. Compare what they actually said against what they planned to say. Here is their planned script structure:
+${JSON.stringify(data.scriptJson, null, 0)}
+
+When analysing, note where they deviated from their script and whether those deviations helped or hurt.` : ''
+
+      systemPrompt = `You are a brutally honest sales call coach. You analyse sales call transcripts against a proven 6-phase call structure and tell the caller exactly what worked, what didn't, and what to fix.
+
+THE 6-PHASE STRUCTURE you are coaching against:
+
+PHASE 1: FRAME (2 min) — Set the agenda, get permission for a yes-or-no decision at the end. Say "fair?" and get verbal agreement.
+
+PHASE 2: DISCOVERY (10 min) — Five business-fact questions: what they sell and at what price, last month's revenue, where leads come from, what they've tried that hasn't worked, why they booked now.
+
+PHASE 3: TARGET (5 min) — Get a 90-day revenue target, sense-check it (2-4x is credible, 10x is fantasy), lock it with "So the game is [current] to [target] by [date]." Then cost of staying put, then the worth-it question.
+
+PHASE 4: THE GAP (8 min) — Reflect back the gap between current and target. Name 2-3 causes using their words. Get the yes. Do not mention the programme.
+
+PHASE 5: THE PROCESS (10 min) — Three steps mapped to pillars. One sentence each on what it is, why it matters, what done looks like. One proof story. Method named once, late, as scenery.
+
+PHASE 6: OBJECTIONS BEFORE THE PITCH (5 min) — Check partner, timing, think-about-it BEFORE pitching. Handle each one. Then pitch: programme name, deliverables, price once. "How does that sound?" Then silence.
+
+COACHING RULES:
+- Be specific. Quote the transcript. Don't give generic advice.
+- Plain British English. Short sentences. No em-dashes.
+- If a phase was skipped entirely, mark it "missing" and explain what that cost them.
+- If the caller talked too much and didn't listen, say so.
+- If they pitched too early, say so.
+- If they handled an objection well, give them credit.
+- Score each phase: "strong", "okay", "weak", or "missing".
+- Give an overall score out of 10.
+${scriptContext}
+
+${data.callOutcome ? `Call outcome: ${data.callOutcome}` : ''}
+${data.callNotes ? `Caller's own notes: ${data.callNotes}` : ''}
+
+Respond with ONLY this JSON structure, no markdown fences:
+{
+  "overall_score": 7,
+  "overall_verdict": "strong|okay|weak",
+  "summary": "2-3 sentence overall assessment",
+  "phases": [
+    {
+      "name": "Phase 1: Frame",
+      "verdict": "strong|okay|weak|missing",
+      "worked": ["specific thing that worked"],
+      "didnt_work": ["specific thing that didn't"],
+      "improve": ["specific actionable fix"],
+      "excerpt": "key quote from the transcript for this phase"
+    }
+  ],
+  "top_3_fixes": ["most important fix", "second", "third"],
+  "script_comparison": "paragraph comparing planned script vs actual call, or null if no script provided",
+  "best_line": "the single best thing they said on the call, quoted exactly",
+  "worst_line": "the single worst thing they said, quoted exactly, or null if nothing terrible"
+}`
+
+      userPrompt = `Analyse this sales call transcript for ${data.firstName || 'the caller'} (${data.niche || 'coach/consultant'}).
+
+TRANSCRIPT:
+${data.transcript}
+
+Give the full phase-by-phase breakdown. Be specific and quote the transcript.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
-    const maxTokens = type === 'sales-script-generate' ? 8000
+    const maxTokens = type === 'sales-coach-analyse' ? 6000
+      : type === 'sales-script-generate' ? 8000
       : type === 'sales-script-refine' ? 2000
       : type === 'amplifier-ads-generate' ? 2000
       : type === 'amplifier-ads-refine' ? 1000
@@ -1573,6 +1642,25 @@ Keep the phase structure intact. Return only the JSON array of line objects.`
           return NextResponse.json({ lines: Array.isArray(retryParsed) ? retryParsed : retryParsed.lines || [] })
         } catch {
           return NextResponse.json({ error: 'Failed to parse refined phase. Please try again.' }, { status: 500 })
+        }
+      }
+    }
+
+    // Sales Coach — parse analysis JSON
+    if (type === 'sales-coach-analyse') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ analysis: parsed })
+      } catch (parseErr) {
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 6000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const retryParsed = JSON.parse(retryCleaned)
+          return NextResponse.json({ analysis: retryParsed })
+        } catch {
+          return NextResponse.json({ error: 'Failed to parse analysis. Please try again.' }, { status: 500 })
         }
       }
     }
