@@ -2173,6 +2173,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       { id: 'lead-magnets', label: 'Lead Magnets',        icon: '🧲', href: '/build/lead-magnets' },
       { id: 'show-up',    label: 'Show Up Page Builder™', icon: '📄', href: '/build/show-up-page' },
       { id: 'amplifier-ads', label: 'Amplifier Ads™', icon: '📢', href: '/build/amplifier-ads' },
+      { id: 'sales-script', label: 'Sales Call Script™', icon: '📞', href: '/build/sales-script' },
     ]},
     { heading: 'Rewire™', items: [
       { id: 'wealth-wired', label: 'Wealth Wired™',       icon: '🧠', href: '/wealth-wired' },

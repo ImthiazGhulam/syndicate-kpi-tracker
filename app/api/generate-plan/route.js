@@ -1361,11 +1361,173 @@ Respond with ONLY the rewritten script text. No quotes, no preamble, no markdown
 Rewrite it following this instruction: ${data.instruction || ''}`
     }
 
+    // ── Sales Call Script™ — Generate ─────────────────────────────────────
+
+    if (type === 'sales-script-generate') {
+      const VOICE_RULES = `Voice rules (non-negotiable):
+- Plain British English
+- Short sentences
+- Specific numbers over vague claims
+- No em-dashes anywhere in the output
+- No "it's not X, it's Y" contrast constructions
+- No tricolons (three-part parallel lists)
+- No rhetorical flourish
+- Sounds like the member talking, not a template
+- The method name appears exactly once, late in Phase 5, as scenery not a pitch
+- Proof numbers used exactly as given, never rounded or inflated
+- Placeholders for live-call data use square brackets: [current], [target], [date], [their number], [cause 1], [cause 2], [cause 3], [worth-it number]. Never invent values for these.`
+
+      const resultsBlock = data.useOwnStory
+        ? `The member will use their own transformation story. Reference ${data.firstName}'s personal journey in the ${data.niche} space.`
+        : (data.results || []).map((r, i) => `Result ${i + 1}: ${r.name} started at ${r.started}. ${r.changed}. Now at ${r.now}.`).join('\n')
+
+      const objectionsBlock = data.objections && data.objections.length > 0
+        ? `The ICP's known objections/excuses: ${data.objections.join(', ')}. Reword the Phase 6 questions to reference these specific excuses where relevant.`
+        : 'No specific objections stored. Use standard partner/timing/think-about-it questions.'
+
+      systemPrompt = `You write personalised sales call scripts. Every line is for a real person to say out loud on a live 45-minute call. The job of the call is a decision: a yes or a clear no.
+
+${VOICE_RULES}
+
+You must return structured JSON with one object per phase, each with a "lines" array. Each line is an object with "type" ("spoken" or "note") and "text".
+
+SCRIPT STRUCTURE:
+
+PHASE 1: FRAME (2 min)
+Set the agenda and get permission for the decision. One spoken paragraph covering: I'll ask questions to understand where you are, we'll look at where you want to be and what's in the way, if I can help I'll show you how, if not I'll say so, at the end you'll know if it's a yes or a no. Ends with "Fair?"
+Rules: no small talk beyond 60 seconds. Say "yes or no at the end" out loud. Get a verbal yes before moving on.
+
+PHASE 2: DISCOVERY (10 min)
+Five questions, business facts only:
+1. What they sell, at what price, how people find them (reword to the member's offer type: ${data.niche})
+2. Last month's revenue
+3. Where leads come from right now, honestly
+4. What they've already tried that didn't work (reference: ${data.alreadyTried || 'the old approaches'})
+5. Why they booked now, what changed
+Rules: write the numbers down. Question 5 is the fuel for the close. Do not fix anything yet. Add coaching notes as "note" type lines.
+
+PHASE 3: TARGET (5 min)
+Ask for a monthly number at 90 days. Sense-check: 2x to 4x current is credible, 10x is fantasy and you say so. ${data.incomeLevel ? `The ICP's typical revenue range is ${data.incomeLevel}, so calibrate the sense-check to this.` : ''}
+Lock it: "So the game is [current] to [target] by [date]."
+Then the cost of staying put: "If nothing changes in 90 days, what happens?" Let them answer, do not fill the silence.
+Then the worth-it question: "If we could get you to [target] in 90 days, what would that be worth to you?" Write down [their number].
+
+PHASE 4: THE GAP (8 min)
+Reflect back: "You're at [current]. You want [target]. The reason you're not there is [cause 1], [cause 2], [cause 3]. Does that sound right?"
+Gap causes MUST be drawn from these ICP problems, not generic:
+${data.problems.map((p, i) => `- Problem ${i + 1}: ${p}`).join('\n')}
+${data.pains.length > 0 ? `ICP pains: ${data.pains.join(', ')}` : ''}
+Two or three causes maximum. Use their phrases. Get the yes. Do not mention the programme.
+
+PHASE 5: THE PROCESS (10 min)
+"There are three things that have to happen to get you from [current] to [target]."
+Three steps, each mapped one-to-one to these pillars:
+Step 1: ${data.pillars[0]} — ${data.pillarDescriptions[0]}
+Step 2: ${data.pillars[1]} — ${data.pillarDescriptions[1]}
+Step 3: ${data.pillars[2]} — ${data.pillarDescriptions[2]}
+
+Each step: one sentence on what it is, one on why it matters for them, one on what done looks like.
+Then one proof story in three lines: where they started, what changed, where they are now.
+The method "${data.engineName}" is named exactly once here, late, as scenery. Not as a pitch.
+Rules: teach generously. The sell is support and speed, not the information. Every step points back to Discovery.
+
+PHASE 6: OBJECTIONS BEFORE THE PITCH (5 min)
+Opener: "Before I tell you how we'd work together, I want to check a few things."
+Three questions in order:
+1. Partner: is there anyone else who'd need to be part of the decision
+2. Timing: anything on the time side that would stop them doing the work over 90 days
+3. Think about it: how they normally decide when investing in the business
+${objectionsBlock}
+Price is not asked here. It was set up by the worth-it question in Phase 3.
+Close: "Anything else that would stop you saying yes if this was right?" If no, pitch. If yes, handle and ask again.
+
+THE PITCH (5 min)
+"Based on everything you've told me, here's what I'd recommend."
+Programme: ${data.programmeName}
+Deliverables: ${data.deliverables}
+${data.programmeLength ? `Duration: ${data.programmeLength}` : ''}
+Price: ${data.price} (stated once)
+${data.paymentPlan ? `Payment plan: ${data.paymentPlan}` : ''}
+Then: "How does that sound?" Then silence.
+
+OBJECTION HANDLING (inside Phase 6 response):
+Return four objection blocks under an "objections" key, each with the same "lines" array format:
+- "partner": If partner bites — offer to get them on now or confirm they make the business calls. Lock: "So if this is right, you're in a position to say yes today?" If they truly need the partner, book the follow-up now.
+- "timing": If timing bites — "When would be the right time?" Then replay their cost of staying put.
+- "think": If think-about-it bites — "What specifically would you be thinking about?" Their answer is partner, timing or price in disguise. Handle that one. Then: "So if that was sorted, you'd be able to decide today?"
+- "price": If price bites after the pitch — "You said getting to [target] was worth [their number]. This is ${data.price}. What's the hesitation?" Cash flow means payment plan. Belief means back to the gap and the proof. If yes: take payment on the call. Never send the link later. If no: "Fair enough. What's missing?" One more round, then let them go cleanly.
+
+Respond with ONLY this JSON structure, no markdown fences, no preamble:
+{"phase_1":{"lines":[{"type":"spoken","text":"..."},{"type":"note","text":"..."}]},"phase_2":{"lines":[...]},"phase_3":{"lines":[...]},"phase_4":{"lines":[...]},"phase_5":{"lines":[...]},"phase_6":{"lines":[...]},"pitch":{"lines":[...]},"objections":{"partner":{"lines":[...]},"timing":{"lines":[...]},"think":{"lines":[...]},"price":{"lines":[...]}}}`
+
+      userPrompt = `Build the full sales call script for this member:
+
+Member: ${data.firstName}, niche: ${data.niche}
+ICP: ${data.icpDescription}
+ICP pains: ${data.pains.join(', ')}
+Desired outcome / promise: ${data.desiredOutcome}
+What they've already tried (old way): ${data.alreadyTried || 'Not specified'}
+ICP income level: ${data.incomeLevel || 'Not specified'}
+
+Problems the method solves:
+${data.problems.map((p, i) => `${i + 1}. ${p}`).join('\n')}
+
+Method: ${data.engineName}
+Pillars:
+1. ${data.pillars[0]} — ${data.pillarDescriptions[0]}
+2. ${data.pillars[1]} — ${data.pillarDescriptions[1]}
+3. ${data.pillars[2]} — ${data.pillarDescriptions[2]}
+Promise: ${data.promise}
+
+Programme: ${data.programmeName}
+Price: ${data.price}
+${data.paymentPlan ? `Payment plan: ${data.paymentPlan}` : ''}
+Deliverables: ${data.deliverables}
+${data.programmeLength ? `Duration: ${data.programmeLength}` : ''}
+
+Proof:
+${resultsBlock}
+
+Write the complete script now.`
+    }
+
+    // ── Sales Call Script™ — Refine Phase ─────────────────────────────────
+
+    if (type === 'sales-script-refine') {
+      systemPrompt = `You rewrite individual phases of a sales call script. Keep the same structure and purpose of the phase. Every line is for a real person to say out loud on a live call.
+
+Voice rules (non-negotiable):
+- Plain British English
+- Short sentences
+- Specific numbers over vague claims
+- No em-dashes anywhere
+- No "it's not X, it's Y" contrast constructions
+- No tricolons
+- No rhetorical flourish
+- Sounds like the member talking, not a template
+- Placeholders use square brackets: [current], [target], [date], [their number], [cause 1], [cause 2], [cause 3], [worth-it number]
+
+Respond with ONLY a JSON array of line objects, no markdown fences, no preamble:
+[{"type":"spoken","text":"..."},{"type":"note","text":"..."}]`
+
+      const currentText = (data.currentLines || []).map(l => l.type === 'note' ? `[Note: ${l.text}]` : l.text).join('\n')
+
+      userPrompt = `Here is the current phase (${data.phaseKey}) of a sales call script for ${data.firstName} (${data.niche}):
+
+${currentText}
+
+Rewrite it following this instruction: ${data.instruction}
+
+Keep the phase structure intact. Return only the JSON array of line objects.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
-    const maxTokens = type === 'amplifier-ads-generate' ? 2000
+    const maxTokens = type === 'sales-script-generate' ? 8000
+      : type === 'sales-script-refine' ? 2000
+      : type === 'amplifier-ads-generate' ? 2000
       : type === 'amplifier-ads-refine' ? 1000
       : type === 'unshakeable' && Number(data.duration) >= 14 ? 4500
       : (type === 'show-up-page' || type === 'show-up-page-html') ? 16000
@@ -1376,6 +1538,44 @@ Rewrite it following this instruction: ${data.instruction || ''}`
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // Sales Call Script — parse full script JSON
+    if (type === 'sales-script-generate') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ script: parsed })
+      } catch (parseErr) {
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 8000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const retryParsed = JSON.parse(retryCleaned)
+          return NextResponse.json({ script: retryParsed })
+        } catch {
+          return NextResponse.json({ error: 'Failed to parse script. Please try again.' }, { status: 500 })
+        }
+      }
+    }
+
+    // Sales Call Script — parse refined phase lines
+    if (type === 'sales-script-refine') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ lines: Array.isArray(parsed) ? parsed : parsed.lines || [] })
+      } catch (parseErr) {
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON array, no markdown fences.', 2000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const retryCleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const retryParsed = JSON.parse(retryCleaned)
+          return NextResponse.json({ lines: Array.isArray(retryParsed) ? retryParsed : retryParsed.lines || [] })
+        } catch {
+          return NextResponse.json({ error: 'Failed to parse refined phase. Please try again.' }, { status: 500 })
+        }
+      }
+    }
 
     // Amplifier Ads — parse JSON variants or return refined script
     if (type === 'amplifier-ads-generate') {
