@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import ExpertOSMark from '../../components/ExpertOSMark'
+import LoadingOverlay from '../../components/LoadingOverlay'
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 
@@ -122,21 +122,6 @@ function VideoPreview({ url, label }) {
     <div className="w-full rounded overflow-hidden border border-zinc-700" style={{ position: 'relative', paddingTop: '56.25%' }}>
       <iframe src={embedUrl} style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 0 }}
         allowFullScreen allow="autoplay; fullscreen; picture-in-picture" title={label || 'Video'} />
-    </div>
-  )
-}
-
-function LoadingOverlay({ lines }) {
-  const [idx, setIdx] = useState(0)
-  useEffect(() => { const t = setInterval(() => setIdx(p => (p + 1) % lines.length), 2500); return () => clearInterval(t) }, [lines])
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="flex justify-center mb-5">
-          <ExpertOSMark size={40} glow className="os-mark-pulse" />
-        </div>
-        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[idx]}</p>
-      </div>
     </div>
   )
 }

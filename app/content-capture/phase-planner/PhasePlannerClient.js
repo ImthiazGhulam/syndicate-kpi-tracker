@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../../lib/supabase'
-import ExpertOSMark from '../../components/ExpertOSMark'
+import LoadingOverlay from '../../components/LoadingOverlay'
 
 // ── Constants ──────────────────────────────────────────────────────────────────
 
@@ -112,19 +112,6 @@ function PhaseSummary({ weeks }) {
           </div>
         )
       })}
-    </div>
-  )
-}
-
-function LoadingOverlay({ message }) {
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="flex justify-center mb-5">
-          <ExpertOSMark size={40} glow className="os-mark-pulse" />
-        </div>
-        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{message}</p>
-      </div>
     </div>
   )
 }

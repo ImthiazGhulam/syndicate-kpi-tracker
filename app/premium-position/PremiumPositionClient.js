@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import ExpertOSMark from '../components/ExpertOSMark'
+import LoadingOverlay from '../components/LoadingOverlay'
 
 
 // ── Default Data Shapes ─────────────────────────────────────────────────────
@@ -292,27 +293,6 @@ function ProgressIndicator({ current, stages }) {
           )}
         </div>
       ))}
-    </div>
-  )
-}
-
-function LoadingOverlay({ lines }) {
-  const [lineIndex, setLineIndex] = useState(0)
-  useEffect(() => {
-    const timer = setInterval(() => {
-      setLineIndex(prev => (prev + 1) % lines.length)
-    }, 2500)
-    return () => clearInterval(timer)
-  }, [lines])
-
-  return (
-    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
-      <div className="text-center">
-        <div className="flex justify-center mb-5">
-          <ExpertOSMark size={40} glow className="os-mark-pulse" />
-        </div>
-        <p className="text-gold text-sm font-bold uppercase tracking-widest animate-pulse">{lines[lineIndex]}</p>
-      </div>
     </div>
   )
 }
