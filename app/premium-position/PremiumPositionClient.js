@@ -573,7 +573,7 @@ export default function PremiumPositionPage() {
 
   if (loading) return (
     <div className="min-h-screen bg-zinc-950 flex items-center justify-center">
-      <div className="text-center"><div className="loading-logo-container inline-flex"><img src="/logo.png" alt="The Syndicate" className="h-14 w-auto loading-logo" /><div className="loading-ring" /></div></div>
+      <div className="text-center"><svg className="loading-ring-svg mx-auto mb-4" width="48" height="48" viewBox="0 0 64 64" fill="none"><circle cx="32" cy="32" r="28" stroke="rgba(201,168,76,0.12)" strokeWidth="1.5" /><circle cx="32" cy="32" r="28" stroke="url(#rl)" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="130 46" /><defs><linearGradient id="rl" x1="0" y1="0" x2="64" y2="64"><stop offset="0%" stopColor="#C9A84C" /><stop offset="100%" stopColor="rgba(201,168,76,0.15)" /></linearGradient></defs></svg><p className="text-gold text-xs font-semibold tracking-widest uppercase loading-text">Loading</p></div>
     </div>
   )
 

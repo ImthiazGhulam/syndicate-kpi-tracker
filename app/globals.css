@@ -157,32 +157,9 @@
   }
 
   /* ── Loading Overlay ─────────────────────────────────────── */
-  .loading-logo-container {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
-
-  .loading-logo {
-    animation: logoPulse 2s ease-in-out infinite;
-    filter: drop-shadow(0 0 20px rgba(201, 168, 76, 0.5)) drop-shadow(0 0 40px rgba(201, 168, 76, 0.2));
-  }
-
-  @keyframes logoPulse {
-    0%, 100% { opacity: 1; transform: scale(1); }
-    50% { opacity: 0.7; transform: scale(0.95); }
-  }
-
-  .loading-ring {
-    position: absolute;
-    width: 96px;
-    height: 96px;
-    border: 1.5px solid transparent;
-    border-top-color: #C9A84C;
-    border-right-color: rgba(201, 168, 76, 0.3);
-    border-radius: 50%;
+  .loading-ring-svg {
     animation: ringRotate 1.8s linear infinite;
+    filter: drop-shadow(0 0 8px rgba(201, 168, 76, 0.3));
   }
 
   @keyframes ringRotate {
