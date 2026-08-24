@@ -1294,25 +1294,43 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     const lastDay = new Date(y, m + 1, 0).getDate()
     const monthEnd = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-    const [current, prev, dkpis, dmLeads, allReviews] = await Promise.all([
+    const [current, prev, dkpis, dmLeads, callBookedLeads, wonLeads, allReviews] = await Promise.all([
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', prevM).eq('year', prevY).maybeSingle(),
       supabase.from('daily_kpis').select('new_followers, content_posted, calls_booked, calls_taken, offers, closed, cash_collected, new_convos').eq('client_id', clientData.id).gte('date', monthStart).lte('date', monthEnd),
       supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).neq('status', 'new_follower').gte('created_at', monthStart).lte('created_at', monthEnd + 'T23:59:59'),
+      supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).in('status', ['call_booked', 'client_won']).gte('updated_at', monthStart).lte('updated_at', monthEnd + 'T23:59:59'),
+      supabase.from('leads').select('id, notes', { count: 'exact' }).eq('client_id', clientData.id).eq('status', 'client_won').gte('updated_at', monthStart).lte('updated_at', monthEnd + 'T23:59:59'),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).order('year').order('month'),
     ])
 
     // Compute auto-fills from daily tracker
     const rows = dkpis.data || []
     const sum = (key) => rows.reduce((t, r) => t + (Number(r[key]) || 0), 0)
+    // Parse cash from won leads' notes (logged by deal closed modal)
+    let wonCashCollected = 0, wonCashContracted = 0, offerDocCount = 0
+    if (wonLeads.data) {
+      wonLeads.data.forEach(l => {
+        const notes = l.notes || ''
+        const ccMatch = notes.match(/Cash collected: £([\d,]+)/i)
+        const ctMatch = notes.match(/Cash contracted: £([\d,]+)/i)
+        if (ccMatch) wonCashCollected += Number(ccMatch[1].replace(/,/g, '')) || 0
+        if (ctMatch) wonCashContracted += Number(ctMatch[1].replace(/,/g, '')) || 0
+        // Count Dip offers as offer docs sent
+        if (notes.includes('The Dip') || notes.includes('Dip)')) offerDocCount++
+      })
+    }
+
     const fills = {
       new_followers: sum('new_followers'),
       short_form_posted: sum('content_posted'),
-      calls_booked: sum('calls_booked'),
+      calls_booked: (callBookedLeads.count || 0),
       calls_shown: sum('calls_taken'),
       offers_made: sum('offers'),
       calls_closed: sum('closed'),
-      cash_collected: sum('cash_collected'),
+      cash_collected: wonCashCollected || sum('cash_collected'),
+      cash_contracted: wonCashContracted || null,
+      offer_docs_sent: offerDocCount || null,
       dms_sent: dmLeads.count || 0,
     }
     setMonthlyAutoFills(fills)
