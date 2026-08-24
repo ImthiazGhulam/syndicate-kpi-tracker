@@ -4,18 +4,20 @@ import { useState } from 'react'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { MONTHLY_METRICS, MONTH_NAMES, ALL_METRIC_KEYS, getMetricByKey, getMetricColor } from '../../lib/monthly-constants'
 
-function CustomTooltip({ active, payload, label }) {
+function CustomTooltip({ active, payload, label, rawData, monthIndex }) {
   if (!active || !payload || !payload.length) return null
+  const raw = rawData && monthIndex !== undefined ? rawData[monthIndex] : null
   return (
     <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl">
       <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{label}</p>
       {payload.map((entry, i) => {
         const metric = getMetricByKey(entry.dataKey)
+        const actualVal = raw ? raw[entry.dataKey] : entry.value
         return (
           <div key={i} className="flex items-center gap-2 mb-1">
             <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
             <span className="text-xs text-zinc-300">{metric?.label || entry.dataKey}:</span>
-            <span className="text-xs font-bold text-white">{formatValue(entry.value, entry.dataKey)}</span>
+            <span className="text-xs font-bold text-white">{formatValue(actualVal, entry.dataKey)}</span>
           </div>
         )
       })}
@@ -43,12 +45,34 @@ export default function MonthlyMetricsChart({ allReviews, activeMetrics, onToggl
 
   const sorted = [...allReviews].sort((a, b) => a.year !== b.year ? a.year - b.year : a.month - b.month)
 
-  const chartData = sorted.map(r => {
-    const point = { name: `${MONTH_NAMES[r.month]} ${String(r.year).slice(2)}` }
-    ALL_METRIC_KEYS.forEach(key => {
-      const val = r[key]
-      point[key] = val !== null && val !== undefined ? Number(val) : null
+  // Compute min/max per active metric for normalization
+  const ranges = {}
+  if (activeMetrics) {
+    activeMetrics.forEach(key => {
+      let min = Infinity, max = -Infinity
+      sorted.forEach(r => {
+        const v = r[key]
+        if (v !== null && v !== undefined) {
+          const n = Number(v)
+          if (n < min) min = n
+          if (n > max) max = n
+        }
+      })
+      ranges[key] = { min: min === Infinity ? 0 : min, max: max === -Infinity ? 0 : max }
     })
+  }
+
+  // Normalize: scale each metric to 0-100 based on its own range
+  const chartData = sorted.map((r, idx) => {
+    const point = { name: `${MONTH_NAMES[r.month]} ${String(r.year).slice(2)}`, _idx: idx }
+    if (activeMetrics) {
+      activeMetrics.forEach(key => {
+        const val = r[key]
+        if (val === null || val === undefined) { point[key] = null; return }
+        const { min, max } = ranges[key]
+        point[key] = max === min ? 50 : ((Number(val) - min) / (max - min)) * 100
+      })
+    }
     return point
   })
 
@@ -68,13 +92,35 @@ export default function MonthlyMetricsChart({ allReviews, activeMetrics, onToggl
                 tickLine={false}
               />
               <YAxis
-                tick={{ fill: '#71717a', fontSize: 11 }}
+                tick={false}
                 axisLine={false}
                 tickLine={false}
-                width={50}
-                tickFormatter={(v) => v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}
+                width={8}
+                domain={[0, 100]}
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip
+                content={({ active, payload, label }) => {
+                  if (!active || !payload || !payload.length) return null
+                  const idx = payload[0]?.payload?._idx
+                  const raw = idx !== undefined ? sorted[idx] : null
+                  return (
+                    <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-3 shadow-xl">
+                      <p className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-2">{label}</p>
+                      {payload.map((entry, i) => {
+                        const metric = getMetricByKey(entry.dataKey)
+                        const actualVal = raw ? raw[entry.dataKey] : null
+                        return (
+                          <div key={i} className="flex items-center gap-2 mb-1">
+                            <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: entry.color }} />
+                            <span className="text-xs text-zinc-300">{metric?.label || entry.dataKey}:</span>
+                            <span className="text-xs font-bold text-white">{formatValue(actualVal, entry.dataKey)}</span>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )
+                }}
+              />
               {activeMetrics.map(key => (
                 <Line
                   key={key}
@@ -96,6 +142,24 @@ export default function MonthlyMetricsChart({ allReviews, activeMetrics, onToggl
       {!hasAnyActive && (
         <div className="flex items-center justify-center py-12 mb-4">
           <p className="text-zinc-600 text-sm">Tap a metric below to add it to the chart.</p>
+        </div>
+      )}
+
+      {/* Active metric legends with actual values for latest month */}
+      {hasAnyActive && sorted.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-3 pb-3 border-b border-zinc-800">
+          {activeMetrics.map(key => {
+            const metric = getMetricByKey(key)
+            const latest = sorted[sorted.length - 1]
+            const val = latest[key]
+            return (
+              <div key={key} className="flex items-center gap-1.5 px-2 py-1 rounded bg-zinc-800/50">
+                <div className="w-2 h-2 rounded-full" style={{ backgroundColor: getMetricColor(key) }} />
+                <span className="text-[10px] text-zinc-400">{metric?.label}:</span>
+                <span className="text-[10px] font-bold text-white">{formatValue(val, key)}</span>
+              </div>
+            )
+          })}
         </div>
       )}
 
