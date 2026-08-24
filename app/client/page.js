@@ -4,6 +4,8 @@ import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import ExpertOSMark from '../components/ExpertOSMark'
+import MonthlyMetricsChart from '../components/MonthlyMetricsChart'
+import { MONTHLY_METRICS, ALL_METRIC_KEYS, getMetricColor } from '../../lib/monthly-constants'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -194,6 +196,56 @@ function StatCard({ label, value, target, color = 'gold' }) {
   )
 }
 
+// ── Monthly Metric Input (defined outside main for mobile keyboard stability) ──
+
+function MonthlyMetricInput({ metric, value, autoFillValue, onChange, onBlur }) {
+  const isAutoFilled = autoFillValue !== undefined && autoFillValue !== null && (value === autoFillValue || value === undefined || value === null || value === '')
+  return (
+    <div className="flex items-center gap-3">
+      <div className="flex-1">
+        <div className="flex items-center gap-2 mb-1">
+          <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{metric.label}</label>
+          {isAutoFilled && autoFillValue > 0 && (
+            <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">from tracker</span>
+          )}
+          {metric.autoCalc && (
+            <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">auto</span>
+          )}
+        </div>
+        <input type="number" min="0" step={metric.step || '1'}
+          value={value !== undefined && value !== null ? value : ''}
+          onChange={e => onChange(metric.key, e.target.value)}
+          onBlur={onBlur}
+          placeholder="0"
+          className="w-full px-3 py-2.5 bg-zinc-900 border border-zinc-700 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm font-medium" />
+      </div>
+    </div>
+  )
+}
+
+function MonthlyMetricGroupCard({ group, metrics, review, autoFills, onChange, onBlur }) {
+  return (
+    <div className={`rounded-xl border ${group.border} ${group.bg} p-4 mb-4`}>
+      <div className="flex items-center gap-2 mb-4">
+        <span className="text-base">{group.icon}</span>
+        <h3 className={`text-xs font-bold uppercase tracking-widest ${group.color}`}>{group.label}</h3>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {metrics.map(metric => (
+          <MonthlyMetricInput
+            key={metric.key}
+            metric={metric}
+            value={review[metric.key]}
+            autoFillValue={autoFills[metric.key]}
+            onChange={onChange}
+            onBlur={onBlur}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 // ── Main Component ────────────────────────────────────────────────────────────
 
 export default function ClientPage() {
@@ -365,6 +417,9 @@ export default function ClientPage() {
     return d.getFullYear()
   })
   const [monthlySaving, setMonthlySaving] = useState(false)
+  const [monthlyAutoFills, setMonthlyAutoFills] = useState({})
+  const [allClientMonthlyReviews, setAllClientMonthlyReviews] = useState([])
+  const [activeChartMetrics, setActiveChartMetrics] = useState(['cash_collected', 'calls_closed', 'new_followers'])
 
   // Dashboard — programme progress
   const [weekMorningOps, setWeekMorningOps] = useState([])
@@ -1202,15 +1257,46 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
   // Monthly Review
   const fetchMonthlyReview = async (m, y) => {
     if (!clientData) return
-    // Get current month's review + last month's (for target comparison)
     const prevM = m === 0 ? 11 : m - 1
     const prevY = m === 0 ? y - 1 : y
-    const [current, prev] = await Promise.all([
+    const monthStart = `${y}-${String(m + 1).padStart(2, '0')}-01`
+    const lastDay = new Date(y, m + 1, 0).getDate()
+    const monthEnd = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+
+    const [current, prev, dkpis, dmLeads, allReviews] = await Promise.all([
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', prevM).eq('year', prevY).maybeSingle(),
+      supabase.from('daily_kpis').select('new_followers, content_posted, calls_booked, calls_taken, offers, closed, cash_collected, new_convos').eq('client_id', clientData.id).gte('date', monthStart).lte('date', monthEnd),
+      supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).eq('status', 'dm_sent').gte('updated_at', monthStart).lte('updated_at', monthEnd + 'T23:59:59'),
+      supabase.from('monthly_review').select('*').eq('client_id', clientData.id).order('year').order('month'),
     ])
-    setMonthlyReview(current.data || {})
+
+    // Compute auto-fills from daily tracker
+    const rows = dkpis.data || []
+    const sum = (key) => rows.reduce((t, r) => t + (Number(r[key]) || 0), 0)
+    const fills = {
+      new_followers: sum('new_followers'),
+      short_form_posted: sum('content_posted'),
+      calls_booked: sum('calls_booked'),
+      calls_shown: sum('calls_taken'),
+      offers_made: sum('offers'),
+      calls_closed: sum('closed'),
+      cash_collected: sum('cash_collected'),
+      dms_sent: sum('new_convos') + (dmLeads.count || 0),
+    }
+    setMonthlyAutoFills(fills)
+
+    // Pre-populate empty fields with auto-fill values
+    const review = current.data || {}
+    Object.entries(fills).forEach(([key, val]) => {
+      if ((review[key] === null || review[key] === undefined) && val > 0) {
+        review[key] = val
+      }
+    })
+
+    setMonthlyReview(review)
     setLastMonthReview(prev.data || null)
+    setAllClientMonthlyReviews(allReviews.data || [])
   }
 
   useEffect(() => {
@@ -1222,7 +1308,8 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     if (!clientData) return
     if (monthTransitioning.current) return
     // Don't create a new record if the form is empty (prevents accidental blank saves)
-    if (!monthlyReview.id && !overrides.revenue && !monthlyReview.revenue && !monthlyReview.biggest_win && !monthlyReview.revenue_target && !overrides.target_hit && !overrides.month_rating) return
+    const hasAnyMetric = ALL_METRIC_KEYS.some(k => monthlyReview[k])
+    if (!monthlyReview.id && !overrides.revenue && !monthlyReview.revenue && !monthlyReview.biggest_win && !monthlyReview.revenue_target && !overrides.target_hit && !overrides.month_rating && !hasAnyMetric) return
     const payload = {
       client_id: clientData.id, month: reviewMonth, year: reviewYear,
       revenue: monthlyReview.revenue || 0, target_hit: monthlyReview.target_hit,
@@ -1230,7 +1317,28 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       biggest_challenge: monthlyReview.biggest_challenge || '', key_learning: monthlyReview.key_learning || '',
       improve: monthlyReview.improve || '', goal_1: monthlyReview.goal_1 || '',
       goal_2: monthlyReview.goal_2 || '', goal_3: monthlyReview.goal_3 || '',
-      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
+      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '',
+      revenue_target: monthlyReview.revenue_target || null,
+      new_followers: monthlyReview.new_followers || null,
+      short_form_posted: monthlyReview.short_form_posted || null,
+      lead_magnet_downloads: monthlyReview.lead_magnet_downloads || null,
+      link_in_bio_clicks: monthlyReview.link_in_bio_clicks || null,
+      email_list_size: monthlyReview.email_list_size || null,
+      emails_sent: monthlyReview.emails_sent || null,
+      long_form_posted: monthlyReview.long_form_posted || null,
+      total_watch_time: monthlyReview.total_watch_time || null,
+      dms_sent: monthlyReview.dms_sent || null,
+      offers_made: monthlyReview.offers_made || null,
+      offer_docs_sent: monthlyReview.offer_docs_sent || null,
+      calls_booked: monthlyReview.calls_booked || null,
+      calls_shown: monthlyReview.calls_shown || null,
+      calls_closed: monthlyReview.calls_closed || null,
+      cash_collected: monthlyReview.cash_collected || null,
+      cash_contracted: monthlyReview.cash_contracted || null,
+      money_in: monthlyReview.money_in || null,
+      money_out: monthlyReview.money_out || null,
+      personal_pay: monthlyReview.personal_pay || null,
+      profit: monthlyReview.profit || null,
       ...overrides,
     }
     if (monthlyReview.completed) { payload.completed = true; payload.completed_at = monthlyReview.completed_at }
@@ -1249,7 +1357,28 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       biggest_challenge: monthlyReview.biggest_challenge || '', key_learning: monthlyReview.key_learning || '',
       improve: monthlyReview.improve || '', goal_1: monthlyReview.goal_1 || '',
       goal_2: monthlyReview.goal_2 || '', goal_3: monthlyReview.goal_3 || '',
-      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '', revenue_target: monthlyReview.revenue_target || null,
+      mindset_shift: monthlyReview.mindset_shift || '', energy_focus: monthlyReview.energy_focus || '',
+      revenue_target: monthlyReview.revenue_target || null,
+      new_followers: monthlyReview.new_followers || null,
+      short_form_posted: monthlyReview.short_form_posted || null,
+      lead_magnet_downloads: monthlyReview.lead_magnet_downloads || null,
+      link_in_bio_clicks: monthlyReview.link_in_bio_clicks || null,
+      email_list_size: monthlyReview.email_list_size || null,
+      emails_sent: monthlyReview.emails_sent || null,
+      long_form_posted: monthlyReview.long_form_posted || null,
+      total_watch_time: monthlyReview.total_watch_time || null,
+      dms_sent: monthlyReview.dms_sent || null,
+      offers_made: monthlyReview.offers_made || null,
+      offer_docs_sent: monthlyReview.offer_docs_sent || null,
+      calls_booked: monthlyReview.calls_booked || null,
+      calls_shown: monthlyReview.calls_shown || null,
+      calls_closed: monthlyReview.calls_closed || null,
+      cash_collected: monthlyReview.cash_collected || null,
+      cash_contracted: monthlyReview.cash_contracted || null,
+      money_in: monthlyReview.money_in || null,
+      money_out: monthlyReview.money_out || null,
+      personal_pay: monthlyReview.personal_pay || null,
+      profit: monthlyReview.profit || null,
       completed: true, completed_at: new Date().toISOString(),
     }
     const { data, error } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
@@ -5340,49 +5469,92 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               </div>
             )}
 
-            <div className="space-y-6 mt-6">
-              {/* Revenue */}
-              <div>
-                {/* Last month's target vs this month's actual */}
-                {lastMonthReview?.revenue_target > 0 && (
-                  <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg p-4 mb-5">
-                    <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
-                      Last month's target vs this month's result
-                    </p>
-                    <div className="flex items-baseline justify-between mb-2">
-                      <div>
-                        <span className="text-zinc-600 text-xs">Target: </span>
-                        <span className="text-white font-bold">£{Number(lastMonthReview.revenue_target).toLocaleString()}</span>
-                      </div>
-                      <div>
-                        <span className="text-zinc-600 text-xs">Actual: </span>
-                        <span className={`font-bold ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'text-emerald-400' : 'text-red-400'}`}>
-                          £{(monthlyReview.revenue || 0).toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                    <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                      <div className={`h-full rounded-full transition-all duration-500 ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'bg-emerald-400' : 'bg-red-400'}`}
-                        style={{ width: `${Math.min(100, Math.round(((monthlyReview.revenue || 0) / lastMonthReview.revenue_target) * 100))}%` }} />
-                    </div>
-                    <p className={`text-xs font-bold mt-1.5 ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'text-emerald-400' : 'text-red-400'}`}>
-                      {(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'Target hit' : `£${(lastMonthReview.revenue_target - (monthlyReview.revenue || 0)).toLocaleString()} short`}
-                    </p>
+            {/* Trend Chart */}
+            <MonthlyMetricsChart
+              allReviews={allClientMonthlyReviews}
+              activeMetrics={activeChartMetrics}
+              onToggleMetric={(key) => setActiveChartMetrics(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
+            />
+
+            {/* Last month target vs actual */}
+            {lastMonthReview?.revenue_target > 0 && (
+              <div className="bg-zinc-800/50 border border-zinc-700/50 rounded-lg p-4 mb-5">
+                <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">
+                  Last month's target vs this month's result
+                </p>
+                <div className="flex items-baseline justify-between mb-2">
+                  <div>
+                    <span className="text-zinc-600 text-xs">Target: </span>
+                    <span className="text-white font-bold">£{Number(lastMonthReview.revenue_target).toLocaleString()}</span>
                   </div>
-                )}
-
-                <label className="block text-xs font-bold text-gold uppercase tracking-widest mb-2">Total Revenue This Month (£)</label>
-                <p className="text-zinc-600 text-xs mb-3">What did you actually earn this month?</p>
-                <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
-                  placeholder="0.00"
-                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-lg font-bold mb-5" />
-
-                <label className="block text-xs font-bold text-emerald-400 uppercase tracking-widest mb-2">Revenue Target for Next Month (£)</label>
-                <p className="text-zinc-600 text-xs mb-3">What are you committing to earn next month?</p>
-                <input type="number" min="0" step="0.01" value={monthlyReview.revenue_target || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue_target: e.target.value }))} onBlur={() => saveMonthly()}
-                  placeholder="0.00"
-                  className="w-full px-4 py-3.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-lg font-bold" />
+                  <div>
+                    <span className="text-zinc-600 text-xs">Actual: </span>
+                    <span className={`font-bold ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'text-emerald-400' : 'text-red-400'}`}>
+                      £{(monthlyReview.revenue || 0).toLocaleString()}
+                    </span>
+                  </div>
+                </div>
+                <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full transition-all duration-500 ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'bg-emerald-400' : 'bg-red-400'}`}
+                    style={{ width: `${Math.min(100, Math.round(((monthlyReview.revenue || 0) / lastMonthReview.revenue_target) * 100))}%` }} />
+                </div>
+                <p className={`text-xs font-bold mt-1.5 ${(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {(monthlyReview.revenue || 0) >= lastMonthReview.revenue_target ? 'Target hit' : `£${(lastMonthReview.revenue_target - (monthlyReview.revenue || 0)).toLocaleString()} short`}
+                </p>
               </div>
+            )}
+
+            <div className="space-y-4 mt-4">
+              {/* Revenue + Target (existing fields, kept prominent) */}
+              <div className="rounded-xl border border-gold/25 bg-gold/[0.03] p-4">
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-base">💷</span>
+                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest">Revenue</h3>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1 block">Total Revenue This Month</label>
+                    <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm font-bold" />
+                  </div>
+                  <div>
+                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1 block">Target for Next Month</label>
+                    <input type="number" min="0" step="0.01" value={monthlyReview.revenue_target || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue_target: e.target.value }))} onBlur={() => saveMonthly()}
+                      placeholder="0.00"
+                      className="w-full px-3 py-2.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-sm font-bold" />
+                  </div>
+                </div>
+              </div>
+
+              {/* 20 Metrics grouped */}
+              {MONTHLY_METRICS.map(group => {
+                const groupMeta = [
+                  { id: 'audience', label: 'Audience & Content', icon: '📡', color: 'text-sky-400', border: 'border-sky-500/30', bg: 'bg-sky-500/5' },
+                  { id: 'pipeline', label: 'Sales Pipeline', icon: '🎯', color: 'text-violet-400', border: 'border-violet-500/30', bg: 'bg-violet-500/5' },
+                  { id: 'financials', label: 'Financials', icon: '💰', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/5' },
+                ].find(g => g.id === group.group)
+                return (
+                  <MonthlyMetricGroupCard
+                    key={group.group}
+                    group={groupMeta}
+                    metrics={group.items}
+                    review={monthlyReview}
+                    autoFills={monthlyAutoFills}
+                    onChange={(key, val) => {
+                      const updated = { ...monthlyReview, [key]: val === '' ? null : Number(val) }
+                      // Auto-calc profit
+                      if (key === 'money_in' || key === 'money_out') {
+                        const mi = key === 'money_in' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_in) || 0)
+                        const mo = key === 'money_out' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_out) || 0)
+                        if (mi > 0 || mo > 0) updated.profit = mi - mo
+                      }
+                      setMonthlyReview(updated)
+                    }}
+                    onBlur={() => saveMonthly()}
+                  />
+                )
+              })}
 
               {/* Target hit */}
               <div>
@@ -5421,21 +5593,24 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               </div>
 
               {/* Reflection prompts */}
-              {[
-                { key: 'biggest_win', label: 'Biggest win this month', color: 'text-emerald-400' },
-                { key: 'biggest_challenge', label: 'Biggest challenge this month', color: 'text-red-400' },
-                { key: 'key_learning', label: 'Key learning — what did this month teach me?', color: 'text-sky-400' },
-                { key: 'mindset_shift', label: 'How has my mindset shifted this month?', color: 'text-violet-400' },
-                { key: 'energy_focus', label: 'Where should I focus my energy next month?', color: 'text-amber-400' },
-                { key: 'improve', label: 'What do I need to improve?', color: 'text-zinc-400' },
-              ].map(({ key, label, color }) => (
-                <div key={key}>
-                  <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${color}`}>{label}</label>
-                  <textarea value={monthlyReview[key] || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, [key]: e.target.value }))} onBlur={() => saveMonthly()}
-                    rows={3} placeholder="Write here..."
-                    className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
-                </div>
-              ))}
+              <div className="pt-4 border-t border-zinc-800">
+                <h3 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Reflections</h3>
+                {[
+                  { key: 'biggest_win', label: 'Biggest win this month', color: 'text-emerald-400' },
+                  { key: 'biggest_challenge', label: 'Biggest challenge this month', color: 'text-red-400' },
+                  { key: 'key_learning', label: 'Key learning — what did this month teach me?', color: 'text-sky-400' },
+                  { key: 'mindset_shift', label: 'How has my mindset shifted this month?', color: 'text-violet-400' },
+                  { key: 'energy_focus', label: 'Where should I focus my energy next month?', color: 'text-amber-400' },
+                  { key: 'improve', label: 'What do I need to improve?', color: 'text-zinc-400' },
+                ].map(({ key, label, color }) => (
+                  <div key={key} className="mb-4">
+                    <label className={`block text-xs font-bold uppercase tracking-widest mb-2 ${color}`}>{label}</label>
+                    <textarea value={monthlyReview[key] || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, [key]: e.target.value }))} onBlur={() => saveMonthly()}
+                      rows={3} placeholder="Write here..."
+                      className="w-full px-4 py-3 bg-zinc-800 border border-zinc-700 rounded text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition resize-none text-sm" />
+                  </div>
+                ))}
+              </div>
 
               {/* Goals for next month */}
               <div className="pt-4 border-t border-zinc-800">

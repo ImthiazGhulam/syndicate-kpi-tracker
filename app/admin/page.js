@@ -3,6 +3,8 @@
 import { useState, useEffect, Component } from 'react'
 import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
+import MonthlyMetricsChart from '../components/MonthlyMetricsChart'
+import { MONTHLY_METRICS, MONTHLY_METRIC_GROUPS, ALL_METRIC_KEYS, getMetricColor, MONTH_NAMES as SHORT_MONTH_NAMES } from '../../lib/monthly-constants'
 
 
 // Error Boundary to catch React render crashes
@@ -176,7 +178,12 @@ function AdminPageInner() {
   const [clientLoading, setClientLoading] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const [openNavSection, setOpenNavSection] = useState(null)
-  const [adminView, setAdminView] = useState('clients') // 'clients' | 'content' | 'daily-ops'
+  const [adminView, setAdminView] = useState('clients') // 'clients' | 'content' | 'daily-ops' | 'monthly-reviews'
+  const [allClientsMonthlyData, setAllClientsMonthlyData] = useState({})
+  const [monthlyReviewsExpanded, setMonthlyReviewsExpanded] = useState(null)
+  const [monthlyReviewsMonth, setMonthlyReviewsMonth] = useState(() => { const d = new Date(); return d.getDate() <= 7 ? (d.getMonth() === 0 ? 11 : d.getMonth() - 1) : d.getMonth() })
+  const [monthlyReviewsYear, setMonthlyReviewsYear] = useState(() => { const d = new Date(); return d.getDate() <= 7 && d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear() })
+  const [adminChartMetrics, setAdminChartMetrics] = useState(['cash_collected', 'calls_closed', 'new_followers'])
   const [competitors, setCompetitors] = useState([])
   const [competitorPosts, setCompetitorPosts] = useState([])
   const [selectedCompetitor, setSelectedCompetitor] = useState(null) // null = overview, id = specific
@@ -674,6 +681,16 @@ function AdminPageInner() {
     setDailyOpsLoading(false)
   }
 
+  const fetchAllClientsMonthlyData = async () => {
+    const { data } = await supabase.from('monthly_review').select('*').order('year').order('month')
+    const grouped = {}
+    ;(data || []).forEach(r => {
+      if (!grouped[r.client_id]) grouped[r.client_id] = []
+      grouped[r.client_id].push(r)
+    })
+    setAllClientsMonthlyData(grouped)
+  }
+
   const toggleDailyOpsItem = async (itemKey) => {
     const today = localDateStr()
     const existing = dailyOpsChecklist.find(c => c.item_key === itemKey)
@@ -980,6 +997,7 @@ function AdminPageInner() {
           {[
             { key: 'daily-ops', label: 'Daily Ops', icon: '✅', onClick: () => { setAdminView('daily-ops'); fetchDailyOps() } },
             { key: 'clients', label: 'Clients', icon: '👥', onClick: () => { setAdminView('clients'); fetchContentData() } },
+            { key: 'monthly-reviews', label: 'Monthly Reviews', icon: '📊', onClick: () => { setAdminView('monthly-reviews'); fetchAllClientsMonthlyData() } },
           ].map(tab => (
             <button key={tab.key} onClick={tab.onClick}
               className={`relative px-4 py-3 text-xs font-bold uppercase tracking-widest transition whitespace-nowrap ${
@@ -1069,7 +1087,195 @@ function AdminPageInner() {
         <main className="flex-1 overflow-y-auto p-4 md:p-7">
 
           {/* ════════ DAILY OPS VIEW ════════ */}
-          {adminView === 'daily-ops' ? (
+          {adminView === 'monthly-reviews' ? (
+            <div className="fade-in max-w-5xl mx-auto">
+              <div className="mb-10">
+                <p className="text-gold text-[10px] font-bold uppercase tracking-[0.3em] mb-2">All Clients</p>
+                <h1 className="text-3xl font-black text-white tracking-tight">Monthly Reviews</h1>
+              </div>
+
+              {/* Month selector */}
+              <div className="flex items-center gap-3 mb-8">
+                <button onClick={() => { if (monthlyReviewsMonth === 0) { setMonthlyReviewsMonth(11); setMonthlyReviewsYear(y => y - 1) } else setMonthlyReviewsMonth(m => m - 1) }}
+                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                </button>
+                <span className="text-sm font-semibold text-white min-w-[140px] text-center">
+                  {['January','February','March','April','May','June','July','August','September','October','November','December'][monthlyReviewsMonth]} {monthlyReviewsYear}
+                </span>
+                <button onClick={() => { if (monthlyReviewsMonth === 11) { setMonthlyReviewsMonth(0); setMonthlyReviewsYear(y => y + 1) } else setMonthlyReviewsMonth(m => m + 1) }}
+                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                </button>
+              </div>
+
+              {/* Client rows */}
+              <div className="space-y-2">
+                {clients.map(client => {
+                  const reviews = allClientsMonthlyData[client.id] || []
+                  const thisMonth = reviews.find(r => r.month === monthlyReviewsMonth && r.year === monthlyReviewsYear)
+                  const isExpanded = monthlyReviewsExpanded === client.id
+
+                  return (
+                    <div key={client.id} className={`rounded-xl border transition-all ${isExpanded ? 'border-gold/30 bg-zinc-900/50' : 'border-zinc-800 hover:border-zinc-700'}`}>
+                      {/* Collapsed row */}
+                      <button onClick={() => setMonthlyReviewsExpanded(isExpanded ? null : client.id)}
+                        className="w-full flex items-center justify-between p-4 text-left">
+                        <div className="flex items-center gap-3">
+                          <div className="w-8 h-8 rounded-full bg-zinc-800 border border-zinc-700 flex items-center justify-center text-xs font-bold text-gold">
+                            {(client.name || '?')[0].toUpperCase()}
+                          </div>
+                          <div>
+                            <p className="text-sm font-bold text-white">{client.name || client.email}</p>
+                            {client.business && <p className="text-[10px] text-zinc-500">{client.business}</p>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          {thisMonth ? (
+                            <>
+                              {thisMonth.cash_collected > 0 && <span className="text-xs text-emerald-400 font-bold">£{Number(thisMonth.cash_collected).toLocaleString()}</span>}
+                              {thisMonth.calls_closed > 0 && <span className="text-xs text-violet-400 font-bold">{thisMonth.calls_closed} closed</span>}
+                              {thisMonth.profit > 0 && <span className="text-xs text-sky-400 font-bold">£{Number(thisMonth.profit).toLocaleString()} profit</span>}
+                              <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${thisMonth.completed ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                                {thisMonth.completed ? 'Done' : 'Pending'}
+                              </span>
+                            </>
+                          ) : (
+                            <span className="text-[9px] font-bold uppercase tracking-widest text-zinc-600">Not started</span>
+                          )}
+                          <svg className={`w-4 h-4 text-zinc-500 transition-transform ${isExpanded ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                          </svg>
+                        </div>
+                      </button>
+
+                      {/* Expanded content */}
+                      {isExpanded && (
+                        <div className="border-t border-zinc-800 p-4">
+                          {/* Chart */}
+                          <MonthlyMetricsChart
+                            allReviews={reviews}
+                            activeMetrics={adminChartMetrics}
+                            onToggleMetric={(key) => setAdminChartMetrics(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
+                            height={280}
+                          />
+
+                          {thisMonth ? (
+                            <div className="space-y-4">
+                              {/* Metrics grid */}
+                              {MONTHLY_METRIC_GROUPS.map(group => {
+                                const groupMetrics = MONTHLY_METRICS.find(g => g.group === group.id)?.items || []
+                                return (
+                                  <div key={group.id} className={`rounded-lg border ${group.border} ${group.bg} p-3`}>
+                                    <div className="flex items-center gap-2 mb-3">
+                                      <span className="text-sm">{group.icon}</span>
+                                      <h4 className={`text-[10px] font-bold uppercase tracking-widest ${group.color}`}>{group.label}</h4>
+                                    </div>
+                                    <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                                      {groupMetrics.map(metric => {
+                                        const val = thisMonth[metric.key]
+                                        return (
+                                          <div key={metric.key} className="bg-zinc-900/50 rounded-lg p-2.5">
+                                            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{metric.label}</p>
+                                            <p className="text-sm font-bold text-white">
+                                              {val !== null && val !== undefined ? (metric.step === '0.01' ? `£${Number(val).toLocaleString()}` : Number(val).toLocaleString()) : '—'}
+                                            </p>
+                                          </div>
+                                        )
+                                      })}
+                                    </div>
+                                  </div>
+                                )
+                              })}
+
+                              {/* Revenue + Target */}
+                              {(thisMonth.revenue > 0 || thisMonth.revenue_target > 0) && (
+                                <div className="rounded-lg border border-gold/25 bg-gold/[0.03] p-3">
+                                  <div className="grid grid-cols-2 gap-3">
+                                    <div>
+                                      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Revenue</p>
+                                      <p className="text-sm font-bold text-gold">£{Number(thisMonth.revenue || 0).toLocaleString()}</p>
+                                    </div>
+                                    <div>
+                                      <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Next Month Target</p>
+                                      <p className="text-sm font-bold text-emerald-400">£{Number(thisMonth.revenue_target || 0).toLocaleString()}</p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+
+                              {/* Rating + Target hit */}
+                              <div className="flex gap-3">
+                                {thisMonth.month_rating && (
+                                  <div className="flex-1 bg-zinc-900/50 rounded-lg p-3">
+                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Month Rating</p>
+                                    <p className={`text-lg font-black ${thisMonth.month_rating <= 3 ? 'text-red-400' : thisMonth.month_rating <= 6 ? 'text-amber-400' : 'text-emerald-400'}`}>{thisMonth.month_rating}/10</p>
+                                  </div>
+                                )}
+                                {thisMonth.target_hit !== null && thisMonth.target_hit !== undefined && (
+                                  <div className="flex-1 bg-zinc-900/50 rounded-lg p-3">
+                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">Target Hit</p>
+                                    <p className={`text-lg font-black ${thisMonth.target_hit ? 'text-emerald-400' : 'text-red-400'}`}>{thisMonth.target_hit ? 'Yes' : 'No'}</p>
+                                  </div>
+                                )}
+                              </div>
+
+                              {/* Reflections */}
+                              {[
+                                { key: 'biggest_win', label: 'Biggest Win', color: 'text-emerald-400' },
+                                { key: 'biggest_challenge', label: 'Biggest Challenge', color: 'text-red-400' },
+                                { key: 'key_learning', label: 'Key Learning', color: 'text-sky-400' },
+                                { key: 'mindset_shift', label: 'Mindset Shift', color: 'text-violet-400' },
+                                { key: 'energy_focus', label: 'Energy Focus', color: 'text-amber-400' },
+                                { key: 'improve', label: 'Improve', color: 'text-zinc-400' },
+                              ].filter(({ key }) => thisMonth[key]).map(({ key, label, color }) => (
+                                <div key={key}>
+                                  <p className={`text-[10px] font-bold uppercase tracking-widest mb-1 ${color}`}>{label}</p>
+                                  <p className="text-sm text-zinc-300 whitespace-pre-wrap">{thisMonth[key]}</p>
+                                </div>
+                              ))}
+
+                              {/* Goals */}
+                              {(thisMonth.goal_1 || thisMonth.goal_2 || thisMonth.goal_3) && (
+                                <div>
+                                  <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-2">Goals for Next Month</p>
+                                  {[1,2,3].map(n => thisMonth[`goal_${n}`] && (
+                                    <p key={n} className="text-sm text-zinc-300 mb-1"><span className="text-gold font-bold mr-2">{n}.</span>{thisMonth[`goal_${n}`]}</p>
+                                  ))}
+                                </div>
+                              )}
+
+                              {/* Feedback button */}
+                              <div className="pt-3 border-t border-zinc-800">
+                                {thisMonth.feedback_sent ? (
+                                  <span className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">✓ Feedback sent</span>
+                                ) : thisMonth.completed ? (
+                                  <button onClick={async () => {
+                                    await supabase.from('monthly_review').update({ feedback_sent: true }).eq('id', thisMonth.id)
+                                    setAllClientsMonthlyData(prev => {
+                                      const updated = { ...prev }
+                                      updated[client.id] = (updated[client.id] || []).map(r => r.id === thisMonth.id ? { ...r, feedback_sent: true } : r)
+                                      return updated
+                                    })
+                                  }}
+                                    className="px-4 py-2 bg-gold/10 text-gold border border-gold/30 rounded-lg text-[10px] font-bold uppercase tracking-widest hover:bg-gold/20 transition">
+                                    Mark Feedback Sent
+                                  </button>
+                                ) : null}
+                              </div>
+                            </div>
+                          ) : (
+                            <p className="text-zinc-600 text-sm text-center py-6">No review submitted for this month.</p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+          ) : adminView === 'daily-ops' ? (
             <div className="fade-in max-w-4xl mx-auto">
               {/* Hero header */}
               <div className="mb-10">
@@ -3293,10 +3499,48 @@ function AdminPageInner() {
                     {monthlyReview ? (monthlyReview.completed ? <CompletedBadge /> : <PendingBadge />) : <NotStartedBadge />}
                   </div>
 
+                  {/* Trend Chart */}
+                  {allMonthlyReviews.length > 0 && (
+                    <div className="mb-6">
+                      <MonthlyMetricsChart
+                        allReviews={allMonthlyReviews}
+                        activeMetrics={adminChartMetrics}
+                        onToggleMetric={(key) => setAdminChartMetrics(prev => prev.includes(key) ? prev.filter(k => k !== key) : [...prev, key])}
+                        height={280}
+                      />
+                    </div>
+                  )}
+
                   {!monthlyReview ? (
                     <p className="text-center py-12 text-zinc-600 text-sm">No review for {MONTH_NAMES[adminMonthlyMonth]} {adminMonthlyYear}.</p>
                   ) : (
                     <div className="space-y-4">
+                      {/* Metrics grid */}
+                      {MONTHLY_METRIC_GROUPS.map(group => {
+                        const groupMetrics = MONTHLY_METRICS.find(g => g.group === group.id)?.items || []
+                        return (
+                          <div key={group.id} className={`rounded-lg border ${group.border} ${group.bg} p-3`}>
+                            <div className="flex items-center gap-2 mb-3">
+                              <span className="text-sm">{group.icon}</span>
+                              <h4 className={`text-[10px] font-bold uppercase tracking-widest ${group.color}`}>{group.label}</h4>
+                            </div>
+                            <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2">
+                              {groupMetrics.map(metric => {
+                                const val = monthlyReview[metric.key]
+                                return (
+                                  <div key={metric.key} className="bg-zinc-900/50 rounded-lg p-2.5">
+                                    <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{metric.label}</p>
+                                    <p className="text-sm font-bold text-white">
+                                      {val !== null && val !== undefined ? (metric.step === '0.01' ? `£${Number(val).toLocaleString()}` : Number(val).toLocaleString()) : '—'}
+                                    </p>
+                                  </div>
+                                )
+                              })}
+                            </div>
+                          </div>
+                        )
+                      })}
+
                       {/* Revenue + Target */}
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
                         <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-4">
