@@ -345,6 +345,7 @@ export default function ClientPage() {
   const [clientMagnets, setClientMagnets] = useState([])
   const [pipelineInsights, setPipelineInsights] = useState(null)
   const [insightsLoading, setInsightsLoading] = useState(false)
+  const [offerNames, setOfferNames] = useState({ bangBang: '', dip: '' })
   const [insightsOpen, setInsightsOpen] = useState(false)
 
   // Voice onboarding
@@ -646,6 +647,9 @@ export default function ClientPage() {
     // Fetch client's lead magnets for the Hot List
     const { data: magnetsData } = await supabase.from('lead_magnets').select('id, name, keyword, promise').eq('client_id', client.id)
     if (magnetsData) setClientMagnets(magnetsData)
+    // Fetch offer names for deal closed modal
+    const { data: offerData } = await supabase.from('offer_playbooks').select('bang_bang, dip').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle()
+    if (offerData) setOfferNames({ bangBang: offerData.bang_bang?.name || '', dip: offerData.dip?.name || '' })
     if (identityRes.data) setIdentityAffirmations(identityRes.data.affirmations || '')
     if (eveningRes.data) setEveningPulse(eveningRes.data)
     else setEveningPulse({})
@@ -836,12 +840,12 @@ export default function ClientPage() {
 
   const [animatingLeadId, setAnimatingLeadId] = useState(null)
   const [movedFlash, setMovedFlash] = useState(null)
-  const [dealClosedModal, setDealClosedModal] = useState(null) // { leadId, leadName, cashCollected: '', cashContracted: '' }
+  const [dealClosedModal, setDealClosedModal] = useState(null) // { leadId, leadName, cashCollected: '', cashContracted: '', offerType: '' }
   const moveLead = async (leadId, newStatus) => {
     // Intercept client_won — ask for cash collected & contracted first
     if (newStatus === 'client_won') {
       const lead = leads.find(l => l.id === leadId)
-      setDealClosedModal({ leadId, leadName: lead?.name || '', cashCollected: '', cashContracted: '' })
+      setDealClosedModal({ leadId, leadName: lead?.name || '', cashCollected: '', cashContracted: '', offerType: '' })
       return
     }
     setAnimatingLeadId(leadId)
@@ -858,9 +862,10 @@ export default function ClientPage() {
 
   const confirmDealClosed = async () => {
     if (!dealClosedModal) return
-    const { leadId, cashCollected, cashContracted } = dealClosedModal
+    const { leadId, cashCollected, cashContracted, offerType } = dealClosedModal
     const lead = leads.find(l => l.id === leadId)
-    const note = `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — DEAL CLOSED. Cash collected: £${Number(cashCollected || 0).toLocaleString()}. Cash contracted: £${Number(cashContracted || 0).toLocaleString()}.`
+    const offerLabel = offerType === 'bang_bang' ? (offerNames.bangBang || 'Bang Bang Offer') : offerType === 'dip' ? (offerNames.dip || 'The Dip') : offerType
+    const note = `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — DEAL CLOSED${offerLabel ? ` (${offerLabel})` : ''}. Cash collected: £${Number(cashCollected || 0).toLocaleString()}. Cash contracted: £${Number(cashContracted || 0).toLocaleString()}.`
     const existingNotes = lead?.notes || ''
     const updatedNotes = existingNotes ? `${existingNotes}\n${note}` : note
     setAnimatingLeadId(leadId)
@@ -6227,6 +6232,16 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               </div>
               <p className="text-zinc-400 text-xs mb-5">{dealClosedModal.leadName} is moving to Client Won. Log the numbers.</p>
               <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-1.5">Which offer?</label>
+                  <select value={dealClosedModal.offerType}
+                    onChange={e => setDealClosedModal(prev => ({ ...prev, offerType: e.target.value }))}
+                    className="w-full px-4 py-3 bg-zinc-900 border-2 border-violet-500/30 rounded-lg text-white focus:outline-none focus:ring-1 focus:ring-violet-500 focus:border-violet-500 transition text-sm font-bold appearance-none cursor-pointer">
+                    <option value="">Select offer...</option>
+                    <option value="bang_bang">{offerNames.bangBang || 'Bang Bang Offer (Main)'}</option>
+                    <option value="dip">{offerNames.dip || 'The Dip (Micro)'}</option>
+                  </select>
+                </div>
                 <div>
                   <label className="block text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1.5">Cash Collected (£)</label>
                   <p className="text-zinc-600 text-[10px] mb-1.5">How much have they actually paid so far?</p>
