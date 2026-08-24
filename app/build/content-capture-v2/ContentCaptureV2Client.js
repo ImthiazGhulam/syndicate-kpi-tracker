@@ -3972,13 +3972,53 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
   function changeEmailCount(delta) {
     const n = Math.max(0, Math.min(7, emailCount + delta))
     setEmailN(n); saveProfile({ email_count: n })
-    setWeekSlots(buildWeekSlots())
+    // Rebuild slots but preserve existing moment assignments
+    setWeekSlots(prev => {
+      const old = prev.filter(s => s.moment).map(s => ({ job: s.job, moment: s.moment }))
+      const m = mixFor(stage, pieceCount, weekGoal)
+      const slots = []
+      for (let i = 0; i < m.reach; i++) slots.push({ job: 'reach' })
+      for (let i = 0; i < m.value; i++) slots.push({ job: 'value' })
+      for (let i = 0; i < m.sales; i++) slots.push({ job: 'sales' })
+      const days = assignDays(slots.length)
+      slots.forEach((s, i) => { s.day = days[i] || 'Any day'; s.moment = null; s.piece = null; s.card = null })
+      if (hasList) {
+        const ed = ['Thursday', 'Monday', 'Saturday', 'Tuesday', 'Friday', 'Wednesday', 'Sunday']
+        for (let i = 0; i < n; i++) slots.push({ job: 'email', day: ed[i] || 'Any day', moment: null, piece: null, card: null })
+      }
+      if (doesYT) {
+        const yd = ['Sunday', 'Wednesday', 'Friday']
+        for (let i = 0; i < ytCount; i++) slots.push({ job: 'longform', day: yd[i] || 'Any day', moment: null, piece: null, card: null })
+      }
+      old.forEach(o => { const sl = slots.find(s => s.job === o.job && !s.moment); if (sl) sl.moment = o.moment })
+      return slots
+    })
   }
 
   function changeYtCount(delta) {
     const n = Math.max(0, Math.min(3, ytCount + delta))
     setYtN(n); saveProfile({ yt_count: n })
-    setWeekSlots(buildWeekSlots())
+    // Rebuild slots but preserve existing moment assignments
+    setWeekSlots(prev => {
+      const old = prev.filter(s => s.moment).map(s => ({ job: s.job, moment: s.moment }))
+      const m = mixFor(stage, pieceCount, weekGoal)
+      const slots = []
+      for (let i = 0; i < m.reach; i++) slots.push({ job: 'reach' })
+      for (let i = 0; i < m.value; i++) slots.push({ job: 'value' })
+      for (let i = 0; i < m.sales; i++) slots.push({ job: 'sales' })
+      const days = assignDays(slots.length)
+      slots.forEach((s, i) => { s.day = days[i] || 'Any day'; s.moment = null; s.piece = null; s.card = null })
+      if (hasList) {
+        const ed = ['Thursday', 'Monday', 'Saturday', 'Tuesday', 'Friday', 'Wednesday', 'Sunday']
+        for (let i = 0; i < emailCount; i++) slots.push({ job: 'email', day: ed[i] || 'Any day', moment: null, piece: null, card: null })
+      }
+      if (doesYT) {
+        const yd = ['Sunday', 'Wednesday', 'Friday']
+        for (let i = 0; i < n; i++) slots.push({ job: 'longform', day: yd[i] || 'Any day', moment: null, piece: null, card: null })
+      }
+      old.forEach(o => { const sl = slots.find(s => s.job === o.job && !s.moment); if (sl) sl.moment = o.moment })
+      return slots
+    })
   }
 
 
@@ -4061,10 +4101,13 @@ Return as JSON array of exactly 3 items: [["key", "question", "hint"], ...] wher
           posted: sl.posted || false,
           salesAngle: sl.salesAngle || null,
         }))
+      // Compute mix from actual pieces saved, not the theoretical max
+      const actualMix = { reach: 0, value: 0, sales: 0 }
+      pieceData.forEach(p => { if (p.job === 'reach') actualMix.reach++; else if (p.job === 'value') actualMix.value++; else if (p.job === 'sales') actualMix.sales++ })
       const weekData = {
         client_id: clientId,
         week_start: weekStart,
-        mix: { reach: mix.reach, value: mix.value, sales: mix.sales, goal: weekGoal },
+        mix: { ...actualMix, goal: weekGoal },
         piece_ids: pieceData,
       }
       // Always create a new week entry (never overwrite previous batches)

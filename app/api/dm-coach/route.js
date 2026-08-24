@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic'
+export const maxDuration = 120
 
 // Server-side Supabase with service role for cross-table reads
 function getSupabase() {
@@ -620,7 +621,7 @@ export async function POST(req) {
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({
-          model: 'claude-opus-4-6',
+          model: 'claude-sonnet-4-6',
           max_tokens: 2000,
           system: SYSTEM_PROMPT,
           tools: TOOLS,
