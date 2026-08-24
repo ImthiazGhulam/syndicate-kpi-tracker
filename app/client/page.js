@@ -1267,7 +1267,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', prevM).eq('year', prevY).maybeSingle(),
       supabase.from('daily_kpis').select('new_followers, content_posted, calls_booked, calls_taken, offers, closed, cash_collected, new_convos').eq('client_id', clientData.id).gte('date', monthStart).lte('date', monthEnd),
-      supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).eq('status', 'dm_sent').gte('updated_at', monthStart).lte('updated_at', monthEnd + 'T23:59:59'),
+      supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).neq('status', 'new_follower').gte('created_at', monthStart).lte('created_at', monthEnd + 'T23:59:59'),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).order('year').order('month'),
     ])
 
@@ -1282,7 +1282,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       offers_made: sum('offers'),
       calls_closed: sum('closed'),
       cash_collected: sum('cash_collected'),
-      dms_sent: sum('new_convos') + (dmLeads.count || 0),
+      dms_sent: dmLeads.count || 0,
     }
     setMonthlyAutoFills(fills)
 
