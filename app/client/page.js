@@ -836,7 +836,14 @@ export default function ClientPage() {
 
   const [animatingLeadId, setAnimatingLeadId] = useState(null)
   const [movedFlash, setMovedFlash] = useState(null)
+  const [dealClosedModal, setDealClosedModal] = useState(null) // { leadId, leadName, cashCollected: '', cashContracted: '' }
   const moveLead = async (leadId, newStatus) => {
+    // Intercept client_won — ask for cash collected & contracted first
+    if (newStatus === 'client_won') {
+      const lead = leads.find(l => l.id === leadId)
+      setDealClosedModal({ leadId, leadName: lead?.name || '', cashCollected: '', cashContracted: '' })
+      return
+    }
     setAnimatingLeadId(leadId)
     await new Promise(r => setTimeout(r, 300))
     const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
@@ -844,6 +851,25 @@ export default function ClientPage() {
       setLeads(prev => prev.map(l => l.id === leadId ? data : l))
       const stageName = LEAD_STAGES.find(s => s.id === newStatus)?.label || newStatus
       setMovedFlash(`Moved to ${stageName}`)
+      setTimeout(() => setMovedFlash(null), 2000)
+    }
+    setAnimatingLeadId(null)
+  }
+
+  const confirmDealClosed = async () => {
+    if (!dealClosedModal) return
+    const { leadId, cashCollected, cashContracted } = dealClosedModal
+    const lead = leads.find(l => l.id === leadId)
+    const note = `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — DEAL CLOSED. Cash collected: £${Number(cashCollected || 0).toLocaleString()}. Cash contracted: £${Number(cashContracted || 0).toLocaleString()}.`
+    const existingNotes = lead?.notes || ''
+    const updatedNotes = existingNotes ? `${existingNotes}\n${note}` : note
+    setAnimatingLeadId(leadId)
+    setDealClosedModal(null)
+    await new Promise(r => setTimeout(r, 300))
+    const { data } = await supabase.from('leads').update({ status: 'client_won', notes: updatedNotes, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
+    if (data) {
+      setLeads(prev => prev.map(l => l.id === leadId ? data : l))
+      setMovedFlash('Deal closed — Client Won')
       setTimeout(() => setMovedFlash(null), 2000)
     }
     setAnimatingLeadId(null)
@@ -6182,6 +6208,49 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                 </button>
                 <button onClick={() => setConfirmAction(null)}
                   className="flex-1 py-2.5 border border-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded transition">
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ── DEAL CLOSED MODAL ──────────────────────────────────── */}
+        {dealClosedModal && (
+          <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4"
+            onClick={() => setDealClosedModal(null)}>
+            <div className="glass-card p-6 w-full max-w-sm shadow-2xl slide-up"
+              onClick={e => e.stopPropagation()}>
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">🎉</span>
+                <p className="text-white font-semibold text-sm">Deal Closed</p>
+              </div>
+              <p className="text-zinc-400 text-xs mb-5">{dealClosedModal.leadName} is moving to Client Won. Log the numbers.</p>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1.5">Cash Collected (£)</label>
+                  <p className="text-zinc-600 text-[10px] mb-1.5">How much have they actually paid so far?</p>
+                  <input type="number" min="0" step="0.01" value={dealClosedModal.cashCollected}
+                    onChange={e => setDealClosedModal(prev => ({ ...prev, cashCollected: e.target.value }))}
+                    placeholder="0.00" autoFocus
+                    className="w-full px-4 py-3 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-lg font-bold" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-gold uppercase tracking-widest mb-1.5">Cash Contracted (£)</label>
+                  <p className="text-zinc-600 text-[10px] mb-1.5">Total value of the deal (including future payments).</p>
+                  <input type="number" min="0" step="0.01" value={dealClosedModal.cashContracted}
+                    onChange={e => setDealClosedModal(prev => ({ ...prev, cashContracted: e.target.value }))}
+                    placeholder="0.00"
+                    className="w-full px-4 py-3 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-lg font-bold" />
+                </div>
+              </div>
+              <div className="flex gap-3 mt-6">
+                <button onClick={confirmDealClosed}
+                  className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-500 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition">
+                  Close the Deal
+                </button>
+                <button onClick={() => setDealClosedModal(null)}
+                  className="flex-1 py-3 border border-zinc-700 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-widest rounded-lg transition">
                   Cancel
                 </button>
               </div>
