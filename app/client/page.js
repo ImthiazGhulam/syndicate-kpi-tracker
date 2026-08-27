@@ -1441,7 +1441,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
   useEffect(() => {
     if (clientData) fetchMonthlyReview(reviewMonth, reviewYear)
-  }, [reviewMonth, reviewYear, clientData?.id])
+  }, [reviewMonth, reviewYear, clientData?.id, activeTab === 'monthly'])
 
   const monthTransitioning = useRef(false)
   const saveMonthly = async (overrides = {}) => {
