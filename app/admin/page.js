@@ -223,6 +223,8 @@ function AdminPageInner() {
   })
   const [monthlyReview, setMonthlyReview] = useState(null)
   const [allMonthlyReviews, setAllMonthlyReviews] = useState([])
+  const [clientInsights, setClientInsights] = useState(null)
+  const [generatingInsights, setGeneratingInsights] = useState(false)
   const [clientPlaybook, setClientPlaybook] = useState(null)
   const [clientPremiumPos, setClientPremiumPos] = useState(null)
   const [clientWealthWired, setClientWealthWired] = useState(null)
@@ -378,6 +380,7 @@ function AdminPageInner() {
     setAdminViewDate(localDateStr())
     setMonthlyReview(null)
     setAllMonthlyReviews([])
+    setClientInsights(null)
     setIdentityChange(null)
     setLifeDesign(null)
     setAdventures(defaultAdventures())
@@ -3625,6 +3628,157 @@ function AdminPageInner() {
                             }} className="px-6 py-3 bg-sky-600 hover:bg-sky-500 text-white font-bold text-xs uppercase tracking-widest rounded-lg transition">
                               Mark Feedback Sent
                             </button>
+                          )}
+                        </div>
+                      )}
+                      {/* AI Insights Button */}
+                      <div className="mt-6 pt-4 border-t border-zinc-800">
+                        <button
+                          onClick={async () => {
+                            if (generatingInsights) return
+                            setGeneratingInsights(true)
+                            setClientInsights(null)
+                            try {
+                              const res = await fetch('/api/generate-plan', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({
+                                  type: 'client-insights',
+                                  data: {
+                                    clientName: selectedClient.name,
+                                    business: selectedClient.business,
+                                    industry: selectedClient.industry,
+                                    allReviews: allMonthlyReviews,
+                                  }
+                                })
+                              })
+                              const result = await res.json()
+                              if (result.insights) setClientInsights(result.insights)
+                              else alert(result.error || 'Failed to generate insights')
+                            } catch (err) {
+                              console.error('Insights error:', err)
+                              alert('Failed to generate insights')
+                            }
+                            setGeneratingInsights(false)
+                          }}
+                          disabled={generatingInsights || allMonthlyReviews.length === 0}
+                          className="w-full py-3.5 bg-gold hover:bg-gold/90 disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-lg transition"
+                        >
+                          {generatingInsights ? 'Analysing...' : `AI Insights — ${selectedClient?.name?.split(' ')[0] || 'Client'}'s Business`}
+                        </button>
+                        {allMonthlyReviews.length === 0 && (
+                          <p className="text-zinc-600 text-xs text-center mt-2">Needs at least one monthly review to generate insights.</p>
+                        )}
+                      </div>
+
+                      {/* AI Insights Report */}
+                      {clientInsights && (
+                        <div className="mt-6 space-y-4 fade-in">
+                          {/* Header */}
+                          <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-5">
+                            <div className="flex items-center justify-between mb-3">
+                              <h4 className="text-xs font-bold text-gold uppercase tracking-widest">AI Business Insights</h4>
+                              <div className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
+                                clientInsights.overall_health === 'growing' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30' :
+                                clientInsights.overall_health === 'stable' ? 'bg-sky-500/10 text-sky-400 border border-sky-500/30' :
+                                clientInsights.overall_health === 'declining' ? 'bg-amber-500/10 text-amber-400 border border-amber-500/30' :
+                                'bg-red-500/10 text-red-400 border border-red-500/30'
+                              }`}>
+                                {clientInsights.overall_health} — {clientInsights.health_score}/10
+                              </div>
+                            </div>
+                            <p className="text-white text-sm leading-relaxed mb-2">{clientInsights.summary}</p>
+                            <p className="text-zinc-400 text-sm leading-relaxed">{clientInsights.trajectory}</p>
+                          </div>
+
+                          {/* Leaks */}
+                          {clientInsights.leaks?.length > 0 && (
+                            <div className="bg-zinc-900 border border-red-500/30 rounded-lg p-5">
+                              <h4 className="text-xs font-bold text-red-400 uppercase tracking-widest mb-4">Leaks Identified</h4>
+                              <div className="space-y-4">
+                                {clientInsights.leaks.map((leak, i) => (
+                                  <div key={i} className="border-l-2 border-red-500/50 pl-4">
+                                    <div className="flex items-center gap-2 mb-1">
+                                      <span className="text-white text-sm font-bold">{leak.area}</span>
+                                      <span className={`text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded ${
+                                        leak.severity === 'critical' ? 'bg-red-500/10 text-red-400' :
+                                        leak.severity === 'moderate' ? 'bg-amber-500/10 text-amber-400' :
+                                        'bg-zinc-500/10 text-zinc-400'
+                                      }`}>{leak.severity}</span>
+                                    </div>
+                                    <p className="text-zinc-400 text-xs leading-relaxed mb-2">{leak.detail}</p>
+                                    <p className="text-white text-xs leading-relaxed mb-1"><span className="text-gold font-bold">Action:</span> {leak.action}</p>
+                                    <p className="text-xs leading-relaxed"><span className="text-violet-400 font-bold">Tool:</span> <span className="text-violet-300">{leak.tool}</span> — <span className="text-zinc-400">{leak.tool_action}</span></p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Improvements */}
+                          {clientInsights.improvements?.length > 0 && (
+                            <div className="bg-zinc-900 border border-emerald-500/30 rounded-lg p-5">
+                              <h4 className="text-xs font-bold text-emerald-400 uppercase tracking-widest mb-4">Improvements</h4>
+                              <div className="space-y-4">
+                                {clientInsights.improvements.map((imp, i) => (
+                                  <div key={i} className="border-l-2 border-emerald-500/50 pl-4">
+                                    <span className="text-white text-sm font-bold">{imp.area}</span>
+                                    <p className="text-zinc-400 text-xs leading-relaxed mt-1">{imp.detail}</p>
+                                    <p className="text-emerald-400 text-xs leading-relaxed mt-1"><span className="font-bold">Keep doing:</span> {imp.keep_doing}</p>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Month on Month */}
+                          {clientInsights.month_on_month?.length > 0 && (
+                            <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-5">
+                              <h4 className="text-xs font-bold text-sky-400 uppercase tracking-widest mb-4">Month-on-Month Timeline</h4>
+                              <div className="space-y-3">
+                                {clientInsights.month_on_month.map((m, i) => (
+                                  <div key={i} className="flex items-start gap-3">
+                                    <div className={`w-2 h-2 rounded-full mt-1.5 flex-shrink-0 ${
+                                      m.verdict === 'strong' ? 'bg-emerald-400' : m.verdict === 'okay' ? 'bg-amber-400' : 'bg-red-400'
+                                    }`} />
+                                    <div>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-white text-xs font-bold">{m.month}</span>
+                                        {m.revenue > 0 && <span className="text-gold text-xs">£{Number(m.revenue).toLocaleString()}</span>}
+                                      </div>
+                                      <p className="text-zinc-400 text-xs leading-relaxed">{m.highlights}</p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {/* Retention Analysis */}
+                          {clientInsights.retention_analysis && (
+                            <div className="bg-zinc-900 border border-amber-500/30 rounded-lg p-5">
+                              <h4 className="text-xs font-bold text-amber-400 uppercase tracking-widest mb-3">Retention Analysis</h4>
+                              <p className="text-zinc-300 text-sm leading-relaxed">{clientInsights.retention_analysis}</p>
+                            </div>
+                          )}
+
+                          {/* Top 3 Priorities */}
+                          {clientInsights.top_3_priorities?.length > 0 && (
+                            <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-5">
+                              <h4 className="text-xs font-bold text-gold uppercase tracking-widest mb-4">Top 3 Priorities</h4>
+                              <div className="space-y-4">
+                                {clientInsights.top_3_priorities.map((p, i) => (
+                                  <div key={i} className="flex items-start gap-3">
+                                    <span className="text-gold font-bold text-lg w-6 flex-shrink-0">{i + 1}</span>
+                                    <div>
+                                      <p className="text-white text-sm font-bold">{p.priority}</p>
+                                      <p className="text-zinc-400 text-xs leading-relaxed mt-1">{p.why}</p>
+                                      <p className="text-xs leading-relaxed mt-1"><span className="text-violet-400 font-bold">{p.tool}:</span> <span className="text-zinc-300">{p.action}</span></p>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
                           )}
                         </div>
                       )}

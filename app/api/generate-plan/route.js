@@ -1590,11 +1590,94 @@ ${data.transcript}
 Give the full phase-by-phase breakdown. Be specific and quote the transcript.`
     }
 
+    // ── AI Client Insights — Admin Only ─────────────────────────────────
+    if (type === 'client-insights') {
+      systemPrompt = `You are a senior business coach analysing a client's monthly performance data. You have access to their full history and must produce a coaching report.
+
+YOUR TOOLS KNOWLEDGE — The Motherboard platform has these tools available to clients. When recommending actions, direct the client to the specific tool:
+- **Sold Out Playbook** — For refining their offer, niche, pricing, Bang Bang (main offer) and Dip (micro offer). Direct here for offer/positioning leaks.
+- **Premium Position Blueprint** — For brand positioning, authority building, and standing out. Direct here for differentiation/brand leaks.
+- **Wealth Wired Workbook** — For money mindset, pricing confidence, and financial planning. Direct here for pricing/money mindset leaks.
+- **Content Capture** — For content strategy, hooks, scripts, and posting plans. Direct here for content/audience growth leaks.
+- **Sales Scripts** — For building and refining their sales call script. Direct here for closing/conversion leaks.
+- **Sales Coach** — For analysing recorded sales call transcripts. Direct here if close rate is low.
+- **Amplifier Ads** — For creating paid ad copy. Direct here if organic reach is plateauing.
+- **The Comeback Map** — For re-engaging cold leads and past clients. Direct here for retention/re-engagement leaks.
+- **Show Up Pages** — For building landing pages and lead magnets. Direct here for lead generation leaks.
+- **Daily KPI Tracker** — For daily activity tracking. Direct here if consistency is the issue.
+- **Monthly Review** — For monthly reflection and target setting. They're already using this.
+
+ANALYSIS RULES:
+- Be specific. Use their actual numbers. Don't give generic advice.
+- Plain British English. Short sentences. No em-dashes.
+- Compare month-on-month trends. Flag improving AND declining metrics.
+- Calculate conversion rates between pipeline stages (e.g. DMs to offers, offers to calls, calls to closes).
+- Identify the biggest leak (where the most opportunity is being lost).
+- If data is missing for certain months, work with what you have.
+- When recommending actions, specify WHICH Motherboard tool to use and WHAT to do inside it.
+
+Respond with ONLY this JSON structure, no markdown fences:
+{
+  "overall_health": "growing|stable|declining|critical",
+  "health_score": 7,
+  "summary": "2-3 sentence overall assessment of where this client's business is right now",
+  "trajectory": "2-3 sentence assessment of the direction — are things getting better or worse month on month?",
+  "leaks": [
+    {
+      "area": "Short name of the leak",
+      "severity": "critical|moderate|minor",
+      "detail": "What the numbers show and why this is a problem",
+      "action": "Specific action to fix it",
+      "tool": "Which Motherboard tool to use",
+      "tool_action": "Exactly what to do inside that tool"
+    }
+  ],
+  "improvements": [
+    {
+      "area": "What improved",
+      "detail": "The numbers showing the improvement and by how much",
+      "keep_doing": "What they should keep doing"
+    }
+  ],
+  "month_on_month": [
+    {
+      "month": "Month Year",
+      "highlights": "Key things that happened this month",
+      "revenue": 0,
+      "verdict": "strong|okay|weak"
+    }
+  ],
+  "top_3_priorities": [
+    {
+      "priority": "What to focus on",
+      "why": "Why this matters most right now",
+      "tool": "Which Motherboard tool",
+      "action": "Specific first step inside that tool"
+    }
+  ],
+  "retention_analysis": "Paragraph analysing their retention/churn data if available, or null if no retention data exists yet"
+}`
+
+      const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
+      const reviewsFormatted = (data.allReviews || [])
+        .sort((a, b) => a.year === b.year ? a.month - b.month : a.year - b.year)
+        .map(r => `${monthNames[r.month]} ${r.year}: ${JSON.stringify(r)}`)
+        .join('\n\n')
+
+      userPrompt = `Analyse the full monthly review history for ${data.clientName || 'this client'} (${data.business || 'business'}, ${data.industry || 'industry not specified'}).
+
+FULL MONTHLY REVIEW HISTORY:
+${reviewsFormatted}
+
+Give the full coaching report. Be specific and use their actual numbers. Identify the biggest leaks, celebrate improvements, and give clear action points with specific Motherboard tools to use.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
-    const maxTokens = type === 'sales-coach-analyse' ? 6000
+    const maxTokens = type === 'client-insights' ? 8000
+      : type === 'sales-coach-analyse' ? 6000
       : type === 'sales-script-generate' ? 8000
       : type === 'sales-script-refine' ? 2000
       : type === 'amplifier-ads-generate' ? 2000
@@ -1608,6 +1691,26 @@ Give the full phase-by-phase breakdown. Be specific and quote the transcript.`
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // Client Insights — parse structured JSON report
+    if (type === 'client-insights') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ insights: parsed })
+      } catch (parseErr) {
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 8000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const cleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const parsed = JSON.parse(cleaned)
+          return NextResponse.json({ insights: parsed })
+        } catch (retryErr) {
+          console.error('Client insights JSON parse failed:', retryErr)
+          return NextResponse.json({ error: 'Failed to parse insights. Please try again.' }, { status: 500 })
+        }
+      }
+    }
 
     // Sales Call Script — parse full script JSON
     if (type === 'sales-script-generate') {
