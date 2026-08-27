@@ -347,6 +347,9 @@ export default function ClientPage() {
   const [insightsLoading, setInsightsLoading] = useState(false)
   const [offerNames, setOfferNames] = useState({ bangBang: '', dip: '' })
   const [insightsOpen, setInsightsOpen] = useState(false)
+  const [activityTotals, setActivityTotals] = useState({})
+  const [activityMonth, setActivityMonth] = useState(() => new Date().getMonth())
+  const [activityYear, setActivityYear] = useState(() => new Date().getFullYear())
 
   // Voice onboarding
   const [voiceChatOpen, setVoiceChatOpen] = useState(false)
@@ -851,6 +854,8 @@ export default function ClientPage() {
       setDealClosedModal({ leadId, leadName: lead?.name || '', cashCollected: '', cashContracted: '', offerType: '' })
       return
     }
+    const lead = leads.find(l => l.id === leadId)
+    const fromStage = lead?.status
     setAnimatingLeadId(leadId)
     await new Promise(r => setTimeout(r, 300))
     const { data } = await supabase.from('leads').update({ status: newStatus, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
@@ -859,6 +864,7 @@ export default function ClientPage() {
       const stageName = LEAD_STAGES.find(s => s.id === newStatus)?.label || newStatus
       setMovedFlash(`Moved to ${stageName}`)
       setTimeout(() => setMovedFlash(null), 2000)
+      logActivity(leadId, lead?.name, fromStage, newStatus)
     }
     setAnimatingLeadId(null)
   }
@@ -892,9 +898,49 @@ export default function ClientPage() {
       }
       setMovedFlash('Deal closed — Client Won')
       setTimeout(() => setMovedFlash(null), 2000)
+      logActivity(leadId, lead?.name, lead?.status, 'client_won', { offerType, cashCollected, cashContracted })
     }
     setAnimatingLeadId(null)
   }
+
+  // Activity logging
+  const logActivity = async (leadId, leadName, fromStage, toStage, extra = {}) => {
+    if (!clientData?.id) return
+    await supabase.from('lead_activity_log').insert([{
+      client_id: clientData.id,
+      lead_id: leadId,
+      lead_name: leadName,
+      from_stage: fromStage,
+      to_stage: toStage,
+      offer_type: extra.offerType || null,
+      cash_collected: extra.cashCollected ? Number(extra.cashCollected) : null,
+      cash_contracted: extra.cashContracted ? Number(extra.cashContracted) : null,
+    }])
+    fetchActivityTotals()
+  }
+
+  const fetchActivityTotals = async () => {
+    if (!clientData?.id) return
+    const start = `${activityYear}-${String(activityMonth + 1).padStart(2, '0')}-01`
+    const endDate = new Date(activityYear, activityMonth + 1, 0)
+    const end = `${activityYear}-${String(activityMonth + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+    const { data } = await supabase.from('lead_activity_log').select('*').eq('client_id', clientData.id).gte('created_at', start).lte('created_at', end + 'T23:59:59')
+    if (!data) return
+    const totals = {
+      dms_sent: data.filter(a => a.to_stage === 'dm_sent').length,
+      offer_docs_sent: data.filter(a => a.to_stage === 'offer_doc_sent').length,
+      call_links_sent: data.filter(a => a.to_stage === 'call_link_sent').length,
+      calls_booked: data.filter(a => a.to_stage === 'call_booked').length,
+      deals_closed: data.filter(a => a.to_stage === 'client_won').length,
+      sales_from_dip: data.filter(a => a.to_stage === 'client_won' && a.offer_type === 'dip').length,
+      sales_from_bang_bang: data.filter(a => a.to_stage === 'client_won' && a.offer_type === 'bang_bang').length,
+      cash_collected: data.filter(a => a.cash_collected).reduce((t, a) => t + Number(a.cash_collected), 0),
+      cash_contracted: data.filter(a => a.cash_contracted).reduce((t, a) => t + Number(a.cash_contracted), 0),
+    }
+    setActivityTotals(totals)
+  }
+
+  useEffect(() => { if (clientData?.id) fetchActivityTotals() }, [clientData?.id, activityMonth, activityYear])
 
   const deleteLead = async (leadId) => {
     await supabase.from('leads').delete().eq('id', leadId)
@@ -1326,44 +1372,42 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     const lastDay = new Date(y, m + 1, 0).getDate()
     const monthEnd = `${y}-${String(m + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
 
-    const [current, prev, dkpis, dmLeads, callBookedLeads, wonLeads, allReviews] = await Promise.all([
+    const [current, prev, dkpis, activityLog, allReviews] = await Promise.all([
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', m).eq('year', y).maybeSingle(),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).eq('month', prevM).eq('year', prevY).maybeSingle(),
       supabase.from('daily_kpis').select('new_followers, content_posted, calls_booked, calls_taken, offers, closed, cash_collected, new_convos').eq('client_id', clientData.id).gte('date', monthStart).lte('date', monthEnd),
-      supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).neq('status', 'new_follower').gte('created_at', monthStart).lte('created_at', monthEnd + 'T23:59:59'),
-      supabase.from('leads').select('id', { count: 'exact', head: true }).eq('client_id', clientData.id).in('status', ['call_booked', 'client_won']).gte('updated_at', monthStart).lte('updated_at', monthEnd + 'T23:59:59'),
-      supabase.from('leads').select('id, notes', { count: 'exact' }).eq('client_id', clientData.id).eq('status', 'client_won').gte('updated_at', monthStart).lte('updated_at', monthEnd + 'T23:59:59'),
+      supabase.from('lead_activity_log').select('*').eq('client_id', clientData.id).gte('created_at', monthStart).lte('created_at', monthEnd + 'T23:59:59'),
       supabase.from('monthly_review').select('*').eq('client_id', clientData.id).order('year').order('month'),
     ])
 
     // Compute auto-fills from daily tracker
     const rows = dkpis.data || []
     const sum = (key) => rows.reduce((t, r) => t + (Number(r[key]) || 0), 0)
-    // Parse cash from won leads' notes (logged by deal closed modal)
-    let wonCashCollected = 0, wonCashContracted = 0, offerDocCount = 0
-    if (wonLeads.data) {
-      wonLeads.data.forEach(l => {
-        const notes = l.notes || ''
-        const ccMatch = notes.match(/Cash collected: £([\d,]+)/i)
-        const ctMatch = notes.match(/Cash contracted: £([\d,]+)/i)
-        if (ccMatch) wonCashCollected += Number(ccMatch[1].replace(/,/g, '')) || 0
-        if (ctMatch) wonCashContracted += Number(ctMatch[1].replace(/,/g, '')) || 0
-        // Count Dip offers as offer docs sent
-        if (notes.includes('The Dip') || notes.includes('Dip)')) offerDocCount++
-      })
-    }
+    // Compute from activity log
+    const activities = activityLog.data || []
+    const actDmsSent = activities.filter(a => a.to_stage === 'dm_sent').length
+    const actOfferDocsSent = activities.filter(a => a.to_stage === 'offer_doc_sent').length
+    const actCallLinksSent = activities.filter(a => a.to_stage === 'call_link_sent').length
+    const actCallsBooked = activities.filter(a => a.to_stage === 'call_booked').length
+    const actDealsClosed = activities.filter(a => a.to_stage === 'client_won').length
+    const actSalesFromDip = activities.filter(a => a.to_stage === 'client_won' && a.offer_type === 'dip').length
+    const actSalesFromBangBang = activities.filter(a => a.to_stage === 'client_won' && a.offer_type === 'bang_bang').length
+    const actCashCollected = activities.filter(a => a.cash_collected).reduce((t, a) => t + Number(a.cash_collected), 0)
+    const actCashContracted = activities.filter(a => a.cash_contracted).reduce((t, a) => t + Number(a.cash_contracted), 0)
 
     const fills = {
       new_followers: sum('new_followers'),
       short_form_posted: sum('content_posted'),
-      calls_booked: (callBookedLeads.count || 0),
+      calls_booked: actCallsBooked || sum('calls_booked'),
       calls_shown: sum('calls_taken'),
-      offers_made: sum('offers'),
-      calls_closed: sum('closed'),
-      cash_collected: wonCashCollected || sum('cash_collected'),
-      cash_contracted: wonCashContracted || null,
-      offer_docs_sent: offerDocCount || null,
-      dms_sent: dmLeads.count || 0,
+      offers_made: actCallLinksSent + actOfferDocsSent || sum('offers'),
+      calls_closed: actDealsClosed || sum('closed'),
+      cash_collected: actCashCollected || sum('cash_collected'),
+      cash_contracted: actCashContracted || null,
+      offer_docs_sent: actOfferDocsSent || null,
+      dms_sent: actDmsSent || 0,
+      sales_from_dip: actSalesFromDip || null,
+      sales_from_bang_bang: actSalesFromBangBang || null,
     }
     setMonthlyAutoFills(fills)
 
@@ -1420,6 +1464,16 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       money_out: monthlyReview.money_out || null,
       personal_pay: monthlyReview.personal_pay || null,
       profit: monthlyReview.profit || null,
+      members_start: monthlyReview.members_start || null,
+      members_lost: monthlyReview.members_lost || null,
+      churn_rate: monthlyReview.churn_rate || null,
+      members_current: monthlyReview.members_current || null,
+      new_members: monthlyReview.new_members || null,
+      members_resigned: monthlyReview.members_resigned || null,
+      sales_from_dip: monthlyReview.sales_from_dip || null,
+      sales_from_bang_bang: monthlyReview.sales_from_bang_bang || null,
+      ran_launch: monthlyReview.ran_launch || false,
+      launch_offer: monthlyReview.launch_offer || null,
       ...overrides,
     }
     if (monthlyReview.completed) { payload.completed = true; payload.completed_at = monthlyReview.completed_at }
@@ -1460,6 +1514,16 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       money_out: monthlyReview.money_out || null,
       personal_pay: monthlyReview.personal_pay || null,
       profit: monthlyReview.profit || null,
+      members_start: monthlyReview.members_start || null,
+      members_lost: monthlyReview.members_lost || null,
+      churn_rate: monthlyReview.churn_rate || null,
+      members_current: monthlyReview.members_current || null,
+      new_members: monthlyReview.new_members || null,
+      members_resigned: monthlyReview.members_resigned || null,
+      sales_from_dip: monthlyReview.sales_from_dip || null,
+      sales_from_bang_bang: monthlyReview.sales_from_bang_bang || null,
+      ran_launch: monthlyReview.ran_launch || false,
+      launch_offer: monthlyReview.launch_offer || null,
       completed: true, completed_at: new Date().toISOString(),
     }
     const { data, error } = await supabase.from('monthly_review').upsert(payload, { onConflict: 'client_id,month,year' }).select().single()
@@ -4402,6 +4466,54 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               </div>
             </div>
 
+            {/* Running Totals */}
+            <div className="mb-4 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Pipeline Totals</span>
+                <div className="flex items-center gap-1">
+                  <button onClick={() => {
+                    const m = activityMonth === 0 ? 11 : activityMonth - 1
+                    const y = activityMonth === 0 ? activityYear - 1 : activityYear
+                    setActivityMonth(m); setActivityYear(y)
+                  }} className="p-1 text-zinc-600 hover:text-white transition rounded hover:bg-zinc-800">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
+                  </button>
+                  <span className="text-[10px] font-semibold text-zinc-400 min-w-[80px] text-center">
+                    {['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][activityMonth]} {activityYear}
+                  </span>
+                  <button onClick={() => {
+                    const m = activityMonth === 11 ? 0 : activityMonth + 1
+                    const y = activityMonth === 11 ? activityYear + 1 : activityYear
+                    setActivityMonth(m); setActivityYear(y)
+                  }} className="p-1 text-zinc-600 hover:text-white transition rounded hover:bg-zinc-800">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
+                  </button>
+                  {(activityMonth !== new Date().getMonth() || activityYear !== new Date().getFullYear()) && (
+                    <button onClick={() => { setActivityMonth(new Date().getMonth()); setActivityYear(new Date().getFullYear()) }}
+                      className="ml-1 text-[9px] text-gold hover:text-gold/80 font-bold uppercase tracking-widest">Now</button>
+                  )}
+                </div>
+              </div>
+              <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
+                {[
+                  { label: 'DMs Sent', value: activityTotals.dms_sent, color: 'text-violet-400' },
+                  { label: 'Offer Docs', value: activityTotals.offer_docs_sent, color: 'text-orange-400' },
+                  { label: 'Call Links', value: activityTotals.call_links_sent, color: 'text-cyan-400' },
+                  { label: 'Calls Booked', value: activityTotals.calls_booked, color: 'text-gold' },
+                  { label: 'Deals Closed', value: activityTotals.deals_closed, color: 'text-emerald-400' },
+                  { label: 'Dip Sales', value: activityTotals.sales_from_dip, color: 'text-orange-400' },
+                  { label: 'BB Sales', value: activityTotals.sales_from_bang_bang, color: 'text-cyan-400' },
+                  { label: 'Cash In', value: activityTotals.cash_collected ? `£${Number(activityTotals.cash_collected).toLocaleString()}` : 0, color: 'text-emerald-400' },
+                  { label: 'Contracted', value: activityTotals.cash_contracted ? `£${Number(activityTotals.cash_contracted).toLocaleString()}` : 0, color: 'text-emerald-400' },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="bg-zinc-800/50 rounded-lg p-2 text-center">
+                    <p className="text-[8px] font-bold text-zinc-600 uppercase tracking-widest mb-0.5">{label}</p>
+                    <p className={`text-sm font-bold ${color}`}>{value || 0}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Voice Onboarding Chat */}
             {voiceChatOpen && (
               <div className="glass-card overflow-hidden mb-4">
@@ -5677,6 +5789,49 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                     </button>
                   ))}
                 </div>
+              </div>
+
+              {/* Launch */}
+              <div>
+                <label className="block text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">Did you run a launch this month?</label>
+                <div className="flex gap-3 mb-3">
+                  {[true, false].map(val => (
+                    <button key={String(val)} onClick={() => {
+                      const updated = { ...monthlyReview, ran_launch: val }
+                      if (!val) updated.launch_offer = null
+                      setMonthlyReview(updated)
+                      saveMonthly({ ran_launch: val, launch_offer: val ? monthlyReview.launch_offer : null })
+                    }}
+                      className={`flex-1 py-3 rounded-lg text-sm font-bold uppercase tracking-widest transition border ${
+                        monthlyReview.ran_launch === val
+                          ? val ? 'bg-gold/20 border-gold/40 text-gold' : 'bg-zinc-800 border-zinc-700 text-zinc-400'
+                          : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                      }`}>
+                      {val ? 'Yes' : 'No'}
+                    </button>
+                  ))}
+                </div>
+                {monthlyReview.ran_launch && (
+                  <div>
+                    <label className="block text-[10px] font-bold text-zinc-500 uppercase tracking-widest mb-2">Which offer?</label>
+                    <div className="flex gap-2">
+                      {[
+                        { id: 'dip', label: offerNames.dip || 'Dip Offer' },
+                        { id: 'bang_bang', label: offerNames.bangBang || 'Bang Bang Offer' },
+                        { id: 'both', label: 'Both' },
+                      ].map(opt => (
+                        <button key={opt.id} onClick={() => { setMonthlyReview(prev => ({ ...prev, launch_offer: opt.id })); saveMonthly({ launch_offer: opt.id }) }}
+                          className={`flex-1 py-2 rounded-lg text-[10px] font-bold uppercase tracking-widest transition border ${
+                            monthlyReview.launch_offer === opt.id
+                              ? 'bg-gold/10 border-gold/30 text-gold'
+                              : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:border-zinc-600'
+                          }`}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Month rating */}
