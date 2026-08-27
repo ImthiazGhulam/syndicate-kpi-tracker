@@ -906,7 +906,7 @@ export default function ClientPage() {
   // Activity logging
   const logActivity = async (leadId, leadName, fromStage, toStage, extra = {}) => {
     if (!clientData?.id) return
-    await supabase.from('lead_activity_log').insert([{
+    const { error } = await supabase.from('lead_activity_log').insert([{
       client_id: clientData.id,
       lead_id: leadId,
       lead_name: leadName,
@@ -916,6 +916,7 @@ export default function ClientPage() {
       cash_collected: extra.cashCollected ? Number(extra.cashCollected) : null,
       cash_contracted: extra.cashContracted ? Number(extra.cashContracted) : null,
     }])
+    if (error) console.error('Activity log insert failed:', error)
     fetchActivityTotals()
   }
 
@@ -928,6 +929,7 @@ export default function ClientPage() {
     if (!data) return
     const totals = {
       dms_sent: data.filter(a => a.to_stage === 'dm_sent').length,
+      lead_magnets_sent: data.filter(a => a.to_stage === 'lead_magnet_sent').length,
       offer_docs_sent: data.filter(a => a.to_stage === 'offer_doc_sent').length,
       call_links_sent: data.filter(a => a.to_stage === 'call_link_sent').length,
       calls_booked: data.filter(a => a.to_stage === 'call_booked').length,
@@ -1137,6 +1139,9 @@ export default function ClientPage() {
         }
         return m
       }))
+      if (update.proposed_stage) {
+        logActivity(lead.id, lead.name, lead.status, update.proposed_stage)
+      }
       flash('Card updated')
     }
   }
@@ -1386,6 +1391,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     // Compute from activity log
     const activities = activityLog.data || []
     const actDmsSent = activities.filter(a => a.to_stage === 'dm_sent').length
+    const actLeadMagnetsSent = activities.filter(a => a.to_stage === 'lead_magnet_sent').length
     const actOfferDocsSent = activities.filter(a => a.to_stage === 'offer_doc_sent').length
     const actCallLinksSent = activities.filter(a => a.to_stage === 'call_link_sent').length
     const actCallsBooked = activities.filter(a => a.to_stage === 'call_booked').length
@@ -1406,6 +1412,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       cash_contracted: actCashContracted || null,
       offer_docs_sent: actOfferDocsSent || null,
       dms_sent: actDmsSent || 0,
+      lead_magnet_downloads: actLeadMagnetsSent || null,
       sales_from_dip: actSalesFromDip || null,
       sales_from_bang_bang: actSalesFromBangBang || null,
     }
@@ -4337,9 +4344,10 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                   )}
                 </div>
               </div>
-              <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-9 gap-2">
+              <div className="grid grid-cols-3 sm:grid-cols-5 lg:grid-cols-10 gap-2">
                 {[
                   { label: 'DMs Sent', value: activityTotals.dms_sent, color: 'text-violet-400' },
+                  { label: 'Magnets Sent', value: activityTotals.lead_magnets_sent, color: 'text-pink-400' },
                   { label: 'Offer Docs', value: activityTotals.offer_docs_sent, color: 'text-orange-400' },
                   { label: 'Call Links', value: activityTotals.call_links_sent, color: 'text-cyan-400' },
                   { label: 'Calls Booked', value: activityTotals.calls_booked, color: 'text-gold' },
