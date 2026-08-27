@@ -39,7 +39,7 @@ const TOOLS = [
       properties: {
         stage: {
           type: 'string',
-          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
+          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'offer_doc_sent', 'call_link_sent', 'call_booked', 'client_won', 'ghosted'],
           description: 'Optional stage filter (use the stage ID)',
         },
       },
@@ -61,7 +61,7 @@ const TOOLS = [
         note: { type: 'string', description: 'Detailed note to append. MUST include: date (DD/MM), specific action taken, the hook/angle used, any prospect quotes verbatim, profile type if detected, and the exact next action with date. See tool description for full requirements.' },
         new_stage: {
           type: 'string',
-          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
+          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'offer_doc_sent', 'call_link_sent', 'call_booked', 'client_won', 'ghosted'],
           description: 'New stage to move the card to. Only include if the card should move.',
         },
       },
@@ -78,7 +78,7 @@ const TOOLS = [
         instagram: { type: 'string', description: 'Instagram handle (with or without @)' },
         stage: {
           type: 'string',
-          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'call_booked', 'client_won', 'ghosted'],
+          enum: ['new_follower', 'dm_sent', 'lead_magnet_sent', 'follow_up', 'offer_doc_sent', 'call_link_sent', 'call_booked', 'client_won', 'ghosted'],
           description: 'Starting stage. Default to new_follower unless the conversation is already past that.',
         },
         note: { type: 'string', description: 'Initial note for the card. MUST include: date (DD/MM), how they were found (trigger source), what specifically caught attention, any context about them, and the planned first action with date. E.g. "14/08 - post engagement trigger, commented on pricing reel asking about group vs 1:1. Bio says business coach, 2.3k followers. Next: send connect DM today referencing their comment about group pricing"' },
@@ -93,6 +93,8 @@ const STAGE_LABELS = {
   dm_sent: 'Initial DM Sent',
   lead_magnet_sent: 'Lead Magnet Sent',
   follow_up: 'Follow-up Friday DM',
+  offer_doc_sent: 'Offer Doc Sent (Dip)',
+  call_link_sent: 'Call Link Sent (Bang Bang)',
   call_booked: 'Call Booked',
   client_won: 'Client Won',
   ghosted: 'Client Ghosted',
@@ -471,13 +473,24 @@ In ALL cases: the opener ends in a question about THEM, never the offer. The tri
 
 **Objection principles:** agree with the feeling first, never argue, ask one question back, never a wall of text.
 
-**The Hot List stages:** New Follower → Initial DM Sent → Lead Magnet Sent → Follow-up Friday DM → Call Booked → Client Won / Client Ghosted.
+**The Hot List stages:** New Follower → Initial DM Sent → Lead Magnet Sent → Follow-up Friday DM → Offer Doc Sent (Dip path) / Call Link Sent (Bang Bang path) → Call Booked → Client Won / Client Ghosted.
+
+There are TWO paths after follow-up depending on what the client is selling:
+- **Dip path (Offer Doc):** The prospect is sent a sales doc / offer document for the micro offer. Card moves to offer_doc_sent.
+- **Bang Bang path (Call Link):** The prospect is sent a call booking link for the main offer. Card moves to call_link_sent.
+
+The client has a SELLING MODE setting that tells you what they're currently selling: 'bang_bang' (main offer only), 'dip' (micro offer only), or 'both'. This is passed in each request. When routing a lead, respect the selling mode:
+- If selling mode is 'dip', default to sending the offer doc unless the prospect specifically asks for a call.
+- If selling mode is 'bang_bang', default to sending the call link.
+- If selling mode is 'both', use your judgement based on the conversation — Route step determines which path.
 
 Card rules — STAGE MOVEMENT IS MANDATORY when the trigger condition is met:
 - **New Follower** → the holding pen. Trigger source in notes.
 - **Initial DM Sent** → move here THE MOMENT you draft a connect DM for them. If you draft a first message to send, the card MUST move to dm_sent in your update_lead call. Do not leave them in New Follower after drafting the first DM.
 - **Lead Magnet Sent** → move here when the freebie is sent.
 - **Follow-up Friday DM** → move here on the first Friday follow-up message.
+- **Offer Doc Sent** → move here when the dip offer doc / sales document is sent to the prospect.
+- **Call Link Sent** → move here when the call booking link is sent for the bang bang offer.
 - **Call Booked** → move here ONLY on an actual booking confirmation, never a sent link.
 - **Client Won** → they signed up / paid.
 - **Client Ghosted** → parked not lost. One reactivation per quarter.
@@ -486,9 +499,11 @@ CRITICAL STAGE MOVEMENT RULES — when calling update_lead, ALWAYS include new_s
 1. You draft a FIRST DM (connect message) → new_stage: 'dm_sent'
 2. You recommend sending a lead magnet → new_stage: 'lead_magnet_sent'
 3. You draft a Friday follow-up → new_stage: 'follow_up'
-4. The prospect books a call → new_stage: 'call_booked'
-5. The prospect goes silent for 2+ weeks → new_stage: 'ghosted'
-6. The prospect signs up → new_stage: 'client_won'
+4. You recommend sending the dip offer doc → new_stage: 'offer_doc_sent'
+5. You recommend sending a call booking link → new_stage: 'call_link_sent'
+6. The prospect books a call → new_stage: 'call_booked'
+7. The prospect goes silent for 2+ weeks → new_stage: 'ghosted'
+8. The prospect signs up → new_stage: 'client_won'
 
 If the card is currently in New Follower and you're drafting the first DM, it MUST move to dm_sent. No exceptions. Check the card's current stage and move it forward when the action warrants it.
 
@@ -579,7 +594,7 @@ TODAY'S DATE: ${new Date().toLocaleDateString('en-GB', { weekday: 'long', day: '
 
 export async function POST(req) {
   try {
-    const { messages, clientId } = await req.json()
+    const { messages, clientId, sellingMode } = await req.json()
 
     if (!clientId) {
       return NextResponse.json({ error: 'Missing client ID' }, { status: 400 })
@@ -623,7 +638,7 @@ export async function POST(req) {
         body: JSON.stringify({
           model: 'claude-sonnet-4-6',
           max_tokens: 2000,
-          system: SYSTEM_PROMPT,
+          system: SYSTEM_PROMPT + `\n\n## CURRENT SELLING MODE\nThe client is currently selling: ${sellingMode === 'bang_bang' ? 'their MAIN OFFER (Bang Bang) only — default to call link route' : sellingMode === 'dip' ? 'their MICRO OFFER (The Dip) only — default to offer doc route' : 'BOTH offers — use your judgement based on the conversation to decide which route'}.`,
           tools: TOOLS,
           messages: anthropicMessages,
         }),

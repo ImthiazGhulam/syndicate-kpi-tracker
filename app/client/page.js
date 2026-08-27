@@ -360,6 +360,7 @@ export default function ClientPage() {
   const voiceChatInputRef = useRef(null)
 
   // DM Sales Coach (embedded in Hot List)
+  const [sellingMode, setSellingMode] = useState('both') // 'bang_bang', 'dip', 'both'
   const [coachOpen, setCoachOpen] = useState(false)
   const [coachMessages, setCoachMessages] = useState([])
   const [coachInput, setCoachInput] = useState('')
@@ -805,6 +806,8 @@ export default function ClientPage() {
     { id: 'dm_sent', label: 'Initial DM Sent', color: 'border-violet-500/40 bg-violet-500/5' },
     { id: 'lead_magnet_sent', label: 'Lead Magnet Sent', color: 'border-pink-500/40 bg-pink-500/5' },
     { id: 'follow_up', label: 'Follow-up Friday DM', color: 'border-amber-500/40 bg-amber-500/5' },
+    { id: 'offer_doc_sent', label: `${offerNames.dip || 'Dip Offer'} (Offer Doc)`, color: 'border-orange-500/40 bg-orange-500/5' },
+    { id: 'call_link_sent', label: `${offerNames.bangBang || 'Bang Bang'} (Call Link)`, color: 'border-cyan-500/40 bg-cyan-500/5' },
     { id: 'call_booked', label: 'Call Booked', color: 'border-gold/40 bg-gold/5' },
     { id: 'client_won', label: 'Client Won', color: 'border-emerald-500/40 bg-emerald-500/5' },
     { id: 'ghosted', label: 'Client Ghosted', color: 'border-red-500/40 bg-red-500/5' },
@@ -1021,7 +1024,7 @@ export default function ClientPage() {
       const res = await fetch('/api/dm-coach', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ messages: all.map(m => ({ role: m.role, content: m.content, images: m.images })), clientId: clientData.id }),
+        body: JSON.stringify({ messages: all.map(m => ({ role: m.role, content: m.content, images: m.images })), clientId: clientData.id, sellingMode }),
       })
       const result = await res.json()
       const assistantMsg = { role: 'assistant', content: result.error ? `Error: ${result.error}` : result.reply }
@@ -4375,6 +4378,27 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                   }`}>
                   {voiceProfileData ? '✓ Voice Set' : '🎤 Set Your Voice'}
                 </button>
+              </div>
+            </div>
+
+            {/* Selling Mode Selector */}
+            <div className="mb-4 flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg p-3">
+              <span className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest flex-shrink-0">Selling</span>
+              <div className="flex gap-1.5">
+                {[
+                  { id: 'dip', label: offerNames.dip || 'Dip Offer' },
+                  { id: 'bang_bang', label: offerNames.bangBang || 'Bang Bang Offer' },
+                  { id: 'both', label: 'Both' },
+                ].map(opt => (
+                  <button key={opt.id} onClick={() => setSellingMode(opt.id)}
+                    className={`px-3 py-1.5 rounded text-[10px] font-bold uppercase tracking-widest transition border ${
+                      sellingMode === opt.id
+                        ? 'bg-gold/10 border-gold/30 text-gold'
+                        : 'bg-zinc-800 border-zinc-700 text-zinc-500 hover:text-zinc-300'
+                    }`}>
+                    {opt.label}
+                  </button>
+                ))}
               </div>
             </div>
 
