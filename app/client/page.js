@@ -862,18 +862,31 @@ export default function ClientPage() {
 
   const confirmDealClosed = async () => {
     if (!dealClosedModal) return
-    const { leadId, cashCollected, cashContracted, offerType } = dealClosedModal
+    const { leadId, cashCollected, cashContracted, offerType, pendingNote, coachMsgIndex } = dealClosedModal
     const lead = leads.find(l => l.id === leadId)
     const offerLabel = offerType === 'bang_bang' ? (offerNames.bangBang || 'Bang Bang Offer') : offerType === 'dip' ? (offerNames.dip || 'The Dip') : offerType
-    const note = `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — DEAL CLOSED${offerLabel ? ` (${offerLabel})` : ''}. Cash collected: £${Number(cashCollected || 0).toLocaleString()}. Cash contracted: £${Number(cashContracted || 0).toLocaleString()}.`
-    const existingNotes = lead?.notes || ''
-    const updatedNotes = existingNotes ? `${existingNotes}\n${note}` : note
+    const dealNote = `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit' })} — DEAL CLOSED${offerLabel ? ` (${offerLabel})` : ''}. Cash collected: £${Number(cashCollected || 0).toLocaleString()}. Cash contracted: £${Number(cashContracted || 0).toLocaleString()}.`
+    let existingNotes = lead?.notes || ''
+    // If there's a pending coach note, append it first
+    if (pendingNote) {
+      existingNotes = existingNotes ? `${existingNotes}\n${pendingNote}` : pendingNote
+    }
+    const updatedNotes = existingNotes ? `${existingNotes}\n${dealNote}` : dealNote
     setAnimatingLeadId(leadId)
     setDealClosedModal(null)
     await new Promise(r => setTimeout(r, 300))
     const { data } = await supabase.from('leads').update({ status: 'client_won', notes: updatedNotes, updated_at: new Date().toISOString() }).eq('id', leadId).select().single()
     if (data) {
       setLeads(prev => prev.map(l => l.id === leadId ? data : l))
+      // If this came from a coach update, mark it as confirmed
+      if (coachMsgIndex !== undefined) {
+        setCoachMessages(prev => prev.map((m, i) => {
+          if (i === coachMsgIndex && m.proposed_updates) {
+            return { ...m, proposed_updates: m.proposed_updates.map(u => u.lead_id === leadId ? { ...u, confirmed: true } : u) }
+          }
+          return m
+        }))
+      }
       setMovedFlash('Deal closed — Client Won')
       setTimeout(() => setMovedFlash(null), 2000)
     }
@@ -1039,6 +1052,22 @@ export default function ClientPage() {
   const confirmCoachUpdate = async (update, msgIndex) => {
     const lead = leads.find(l => l.id === update.lead_id)
     if (!lead) return
+
+    // If moving to client_won, show deal value modal first
+    if (update.proposed_stage === 'client_won') {
+      // Save the note to apply after modal confirmation
+      const pendingNote = update.proposed_note || null
+      setDealClosedModal({
+        leadId: lead.id,
+        leadName: lead.name || '',
+        cashCollected: '',
+        cashContracted: '',
+        offerType: '',
+        pendingNote,
+        coachMsgIndex: msgIndex,
+      })
+      return
+    }
 
     const updates = { updated_at: new Date().toISOString() }
     if (update.proposed_note) {
