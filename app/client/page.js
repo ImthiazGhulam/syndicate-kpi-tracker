@@ -906,6 +906,14 @@ export default function ClientPage() {
   // Activity logging
   const logActivity = async (leadId, leadName, fromStage, toStage, extra = {}) => {
     if (!clientData?.id) return
+    // Skip if this lead has already been logged for this stage this month (except client_won which always logs for deal data)
+    if (toStage !== 'client_won') {
+      const start = `${activityYear}-${String(activityMonth + 1).padStart(2, '0')}-01`
+      const endDate = new Date(activityYear, activityMonth + 1, 0)
+      const end = `${activityYear}-${String(activityMonth + 1).padStart(2, '0')}-${String(endDate.getDate()).padStart(2, '0')}`
+      const { data: existing } = await supabase.from('lead_activity_log').select('id').eq('client_id', clientData.id).eq('lead_id', leadId).eq('to_stage', toStage).gte('created_at', start).lte('created_at', end + 'T23:59:59').limit(1)
+      if (existing && existing.length > 0) return
+    }
     const { error } = await supabase.from('lead_activity_log').insert([{
       client_id: clientData.id,
       lead_id: leadId,
