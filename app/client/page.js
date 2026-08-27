@@ -2408,12 +2408,11 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     identity:    { value: Math.min(identityReads, daysElapsed), max: daysElapsed, pct: capPct(identityReads, daysElapsed), label: 'Identity Read', sub: 'daily', icon: '🪞', color: 'text-violet-400', bar: 'bg-violet-400' },
     warMap:      { value: warMapDone, max: 1, pct: warMapDone * 100, label: 'War Map™', sub: 'weekly', icon: '⚔️', color: 'text-sky-400', bar: 'bg-sky-400' },
     lockIn:      { value: lockInDone, max: 1, pct: lockInDone * 100, label: 'The Lock In™', sub: 'weekly', icon: '🔒', color: 'text-gold', bar: 'bg-gold' },
-    tracker:     { value: Math.min(kpiDaysFilled, daysElapsed), max: daysElapsed, pct: capPct(kpiDaysFilled, daysElapsed), label: 'Business Tracker', sub: 'daily', icon: '📊', color: 'text-emerald-400', bar: 'bg-emerald-400' },
   }
 
   const overallPct = Math.min(100, Math.round(
-    (scores.morningOps.pct * 0.25 + scores.debrief.pct * 0.20 + scores.identity.pct * 0.10 +
-     scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15 + scores.tracker.pct * 0.15)
+    (scores.morningOps.pct * 0.30 + scores.debrief.pct * 0.25 + scores.identity.pct * 0.15 +
+     scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15)
   ))
 
   const navSections = [
@@ -2424,7 +2423,6 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     { heading: 'Daily', items: [
       { id: 'identity',    label: 'Identity Chamber™',   icon: '🪞' },
       { id: 'morning-ops', label: 'Morning Ops™',        icon: '☀️' },
-      { id: 'dashboard',   label: 'Business Tracker',    icon: '📊' },
       { id: 'hot-list',    label: 'Hot List',             icon: '🔥' },
       { id: 'debrief',     label: 'The Debrief™',        icon: '🌙' },
     ]},
@@ -2697,13 +2695,11 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               const todayDone = weekMorningOps.some(p => p.date === todayStr && p.completed)
               const todayDebrief = weekDebriefs.some(p => p.date === todayStr && p.completed)
               const todayIdentity = weekMorningOps.some(p => p.date === todayStr && p.identity_read)
-              const todayKpi = weekKpis.some(k => k.date === todayStr)
               const isSunday = new Date().getDay() === 0
               const isSatOrSun = new Date().getDay() === 0 || new Date().getDay() === 6
 
               if (!todayIdentity) actions.push({ icon: '🪞', label: 'Read your Identity Chamber™', sub: 'Tick the checkbox in Morning Ops', tab: 'morning-ops' })
               if (!todayDone) actions.push({ icon: '☀️', label: 'Complete your Morning Ops™', sub: 'Set your intention and plan your day', tab: 'morning-ops' })
-              if (!todayKpi) actions.push({ icon: '📊', label: 'Fill in today\'s Business Tracker', sub: 'Log your daily numbers', tab: 'dashboard' })
               if (!todayDebrief) actions.push({ icon: '🌙', label: 'Complete The Debrief™', sub: 'Reflect on your day before bed', tab: 'debrief' })
               if (isSatOrSun && !weeklyReview.completed) actions.push({ icon: '🔒', label: 'Complete The Lock In™', sub: 'Review your week — due Sunday', tab: 'lock-in' })
               if (isSatOrSun && !weeklyPriorities.completed) actions.push({ icon: '⚔️', label: 'Complete your Weekly War Map™', sub: 'Plan next week — due Sunday', tab: 'war-map' })
@@ -4263,159 +4259,6 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           </div>
         )}
 
-        {/* ── DASHBOARD — Daily KPI Tracker ─────────────────────────────── */}
-        {activeTab === 'dashboard' && (
-          <div className="fade-in stagger-in">
-            {/* Month nav */}
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-base font-bold text-white uppercase tracking-widest">Dashboard</h2>
-              <div className="flex items-center gap-1">
-                <button onClick={async () => { await saveAllKpis(); if (kpiMonth === 0) { setKpiMonth(11); setKpiYear(y => y - 1) } else setKpiMonth(m => m - 1) }}
-                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                </button>
-                <span className="text-sm font-semibold text-white min-w-[160px] text-center">{MONTH_NAMES[kpiMonth]} {kpiYear}</span>
-                <button onClick={async () => { await saveAllKpis(); if (kpiMonth === 11) { setKpiMonth(0); setKpiYear(y => y + 1) } else setKpiMonth(m => m + 1) }}
-                  className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                </button>
-              </div>
-            </div>
-
-            {/* KPI Table */}
-            <div className="overflow-x-scroll border border-zinc-800 rounded-lg -mx-4 md:-mx-8 pb-2" style={{ scrollbarColor: '#3f3f46 transparent' }}>
-              <table className="text-[11px] w-max min-w-full">
-                <thead>
-                  {/* Group headers */}
-                  <tr className="bg-zinc-900">
-                    <th className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-zinc-500 font-semibold uppercase tracking-wider border-b border-r border-zinc-800 w-10">Day</th>
-                    {KPI_GROUPS.map(g => {
-                      const count = KPI_COLS.filter(c => c.group === g.id).length
-                      return <th key={g.id} colSpan={count} className={`px-2 py-2 font-bold uppercase tracking-wider border-b border-zinc-800 ${g.color}`}>{g.label}</th>
-                    })}
-                  </tr>
-                  {/* Column headers */}
-                  <tr className="bg-zinc-900/70">
-                    <th className="sticky left-0 z-10 bg-zinc-900 px-2 py-1.5 border-b border-r border-zinc-800" />
-                    {KPI_COLS.map(col => (
-                      <th key={col.key} className={`px-1.5 py-1.5 text-zinc-500 font-semibold whitespace-nowrap border-b border-zinc-800 ${col.calc ? 'bg-zinc-900/40' : ''}`}>
-                        {col.label}
-                      </th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {kpiDays.map((dateStr, i) => {
-                    const day = i + 1
-                    const row = monthlyKpis[dateStr] || {}
-                    const isToday = dateStr === todayStr
-                    return (
-                      <tr key={dateStr} className={`border-b border-zinc-900/60 ${isToday ? 'bg-gold/[0.04]' : 'hover:bg-zinc-900/40'}`}>
-                        <td className={`sticky left-0 z-10 px-2 py-1 text-center font-bold border-r border-zinc-800 ${isToday ? 'bg-gold/20 text-gold' : 'bg-zinc-950 text-zinc-500'}`}>
-                          {day}
-                        </td>
-                        {KPI_COLS.map(col => (
-                          <td key={col.key} className={`px-0.5 py-0.5 text-center ${col.calc ? 'bg-zinc-900/20 text-zinc-400' : ''}`}>
-                            {col.calc ? (
-                              <span className="px-1.5 py-1 block">{col.calc(row)}</span>
-                            ) : (
-                              <input
-                                type="number"
-                                min="0"
-                                step={col.step || '1'}
-                                value={row[col.key] || ''}
-                                onChange={e => updateKpi(dateStr, col.key, e.target.value)}
-                                onBlur={() => saveKpiDay(dateStr)}
-                                placeholder="0"
-                                data-row={i}
-                                data-col={KPI_COLS.indexOf(col)}
-                                onKeyDown={e => {
-                                  const r = Number(e.target.dataset.row)
-                                  const c = Number(e.target.dataset.col)
-                                  let tr = r, tc = c
-                                  if (e.key === 'ArrowDown') tr = r + 1
-                                  else if (e.key === 'ArrowUp') tr = r - 1
-                                  else if (e.key === 'ArrowRight' || e.key === 'Tab') { tc = c + 1; if (!e.shiftKey && e.key === 'Tab') e.preventDefault() }
-                                  else if (e.key === 'ArrowLeft') tc = c - 1
-                                  else if (e.key === 'Enter') { tr = r + 1; e.preventDefault() }
-                                  else return
-                                  if (e.key !== 'Tab') e.preventDefault()
-                                  const next = document.querySelector(`input[data-row="${tr}"][data-col="${tc}"]`)
-                                  if (next) next.focus()
-                                }}
-                                className="w-full min-w-[52px] bg-transparent text-center text-white placeholder-zinc-700 py-1 px-1 focus:outline-none focus:bg-zinc-800 rounded transition"
-                              />
-                            )}
-                          </td>
-                        ))}
-                      </tr>
-                    )
-                  })}
-                  {/* Totals row */}
-                  <tr className="border-t-2 border-gold/40 bg-zinc-900 font-bold">
-                    <td className="sticky left-0 z-10 bg-zinc-900 px-2 py-2 text-center text-gold text-xs uppercase tracking-widest border-r border-zinc-800">Total</td>
-                    {KPI_COLS.map(col => {
-                      // Total followers & New followers: show % change first entry vs last entry
-                      if (col.key === 'total_followers' || col.key === 'new_followers') {
-                        const days = kpiDays.filter(d => monthlyKpis[d]?.[col.key] !== undefined && Number(monthlyKpis[d][col.key]) !== 0)
-                        if (days.length < 2) {
-                          return <td key={col.key} className="px-1.5 py-2 text-center text-zinc-500 text-xs">—</td>
-                        }
-                        const first = Number(monthlyKpis[days[0]][col.key])
-                        const last = Number(monthlyKpis[days[days.length - 1]][col.key])
-                        const pct = first !== 0 ? Math.round(((last - first) / Math.abs(first)) * 100) : 0
-                        return (
-                          <td key={col.key} className="px-1.5 py-2 text-center">
-                            <span className={`text-xs font-bold ${pct > 0 ? 'text-emerald-400' : pct < 0 ? 'text-red-400' : 'text-zinc-500'}`}>
-                              {pct > 0 ? '+' : ''}{pct}%
-                            </span>
-                          </td>
-                        )
-                      }
-                      return (
-                        <td key={col.key} className="px-1.5 py-2 text-center text-white">
-                          {col.calc
-                            ? col.calc(kpiTotals)
-                            : col.step === '0.01'
-                              ? `£${kpiTotals[col.key]?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) || '0.00'}`
-                              : kpiTotals[col.key] || 0
-                          }
-                        </td>
-                      )
-                    })}
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-
-            {/* Monthly Benchmarks */}
-            <div className="mt-8">
-              <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-4">Monthly Benchmarks</h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                <div className="glass-card p-4">
-                  <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Avg Daily New Followers</p>
-                  <p className="text-xl font-bold text-sky-400">{kpiTotals.new_followers ? Math.round(kpiTotals.new_followers / kpiDaysWithData) : '—'}</p>
-                  <p className="text-zinc-600 text-[10px] mt-1">Target: 10+ per day</p>
-                </div>
-                <div className="glass-card p-4">
-                  <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Avg Daily New Convos</p>
-                  <p className="text-xl font-bold text-violet-400">{kpiTotals.new_convos ? Math.round(kpiTotals.new_convos / kpiDaysWithData) : '—'}</p>
-                  <p className="text-zinc-600 text-[10px] mt-1">Target: 20+ per day</p>
-                </div>
-                <div className="glass-card p-4">
-                  <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">DM Response Rate</p>
-                  <p className="text-xl font-bold text-gold">{kpiTotals.new_convos ? Math.round(kpiTotals.responded / kpiTotals.new_convos * 100) + '%' : '—'}</p>
-                  <p className="text-zinc-600 text-[10px] mt-1">Target: 30%+</p>
-                </div>
-                <div className="glass-card p-4">
-                  <p className="text-zinc-500 text-[10px] uppercase tracking-widest mb-1">Show Up Rate</p>
-                  <p className="text-xl font-bold text-emerald-400">{kpiTotals.calls_booked ? Math.round(kpiTotals.calls_taken / kpiTotals.calls_booked * 100) + '%' : '—'}</p>
-                  <p className="text-zinc-600 text-[10px] mt-1">Target: 95%+</p>
-                </div>
-              </div>
-            </div>
-          </div>
-        )}
 
         {/* ── HOT LIST — Lead Pipeline ─────────────────────────────────────── */}
         {activeTab === 'hot-list' && (
