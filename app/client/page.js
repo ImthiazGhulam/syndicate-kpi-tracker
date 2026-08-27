@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import ExpertOSMark from '../components/ExpertOSMark'
 import MonthlyMetricsChart from '../components/MonthlyMetricsChart'
-import { MONTHLY_METRICS, ALL_METRIC_KEYS, getMetricColor } from '../../lib/monthly-constants'
+import { MONTHLY_METRICS, MONTHLY_METRIC_GROUPS, ALL_METRIC_KEYS, getMetricColor } from '../../lib/monthly-constants'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -5578,11 +5578,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
               {/* 20 Metrics grouped */}
               {MONTHLY_METRICS.map(group => {
-                const groupMeta = [
-                  { id: 'audience', label: 'Audience & Content', icon: '📡', color: 'text-sky-400', border: 'border-sky-500/30', bg: 'bg-sky-500/5' },
-                  { id: 'pipeline', label: 'Sales Pipeline', icon: '🎯', color: 'text-violet-400', border: 'border-violet-500/30', bg: 'bg-violet-500/5' },
-                  { id: 'financials', label: 'Financials', icon: '💰', color: 'text-emerald-400', border: 'border-emerald-500/30', bg: 'bg-emerald-500/5' },
-                ].find(g => g.id === group.group)
+                const groupMeta = MONTHLY_METRIC_GROUPS.find(g => g.id === group.group)
                 return (
                   <MonthlyMetricGroupCard
                     key={group.group}
@@ -5597,6 +5593,14 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                         const mi = key === 'money_in' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_in) || 0)
                         const mo = key === 'money_out' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_out) || 0)
                         if (mi > 0 || mo > 0) updated.profit = mi - mo
+                      }
+                      // Auto-calc churn rate and new members
+                      if (key === 'members_start' || key === 'members_lost' || key === 'members_current') {
+                        const start = key === 'members_start' ? (val === '' ? 0 : Number(val)) : (Number(updated.members_start) || 0)
+                        const lost = key === 'members_lost' ? (val === '' ? 0 : Number(val)) : (Number(updated.members_lost) || 0)
+                        const current = key === 'members_current' ? (val === '' ? 0 : Number(val)) : (Number(updated.members_current) || 0)
+                        if (start > 0) updated.churn_rate = Math.round((lost / start) * 1000) / 10
+                        if (start > 0 || current > 0) updated.new_members = current - start + lost
                       }
                       setMonthlyReview(updated)
                     }}
