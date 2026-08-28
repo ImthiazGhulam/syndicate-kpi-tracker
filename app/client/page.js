@@ -203,7 +203,7 @@ function MonthlyMetricInput({ metric, value, autoFillValue, onChange, onBlur }) 
   return (
     <div className="flex items-center gap-3">
       <div className="flex-1">
-        <div className="flex items-center gap-2 mb-1">
+        <div className="flex items-center gap-2 mb-0.5">
           <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest">{metric.label}</label>
           {isAutoFilled && autoFillValue > 0 && (
             <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-sky-500/10 text-sky-400 border border-sky-500/20">from tracker</span>
@@ -212,6 +212,9 @@ function MonthlyMetricInput({ metric, value, autoFillValue, onChange, onBlur }) 
             <span className="text-[8px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">auto</span>
           )}
         </div>
+        {metric.hint && (
+          <p className="text-[9px] text-zinc-600 mb-1 leading-relaxed">{metric.hint}</p>
+        )}
         <input type="number" min="0" step={metric.step || '1'}
           value={value !== undefined && value !== null ? value : ''}
           onChange={e => onChange(metric.key, e.target.value)}
