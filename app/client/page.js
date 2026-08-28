@@ -1414,7 +1414,6 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       short_form_posted: sum('content_posted'),
       calls_booked: actCallsBooked || sum('calls_booked'),
       calls_shown: sum('calls_taken'),
-      offers_made: actCallLinksSent + actOfferDocsSent || sum('offers'),
       calls_closed: actDealsClosed || sum('closed'),
       cash_collected: actCashCollected || sum('cash_collected'),
       cash_contracted: actCashContracted || null,
@@ -1423,6 +1422,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       lead_magnet_downloads: actLeadMagnetsSent || null,
       sales_from_dip: actSalesFromDip || null,
       sales_from_bang_bang: actSalesFromBangBang || null,
+      new_members: actDealsClosed || null,
     }
     setMonthlyAutoFills(fills)
 
@@ -1478,6 +1478,8 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       money_in: monthlyReview.money_in || null,
       money_out: monthlyReview.money_out || null,
       personal_pay: monthlyReview.personal_pay || null,
+      ad_spend: monthlyReview.ad_spend || null,
+      monthly_recurring_revenue: monthlyReview.monthly_recurring_revenue || null,
       profit: monthlyReview.profit || null,
       members_start: monthlyReview.members_start || null,
       members_lost: monthlyReview.members_lost || null,
@@ -1528,6 +1530,8 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       money_in: monthlyReview.money_in || null,
       money_out: monthlyReview.money_out || null,
       personal_pay: monthlyReview.personal_pay || null,
+      ad_spend: monthlyReview.ad_spend || null,
+      monthly_recurring_revenue: monthlyReview.monthly_recurring_revenue || null,
       profit: monthlyReview.profit || null,
       members_start: monthlyReview.members_start || null,
       members_lost: monthlyReview.members_lost || null,
@@ -5578,29 +5582,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
             )}
 
             <div className="space-y-4 mt-4">
-              {/* Revenue + Target (existing fields, kept prominent) */}
-              <div className="rounded-xl border border-gold/25 bg-gold/[0.03] p-4">
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-base">💷</span>
-                  <h3 className="text-xs font-bold text-gold uppercase tracking-widest">Revenue</h3>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-1 block">Total Revenue This Month</label>
-                    <input type="number" min="0" step="0.01" value={monthlyReview.revenue || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue: e.target.value }))} onBlur={() => saveMonthly()}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2.5 bg-zinc-900 border-2 border-gold/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition text-sm font-bold" />
-                  </div>
-                  <div>
-                    <label className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-1 block">Target for Next Month</label>
-                    <input type="number" min="0" step="0.01" value={monthlyReview.revenue_target || ''} onChange={e => setMonthlyReview(prev => ({ ...prev, revenue_target: e.target.value }))} onBlur={() => saveMonthly()}
-                      placeholder="0.00"
-                      className="w-full px-3 py-2.5 bg-zinc-900 border-2 border-emerald-500/30 rounded-lg text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-emerald-500 focus:border-emerald-500 transition text-sm font-bold" />
-                  </div>
-                </div>
-              </div>
-
-              {/* 20 Metrics grouped */}
+              {/* Metrics grouped */}
               {MONTHLY_METRICS.map(group => {
                 const groupMeta = MONTHLY_METRIC_GROUPS.find(g => g.id === group.group)
                 return (
@@ -5618,13 +5600,11 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                         const mo = key === 'money_out' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_out) || 0)
                         if (mi > 0 || mo > 0) updated.profit = mi - mo
                       }
-                      // Auto-calc churn rate and new members
-                      if (key === 'members_start' || key === 'members_lost' || key === 'members_current') {
+                      // Auto-calc churn rate
+                      if (key === 'members_start' || key === 'members_lost') {
                         const start = key === 'members_start' ? (val === '' ? 0 : Number(val)) : (Number(updated.members_start) || 0)
                         const lost = key === 'members_lost' ? (val === '' ? 0 : Number(val)) : (Number(updated.members_lost) || 0)
-                        const current = key === 'members_current' ? (val === '' ? 0 : Number(val)) : (Number(updated.members_current) || 0)
                         if (start > 0) updated.churn_rate = Math.round((lost / start) * 1000) / 10
-                        if (start > 0 || current > 0) updated.new_members = current - start + lost
                       }
                       setMonthlyReview(updated)
                     }}

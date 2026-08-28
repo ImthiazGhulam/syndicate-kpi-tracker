@@ -3547,18 +3547,6 @@ function AdminPageInner() {
                         )
                       })}
 
-                      {/* Revenue + Target */}
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-1">
-                        <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1.5">Revenue This Month</p>
-                          <p className="text-white text-2xl font-bold">{monthlyReview.revenue ? formatCurrency(monthlyReview.revenue) : '—'}</p>
-                        </div>
-                        <div className="bg-zinc-900 border-2 border-emerald-500/30 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-widest mb-1.5">Target for Next Month</p>
-                          <p className="text-white text-2xl font-bold">{monthlyReview.revenue_target ? formatCurrency(monthlyReview.revenue_target) : '—'}</p>
-                        </div>
-                      </div>
-
                       {/* Target hit */}
                       <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
                         <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-1.5">Did I hit my monthly target?</p>
