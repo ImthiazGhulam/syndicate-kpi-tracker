@@ -621,30 +621,48 @@ export default function ShowUpPageClient() {
       result = result.replace(placeholderRegex, iframe)
     }
 
-    // Inject transformation images
+    // Inject transformation images — target section 4 (Transformations) only
     const transformUrls = (images.transformations || []).filter(Boolean)
     if (transformUrls.length > 0) {
-      // Find photo placeholder divs and replace them one by one
-      let tIdx = 0
-      result = result.replace(/<div[^>]*>([^<]*Photo[^<]*)<\/div>/gi, (match) => {
-        // Only replace in the transformations section area (first batch of placeholders)
-        if (tIdx < transformUrls.length) {
-          const url = transformUrls[tIdx++]
-          return `<img src="${url}" alt="Transformation" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />`
-        }
-        return match
-      })
+      const transformSection = result.match(/<!-- SECTION 4:[\s\S]*?(?=<!-- SECTION 5:|$)/i)
+      if (transformSection) {
+        let tIdx = 0
+        const replaced = transformSection[0].replace(/<div[^>]*>([^<]*Photo[^<]*)<\/div>/gi, (match) => {
+          if (tIdx < transformUrls.length) {
+            const url = transformUrls[tIdx++]
+            return `<img src="${url}" alt="Transformation" style="width:100%;height:280px;object-fit:cover;border-radius:16px;" />`
+          }
+          return match
+        })
+        result = result.replace(transformSection[0], replaced)
+      }
     }
 
-    // Inject case study images
+    // Inject case study images — target section 5 (How Does It Work) only
     const caseUrls = (images.case_studies || []).filter(Boolean)
     if (caseUrls.length > 0) {
-      let cIdx = 0
-      // Case study photo placeholders appear after transformation ones
-      result = result.replace(/<div[^>]*>([^<]*Photo[^<]*)<\/div>/gi, (match) => {
-        if (cIdx < caseUrls.length) {
-          const url = caseUrls[cIdx++]
-          return `<img src="${url}" alt="Case study" style="width:100%;height:100%;object-fit:cover;border-radius:12px;" />`
+      const caseSection = result.match(/<!-- SECTION 5:[\s\S]*?(?=<!-- SECTION 6|$)/i)
+      if (caseSection) {
+        let cIdx = 0
+        const replaced = caseSection[0].replace(/<div[^>]*>([^<]*Photo[^<]*)<\/div>/gi, (match) => {
+          if (cIdx < caseUrls.length) {
+            const url = caseUrls[cIdx++]
+            return `<img src="${url}" alt="Case study" style="width:100%;height:100%;object-fit:cover;border-radius:16px;" />`
+          }
+          return match
+        })
+        result = result.replace(caseSection[0], replaced)
+      }
+    }
+
+    // Inject testimonial photos — replace initial-letter avatars with actual photos
+    const testimonialPhotos = (images.testimonial_photos || []).filter(Boolean)
+    if (testimonialPhotos.length > 0) {
+      let tpIdx = 0
+      result = result.replace(/<div style="width:48px;height:48px;border-radius:50%;background:[^"]*;display:flex;align-items:center;justify-content:center;">\s*<span[^>]*>[^<]*<\/span>\s*<\/div>/gi, (match) => {
+        if (tpIdx < testimonialPhotos.length) {
+          const url = testimonialPhotos[tpIdx++]
+          return `<img src="${url}" alt="Testimonial" style="width:48px;height:48px;border-radius:50%;object-fit:cover;" />`
         }
         return match
       })
@@ -668,7 +686,10 @@ export default function ShowUpPageClient() {
     return result
   }
 
-  const getFullHTML = () => injectMedia(pageHTML) || buildPageHTML(generatedOutput, styles, videoUrls, ppStar.name || clientData?.name || '')
+  const getFullHTML = () => {
+    const base = pageHTML || buildPageHTML(generatedOutput, styles, videoUrls, ppStar.name || clientData?.name || '')
+    return injectMedia(base)
+  }
 
   const downloadHTML = () => {
     const html = getFullHTML()
