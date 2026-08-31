@@ -5598,10 +5598,11 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                     onChange={(key, val) => {
                       const updated = { ...monthlyReview, [key]: val === '' ? null : Number(val) }
                       // Auto-calc profit
-                      if (key === 'money_in' || key === 'money_out') {
+                      if (key === 'money_in' || key === 'money_out' || key === 'personal_pay') {
                         const mi = key === 'money_in' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_in) || 0)
                         const mo = key === 'money_out' ? (val === '' ? 0 : Number(val)) : (Number(updated.money_out) || 0)
-                        if (mi > 0 || mo > 0) updated.profit = mi - mo
+                        const pp = key === 'personal_pay' ? (val === '' ? 0 : Number(val)) : (Number(updated.personal_pay) || 0)
+                        if (mi > 0 || mo > 0 || pp > 0) updated.profit = mi - mo - pp
                       }
                       // Auto-calc churn rate
                       if (key === 'members_start' || key === 'members_lost') {
