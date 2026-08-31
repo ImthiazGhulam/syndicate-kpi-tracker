@@ -1438,7 +1438,11 @@ function AdminPageInner() {
                                           <div key={metric.key} className="bg-zinc-900/50 rounded-lg p-2.5">
                                             <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{metric.label}</p>
                                             <p className="text-sm font-bold text-white">
-                                              {val !== null && val !== undefined ? (metric.step === '0.01' ? `£${Number(val).toLocaleString()}` : Number(val).toLocaleString()) : '—'}
+                                              {val !== null && val !== undefined ? (
+                                                metric.format === 'hours' ? `${Math.floor(Number(val))}h ${Math.round((Number(val) % 1) * 60)}m`
+                                                : metric.step === '0.01' ? `£${Number(val).toLocaleString()}`
+                                                : Number(val).toLocaleString()
+                                              ) : '—'}
                                             </p>
                                           </div>
                                         )
@@ -3791,7 +3795,11 @@ function AdminPageInner() {
                                   <div key={metric.key} className="bg-zinc-900/50 rounded-lg p-2.5">
                                     <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{metric.label}</p>
                                     <p className="text-sm font-bold text-white">
-                                      {val !== null && val !== undefined ? (metric.step === '0.01' ? `£${Number(val).toLocaleString()}` : Number(val).toLocaleString()) : '—'}
+                                      {val !== null && val !== undefined ? (
+                                        metric.format === 'hours' ? `${Math.floor(Number(val))}h ${Math.round((Number(val) % 1) * 60)}m`
+                                        : metric.step === '0.01' ? `£${Number(val).toLocaleString()}`
+                                        : Number(val).toLocaleString()
+                                      ) : '—'}
                                     </p>
                                   </div>
                                 )
