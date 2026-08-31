@@ -187,6 +187,8 @@ function AdminPageInner() {
   const [monthlyReviewsMonth, setMonthlyReviewsMonth] = useState(() => { const d = new Date(); return d.getDate() <= 7 ? (d.getMonth() === 0 ? 11 : d.getMonth() - 1) : d.getMonth() })
   const [monthlyReviewsYear, setMonthlyReviewsYear] = useState(() => { const d = new Date(); return d.getDate() <= 7 && d.getMonth() === 0 ? d.getFullYear() - 1 : d.getFullYear() })
   const [adminChartMetrics, setAdminChartMetrics] = useState(['cash_collected', 'calls_closed', 'new_followers'])
+  const [monthlyAISummary, setMonthlyAISummary] = useState(null)
+  const [generatingMonthlySummary, setGeneratingMonthlySummary] = useState(false)
   const [competitors, setCompetitors] = useState([])
   const [competitorPosts, setCompetitorPosts] = useState([])
   const [selectedCompetitor, setSelectedCompetitor] = useState(null) // null = overview, id = specific
@@ -1114,6 +1116,258 @@ function AdminPageInner() {
                   <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                 </button>
               </div>
+
+              {/* ═══ MONTHLY COMMAND CENTRE ═══ */}
+              {(() => {
+                const monthReviews = clients.map(c => {
+                  const reviews = allClientsMonthlyData[c.id] || []
+                  return { client: c, review: reviews.find(r => r.month === monthlyReviewsMonth && r.year === monthlyReviewsYear) || null, allReviews: reviews }
+                })
+                const submitted = monthReviews.filter(r => r.review)
+                const completed = submitted.filter(r => r.review?.completed)
+                const withRevenue = submitted.filter(r => r.review?.revenue > 0 || r.review?.cash_collected > 0)
+
+                const sum = (key) => submitted.reduce((t, r) => t + (Number(r.review?.[key]) || 0), 0)
+                const totalRevenue = sum('revenue')
+                const totalCashCollected = sum('cash_collected')
+                const totalProfit = sum('profit')
+                const totalCallsClosed = sum('calls_closed')
+                const totalCallsBooked = sum('calls_booked')
+                const totalCallsShown = sum('calls_shown')
+                const totalDMs = sum('dms_sent')
+                const totalOfferDocs = sum('offer_docs_sent')
+                const totalNewFollowers = sum('new_followers')
+                const totalShortForm = sum('short_form_posted')
+                const totalNewMembers = sum('new_members')
+                const totalMembersLost = sum('members_lost')
+                const ratings = submitted.filter(r => r.review?.month_rating).map(r => r.review.month_rating)
+                const avgRating = ratings.length > 0 ? (ratings.reduce((a, b) => a + b, 0) / ratings.length).toFixed(1) : null
+                const targetHitters = submitted.filter(r => r.review?.target_hit).length
+                const targetTotal = submitted.filter(r => r.review?.target_hit !== null && r.review?.target_hit !== undefined).length
+
+                return (
+                  <>
+                    {/* Summary Banner */}
+                    <div className="mb-6 rounded-xl border border-gold/20 bg-gold/[0.03] p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <h2 className="text-xs font-bold text-gold uppercase tracking-widest">Month Summary</h2>
+                        <div className="flex items-center gap-2">
+                          <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-1 rounded-full ${completed.length === clients.length ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-amber-500/10 text-amber-400 border border-amber-500/20'}`}>
+                            {completed.length}/{clients.length} completed
+                          </span>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3">
+                        {[
+                          { label: 'Total Revenue', value: `£${totalRevenue.toLocaleString()}`, color: 'text-gold' },
+                          { label: 'Cash Collected', value: `£${totalCashCollected.toLocaleString()}`, color: 'text-emerald-400' },
+                          { label: 'Total Profit', value: `£${totalProfit.toLocaleString()}`, color: totalProfit >= 0 ? 'text-sky-400' : 'text-red-400' },
+                          { label: 'Calls Closed', value: totalCallsClosed, color: 'text-violet-400' },
+                          { label: 'Avg Rating', value: avgRating ? `${avgRating}/10` : '—', color: avgRating >= 7 ? 'text-emerald-400' : avgRating >= 4 ? 'text-amber-400' : 'text-red-400' },
+                        ].map(stat => (
+                          <div key={stat.label} className="bg-zinc-900/60 rounded-lg p-3">
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{stat.label}</p>
+                            <p className={`text-lg font-black ${stat.color}`}>{stat.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-3 mt-3">
+                        {[
+                          { label: 'Target Hit', value: targetTotal > 0 ? `${targetHitters}/${targetTotal}` : '—', color: 'text-gold' },
+                          { label: 'DMs Sent', value: totalDMs, color: 'text-zinc-300' },
+                          { label: 'Offers Sent', value: totalOfferDocs, color: 'text-zinc-300' },
+                          { label: 'Calls Booked', value: totalCallsBooked, color: 'text-zinc-300' },
+                          { label: 'New Followers', value: totalNewFollowers.toLocaleString(), color: 'text-zinc-300' },
+                          { label: 'Content Posted', value: totalShortForm, color: 'text-zinc-300' },
+                        ].map(stat => (
+                          <div key={stat.label} className="bg-zinc-900/60 rounded-lg p-2.5">
+                            <p className="text-[9px] font-bold text-zinc-500 uppercase tracking-widest mb-1">{stat.label}</p>
+                            <p className={`text-sm font-bold ${stat.color}`}>{stat.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Per-Client Breakdown Table */}
+                    <div className="mb-6 rounded-xl border border-zinc-800 overflow-hidden">
+                      <div className="p-4 border-b border-zinc-800">
+                        <h2 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Client Breakdown</h2>
+                      </div>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="bg-zinc-900/80">
+                              {['Client', 'Revenue', 'Cash In', 'Profit', 'Calls Closed', 'Churn %', 'Rating', 'Target'].map(h => (
+                                <th key={h} className="text-left text-[9px] font-bold text-zinc-500 uppercase tracking-widest px-3 py-2.5">{h}</th>
+                              ))}
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {monthReviews.sort((a, b) => (Number(b.review?.revenue) || 0) - (Number(a.review?.revenue) || 0)).map(({ client, review }) => {
+                              if (!review) return (
+                                <tr key={client.id} className="border-t border-zinc-800/50">
+                                  <td className="px-3 py-2.5">
+                                    <p className="font-bold text-white">{client.name?.split(' ')[0] || client.email}</p>
+                                    {client.business && <p className="text-[9px] text-zinc-600">{client.business}</p>}
+                                  </td>
+                                  <td colSpan={7} className="px-3 py-2.5 text-zinc-600">No review</td>
+                                </tr>
+                              )
+                              const churn = review.churn_rate != null ? `${Number(review.churn_rate).toFixed(1)}%` : '—'
+                              const rating = review.month_rating
+                              const ratingColor = rating >= 7 ? 'text-emerald-400' : rating >= 4 ? 'text-amber-400' : 'text-red-400'
+                              return (
+                                <tr key={client.id} className="border-t border-zinc-800/50 hover:bg-zinc-900/30">
+                                  <td className="px-3 py-2.5">
+                                    <p className="font-bold text-white">{client.name?.split(' ')[0] || client.email}</p>
+                                    {client.business && <p className="text-[9px] text-zinc-600">{client.business}</p>}
+                                  </td>
+                                  <td className="px-3 py-2.5 font-bold text-gold">{review.revenue > 0 ? `£${Number(review.revenue).toLocaleString()}` : '—'}</td>
+                                  <td className="px-3 py-2.5 font-bold text-emerald-400">{review.cash_collected > 0 ? `£${Number(review.cash_collected).toLocaleString()}` : '—'}</td>
+                                  <td className={`px-3 py-2.5 font-bold ${Number(review.profit) >= 0 ? 'text-sky-400' : 'text-red-400'}`}>{review.profit != null && review.profit !== 0 ? `£${Number(review.profit).toLocaleString()}` : '—'}</td>
+                                  <td className="px-3 py-2.5 font-bold text-violet-400">{review.calls_closed > 0 ? review.calls_closed : '—'}</td>
+                                  <td className={`px-3 py-2.5 font-bold ${Number(review.churn_rate) > 10 ? 'text-red-400' : Number(review.churn_rate) > 5 ? 'text-amber-400' : 'text-zinc-300'}`}>{churn}</td>
+                                  <td className={`px-3 py-2.5 font-bold ${rating ? ratingColor : 'text-zinc-600'}`}>{rating ? `${rating}/10` : '—'}</td>
+                                  <td className="px-3 py-2.5">{review.target_hit != null ? (
+                                    <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${review.target_hit ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+                                      {review.target_hit ? 'Hit' : 'Missed'}
+                                    </span>
+                                  ) : '—'}</td>
+                                </tr>
+                              )
+                            })}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+
+                    {/* AI Monthly Summary Button */}
+                    <div className="mb-8">
+                      <button
+                        onClick={async () => {
+                          if (generatingMonthlySummary) return
+                          setGeneratingMonthlySummary(true)
+                          setMonthlyAISummary(null)
+                          try {
+                            const reviewsWithClients = submitted.map(({ client, review }) => ({
+                              clientName: client.name, business: client.business, industry: client.industry, ...review,
+                            }))
+                            const res = await fetch('/api/generate-plan', {
+                              method: 'POST',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({
+                                type: 'monthly-cohort-summary',
+                                data: {
+                                  month: ['January','February','March','April','May','June','July','August','September','October','November','December'][monthlyReviewsMonth],
+                                  year: monthlyReviewsYear,
+                                  reviews: reviewsWithClients,
+                                  totalClients: clients.length,
+                                  completedCount: completed.length,
+                                }
+                              })
+                            })
+                            const result = await res.json()
+                            if (result.summary) setMonthlyAISummary(result.summary)
+                            else alert(result.error || 'Failed to generate summary')
+                          } catch (err) {
+                            console.error('Monthly summary error:', err)
+                            alert('Failed to generate summary')
+                          }
+                          setGeneratingMonthlySummary(false)
+                        }}
+                        disabled={generatingMonthlySummary || submitted.length === 0}
+                        className="w-full py-3.5 bg-gold hover:bg-gold/90 disabled:opacity-50 text-zinc-950 font-bold text-xs uppercase tracking-widest rounded-xl transition"
+                      >
+                        {generatingMonthlySummary ? 'Analysing all clients...' : `AI Cohort Analysis — ${['January','February','March','April','May','June','July','August','September','October','November','December'][monthlyReviewsMonth]} ${monthlyReviewsYear}`}
+                      </button>
+                      {submitted.length === 0 && <p className="text-zinc-600 text-xs text-center mt-2">No reviews submitted for this month yet.</p>}
+                    </div>
+
+                    {/* AI Summary Report */}
+                    {monthlyAISummary && (
+                      <div className="mb-8 space-y-4 fade-in">
+                        {/* Header */}
+                        <div className="rounded-xl border-2 border-gold/30 bg-zinc-900 p-5">
+                          <div className="flex items-center justify-between mb-3">
+                            <h3 className="text-xs font-bold text-gold uppercase tracking-widest">AI Cohort Analysis</h3>
+                            <button onClick={() => setMonthlyAISummary(null)} className="text-zinc-500 hover:text-white text-xs">✕</button>
+                          </div>
+                          <p className="text-sm text-zinc-300 leading-relaxed">{monthlyAISummary.overall_summary}</p>
+                        </div>
+
+                        {/* Top Performers */}
+                        {monthlyAISummary.top_performers?.length > 0 && (
+                          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.03] p-4">
+                            <h4 className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-3">Thriving</h4>
+                            <div className="space-y-3">
+                              {monthlyAISummary.top_performers.map((p, i) => (
+                                <div key={i}>
+                                  <p className="text-sm font-bold text-white">{p.name}</p>
+                                  <p className="text-xs text-zinc-400 mt-0.5">{p.reason}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Needs Attention */}
+                        {monthlyAISummary.needs_attention?.length > 0 && (
+                          <div className="rounded-xl border border-red-500/20 bg-red-500/[0.03] p-4">
+                            <h4 className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-3">Needs Attention</h4>
+                            <div className="space-y-3">
+                              {monthlyAISummary.needs_attention.map((p, i) => (
+                                <div key={i}>
+                                  <p className="text-sm font-bold text-white">{p.name}</p>
+                                  <p className="text-xs text-zinc-400 mt-0.5">{p.concern}</p>
+                                  <p className="text-xs text-amber-400 mt-0.5">→ {p.action}</p>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Common Patterns */}
+                        {monthlyAISummary.patterns?.length > 0 && (
+                          <div className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-4">
+                            <h4 className="text-[10px] font-bold text-sky-400 uppercase tracking-widest mb-3">Common Patterns</h4>
+                            <div className="space-y-2">
+                              {monthlyAISummary.patterns.map((p, i) => (
+                                <p key={i} className="text-sm text-zinc-300">• {p}</p>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Revenue Breakdown */}
+                        {monthlyAISummary.revenue_breakdown && (
+                          <div className="rounded-xl border border-gold/20 bg-gold/[0.03] p-4">
+                            <h4 className="text-[10px] font-bold text-gold uppercase tracking-widest mb-3">Revenue Breakdown</h4>
+                            <p className="text-sm text-zinc-300 leading-relaxed">{monthlyAISummary.revenue_breakdown}</p>
+                          </div>
+                        )}
+
+                        {/* Coaching Priorities */}
+                        {monthlyAISummary.coaching_priorities?.length > 0 && (
+                          <div className="rounded-xl border border-violet-500/20 bg-violet-500/[0.03] p-4">
+                            <h4 className="text-[10px] font-bold text-violet-400 uppercase tracking-widest mb-3">Your Coaching Priorities</h4>
+                            <div className="space-y-3">
+                              {monthlyAISummary.coaching_priorities.map((p, i) => (
+                                <div key={i} className="flex gap-3">
+                                  <span className="text-gold font-bold text-sm">{i + 1}.</span>
+                                  <div>
+                                    <p className="text-sm font-bold text-white">{p.priority}</p>
+                                    <p className="text-xs text-zinc-400 mt-0.5">{p.detail}</p>
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </>
+                )
+              })()}
 
               {/* Client rows */}
               <div className="space-y-2">

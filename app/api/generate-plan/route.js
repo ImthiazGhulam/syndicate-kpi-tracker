@@ -1672,11 +1672,56 @@ ${reviewsFormatted}
 Give the full coaching report. Be specific and use their actual numbers. Identify the biggest leaks, celebrate improvements, and give clear action points with specific Motherboard tools to use.`
     }
 
+    // ── Monthly Cohort Summary — Admin Only ────────────────────────────
+    if (type === 'monthly-cohort-summary') {
+      systemPrompt = `You are a senior business coach reviewing the monthly performance of your entire client cohort. You must produce a coaching-ready summary that helps the coach (Imthiaz) understand the state of the group and prioritise his coaching time.
+
+ANALYSIS RULES:
+- Use actual numbers from the data. Never fabricate.
+- Plain British English. Short sentences. No em-dashes.
+- Identify who is thriving and who needs urgent attention.
+- Spot common patterns across the group (e.g. multiple clients struggling with the same thing).
+- Flag revenue concentration risks (if most revenue comes from 1-2 clients).
+- Calculate conversion rates where possible (DMs to calls, calls to closes).
+- Be direct and actionable. This is for the coach, not the clients.
+
+Respond with ONLY this JSON structure, no markdown fences:
+{
+  "overall_summary": "3-4 sentence summary of how the cohort performed this month. Include total revenue, completion rate, and overall vibe.",
+  "top_performers": [
+    { "name": "Client name", "reason": "Why they stood out this month — use their actual numbers" }
+  ],
+  "needs_attention": [
+    { "name": "Client name", "concern": "What the data shows — be specific with numbers", "action": "What Imthiaz should do in the next check-in" }
+  ],
+  "patterns": [
+    "Common pattern 1 across multiple clients",
+    "Common pattern 2"
+  ],
+  "revenue_breakdown": "Paragraph analysing where the revenue is coming from, concentration risks, and growth trends across the group",
+  "coaching_priorities": [
+    { "priority": "What to focus on as a coach this month", "detail": "Why this matters and who it affects" }
+  ]
+}`
+
+      const reviewsFormatted = (data.reviews || []).map(r => `${r.clientName} (${r.business || 'no business listed'}): ${JSON.stringify(r)}`).join('\n\n')
+
+      userPrompt = `Analyse the ${data.month} ${data.year} monthly reviews for the entire cohort.
+
+COMPLETION: ${data.completedCount}/${data.totalClients} clients have completed their review.
+
+ALL CLIENT REVIEWS FOR ${data.month?.toUpperCase()} ${data.year}:
+${reviewsFormatted}
+
+Give me the full cohort summary. Be specific. Use actual numbers. Tell me who is killing it, who needs help, what patterns you see across the group, and where I should focus my coaching energy.`
+    }
+
     if (!systemPrompt) {
       return NextResponse.json({ error: 'Unknown plan type' }, { status: 400 })
     }
 
-    const maxTokens = type === 'client-insights' ? 8000
+    const maxTokens = type === 'monthly-cohort-summary' ? 6000
+      : type === 'client-insights' ? 8000
       : type === 'sales-coach-analyse' ? 6000
       : type === 'sales-script-generate' ? 8000
       : type === 'sales-script-refine' ? 2000
@@ -1691,6 +1736,26 @@ Give the full coaching report. Be specific and use their actual numbers. Identif
     const message = await callAnthropicAPI(systemPrompt, userPrompt, maxTokens)
 
     const text = message.content[0].type === 'text' ? message.content[0].text : ''
+
+    // Monthly Cohort Summary — parse structured JSON report
+    if (type === 'monthly-cohort-summary') {
+      try {
+        const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+        const parsed = JSON.parse(cleaned)
+        return NextResponse.json({ summary: parsed })
+      } catch (parseErr) {
+        try {
+          const retry = await callAnthropicAPI(systemPrompt, userPrompt + '\nIMPORTANT: Return ONLY valid JSON, no markdown fences.', 6000)
+          const retryText = retry.content[0].type === 'text' ? retry.content[0].text : ''
+          const cleaned = retryText.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+          const parsed = JSON.parse(cleaned)
+          return NextResponse.json({ summary: parsed })
+        } catch (retryErr) {
+          console.error('Monthly cohort summary JSON parse failed:', retryErr)
+          return NextResponse.json({ error: 'Failed to parse summary. Please try again.' }, { status: 500 })
+        }
+      }
+    }
 
     // Client Insights — parse structured JSON report
     if (type === 'client-insights') {
