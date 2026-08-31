@@ -207,12 +207,12 @@ function buildPageHTML(output, styles, videoUrls, clientName) {
   const str = (v) => typeof v === 'string' ? v : (v ? JSON.stringify(v, null, 2) : '')
   const s1 = str(output?.section_1_hero)
   const s2 = str(output?.section_2_reminder)
-  const s3 = str(output?.section_3_expect)
+  const s3 = str(output?.section_2_expect_intro)
 
   const transformations = Array.isArray(output?.section_4_transformations) ? output.section_4_transformations : []
-  const caseStudies = Array.isArray(output?.section_5_casestudies) ? output.section_5_casestudies : []
-  const s6 = str(output?.section_6_testimonials_header)
-  const writtenTestimonials = Array.isArray(output?.section_7_testimonials) ? output.section_7_testimonials : []
+  const caseStudies = Array.isArray(output?.section_4_casestudies) ? output.section_4_casestudies : []
+  const s6 = str(output?.section_5_video_testimonials_heading)
+  const writtenTestimonials = Array.isArray(output?.section_6_testimonials) ? output.section_6_testimonials : []
 
   const transformGrid = transformations.map(t => `
     <div style="text-align:center;">
@@ -345,7 +345,7 @@ ${caseStudyBlocks || `<div style="text-align:center;padding:60px;"><span style="
 <!-- SECTION 6-7: TESTIMONIALS -->
 <div class="section"><div class="container">
 <div style="text-align:center;margin-bottom:48px;">
-<h2>${str(output?.section_6_testimonials_header) || "Here's What Our Members Think"}</h2>
+<h2>${str(output?.section_5_video_testimonials_heading) || "Here's What Our Members Think"}</h2>
 </div>
 <div class="grid-3">${testimonialCards || `<div style="grid-column:1/-1;text-align:center;padding:60px;"><span style="color:${s.bodyColor}30;font-size:14px;">Testimonials will appear here</span></div>`}</div>
 </div></div>
