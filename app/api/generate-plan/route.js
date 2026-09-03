@@ -27,7 +27,7 @@ async function callAnthropicAPI(system, user, maxTokens = 2500) {
 }
 
 export const dynamic = 'force-dynamic'
-export const maxDuration = 120
+export const maxDuration = 300
 
 export async function POST(req) {
   try {

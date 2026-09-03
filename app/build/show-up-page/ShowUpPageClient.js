@@ -524,6 +524,13 @@ export default function ShowUpPageClient() {
           build_gaps: buildGaps, gap_answers: { de: deGaps, offer: offerGaps },
         }}),
       })
+      if (!res.ok) {
+        const errText = await res.text()
+        console.error('Show Up API error:', res.status, errText.slice(0, 500))
+        if (res.status === 504) { setApiError('The AI took too long to respond. Please try again — it usually works on the second attempt.'); setGenerating(false); return }
+        try { const errJson = JSON.parse(errText); setApiError(errJson.error || `Server error (${res.status}). Please try again.`) } catch { setApiError(`Server error (${res.status}). Please try again.`) }
+        setGenerating(false); return
+      }
       const result = await res.json()
       console.log('Show Up raw result keys:', Object.keys(result))
       console.log('Show Up raw result preview:', JSON.stringify(result).slice(0, 800))
@@ -557,7 +564,10 @@ export default function ShowUpPageClient() {
         await saveToSupabase({ generated_output: output, status: 'complete' })
         generatePageHTML(output)
       }
-    } catch (err) { setApiError('Failed to connect. Please try again.') }
+    } catch (err) {
+      console.error('Show Up Page build error:', err)
+      setApiError(err.name === 'TypeError' && err.message?.includes('fetch') ? 'Network error — check your internet connection and try again.' : 'Failed to connect. Please try again.')
+    }
     setGenerating(false)
   }
 
