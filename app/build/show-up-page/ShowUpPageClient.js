@@ -511,8 +511,8 @@ export default function ShowUpPageClient() {
 
   const buildPage = async () => {
     setGenerating(true); setApiError(''); setAiGaps(null)
-    await writeToneBack(); await saveToSupabase()
     try {
+      await writeToneBack(); await saveToSupabase()
       const res = await fetch('/api/generate-plan', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ type: 'show-up-page', data: {
@@ -566,7 +566,7 @@ export default function ShowUpPageClient() {
       }
     } catch (err) {
       console.error('Show Up Page build error:', err)
-      setApiError(err.name === 'TypeError' && err.message?.includes('fetch') ? 'Network error — check your internet connection and try again.' : 'Failed to connect. Please try again.')
+      setApiError(`Error: ${err?.message || err || 'Unknown'} (${err?.name || 'no type'})`)
     }
     setGenerating(false)
   }
