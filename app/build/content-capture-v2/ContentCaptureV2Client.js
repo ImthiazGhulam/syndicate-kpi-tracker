@@ -581,7 +581,12 @@ ${brandContext}${salesContext}
 
 The moment: ${facts.join('. ')}
 
-HOOK: The opening line must stop the scroll. Lead with the sharpest, most specific detail from the moment above. A number, a result, a confronting truth. Not a setup, not context, not backstory. The thing that makes someone pause mid-thumb. If the hook could belong on anyone else's page, rewrite it.
+HOOK — the opening must pass all four of these checks:
+1. ZERO DELAY: The topic or payoff lands in the first sentence. No throat-clearing, no "guys, this is crazy", no context before the point. Speed to value.
+2. ZERO CONFUSION: Sixth-grade reading level. Short words, active voice, one idea per sentence. If there is more than one way to read it, rewrite it until there isn't.
+3. RELEVANT TO THEM: Frame it with "you" and "your", not "I" and "my". Agitate a pain point they already have so the solution feels targeted for them, not a nice-to-have.
+4. CURIOSITY THROUGH CONTRAST: Set up a gap between what they currently believe and a contrarian or surprising alternative. Stated contrast ("most people do X — this does Y") or implied contrast (state your alternative and let the baseline be obvious). That gap is what stops the scroll.
+Lead with the sharpest, most specific detail from the moment — a number, a result, a confronting truth. If the hook could belong on anyone else's page, rewrite it.
 
 Only use facts from above. Anything missing: write {{WHAT'S NEEDED}} in gold caps. Never invent.
 ${redoNote ? `\nLast draft wasn't right: ${redoNote}` : ''}`
