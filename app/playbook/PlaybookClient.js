@@ -1241,9 +1241,36 @@ export default function PlaybookPage() {
           )}
 
           {icpData.engine_name && (
-            <div className="bg-gold/5 border border-gold/20 rounded-lg p-4 mb-6">
-              <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Your Engine</p>
-              <p className="text-lg font-bold text-gold">{icpData.engine_name}</p>
+            <div className="bg-gold/5 border border-gold/20 rounded-lg p-4 mb-6 flex items-center justify-between">
+              <div>
+                <p className="text-xs text-zinc-500 uppercase tracking-widest mb-1">Your Engine</p>
+                <p className="text-lg font-bold text-gold">{icpData.engine_name}</p>
+              </div>
+              <button onClick={async () => {
+                if (!deData) return
+                const updated = {
+                  ...icpData,
+                  problems: [deData.problem_1 || '', deData.problem_2 || '', deData.problem_3 || ''],
+                  pillar_names: [deData.pillar_1 || '', deData.pillar_2 || '', deData.pillar_3 || ''],
+                  solutions: [
+                    [deData.solution_1_1 || '', deData.solution_1_2 || '', deData.solution_1_3 || ''],
+                    [deData.solution_2_1 || '', deData.solution_2_2 || '', deData.solution_2_3 || ''],
+                    [deData.solution_3_1 || '', deData.solution_3_2 || '', deData.solution_3_3 || ''],
+                  ],
+                  mechanisms: [
+                    [deData.mechanism_1_1 || '', deData.mechanism_1_2 || '', deData.mechanism_1_3 || ''],
+                    [deData.mechanism_2_1 || '', deData.mechanism_2_2 || '', deData.mechanism_2_3 || ''],
+                    [deData.mechanism_3_1 || '', deData.mechanism_3_2 || '', deData.mechanism_3_3 || ''],
+                  ],
+                  engine_name: deData.engine_name || '',
+                  promise: icpData.promise || deData.promise || '',
+                }
+                setIcpData(updated)
+                await saveToSupabase({ icp: updated })
+                flash()
+              }} className="px-3 py-1.5 text-xs font-bold uppercase tracking-widest text-gold border border-gold/30 rounded-lg hover:bg-gold/10 transition flex-shrink-0">
+                Refresh from DE
+              </button>
             </div>
           )}
 
