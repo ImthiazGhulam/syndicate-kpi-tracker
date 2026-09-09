@@ -56,7 +56,7 @@ function CoachLoading({ lines }) {
   )
 }
 
-function MessageBubble({ message }) {
+function MessageBubble({ message, onApplyUpdates }) {
   const isUser = message.role === 'user'
   if (isUser) {
     return (
@@ -68,11 +68,25 @@ function MessageBubble({ message }) {
       </div>
     )
   }
+  const updates = message.proposed_updates || []
+  const pendingUpdates = updates.filter(u => u.proposed && !u.applied)
   return (
     <div className="flex items-start gap-3 mb-4">
       <div className="w-8 h-8 rounded-full bg-gold/20 border border-gold/30 flex items-center justify-center flex-shrink-0 mt-1"><span className="text-xs">🎯</span></div>
       <div className="glass-card p-4 max-w-[85%]">
         <div className="text-sm text-zinc-200 whitespace-pre-wrap leading-relaxed">{formatCoachResponse(message.content)}</div>
+        {pendingUpdates.length > 0 && (
+          <button onClick={() => onApplyUpdates(message)}
+            className="mt-3 w-full px-4 py-2.5 bg-gold/10 border border-gold/30 rounded-lg text-xs font-bold uppercase tracking-widest text-gold hover:bg-gold/20 transition flex items-center justify-center gap-2">
+            <span>📋</span> Update {pendingUpdates.length === 1 ? `${pendingUpdates[0].lead_name}'s Card` : `${pendingUpdates.length} Cards`}
+          </button>
+        )}
+        {updates.length > 0 && updates.every(u => u.applied) && (
+          <div className="mt-3 flex items-center gap-2 text-emerald-400 text-xs font-semibold">
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" /></svg>
+            Cards updated
+          </div>
+        )}
       </div>
     </div>
   )
@@ -225,7 +239,11 @@ export default function DMCoachClient() {
       if (result.error) {
         setMessages([...newMessages, { role: 'assistant', content: `Something went wrong: ${result.error}. Try again.` }])
       } else {
-        setMessages([...newMessages, { role: 'assistant', content: result.reply }])
+        const assistantMsg = { role: 'assistant', content: result.reply }
+        if (result.proposed_updates && result.proposed_updates.length > 0) {
+          assistantMsg.proposed_updates = result.proposed_updates
+        }
+        setMessages([...newMessages, assistantMsg])
       }
     } catch (err) {
       setMessages([...newMessages, { role: 'assistant', content: 'Failed to connect. Check your internet and try again.' }])
@@ -245,6 +263,28 @@ export default function DMCoachClient() {
   }
 
   const clearChat = () => { setMessages([]); setInput('') }
+
+  // ── Apply proposed card updates ──────────────────────────────────────────
+
+  const applyCardUpdates = async (message) => {
+    const updates = (message.proposed_updates || []).filter(u => u.proposed && !u.applied)
+    for (const update of updates) {
+      const changes = { updated_at: new Date().toISOString() }
+      if (update.proposed_note) {
+        const existingNotes = update.current_notes || ''
+        changes.notes = existingNotes ? `${existingNotes}\n\n${update.proposed_note}` : update.proposed_note
+      }
+      if (update.proposed_stage) changes.status = update.proposed_stage
+      await supabase.from('leads').update(changes).eq('id', update.lead_id)
+      update.applied = true
+    }
+    setMessages(prev => prev.map(m => m === message ? { ...m, proposed_updates: [...m.proposed_updates] } : m))
+    // Refresh leads
+    if (clientData) {
+      const { data } = await supabase.from('leads').select('*').eq('client_id', clientData.id).order('updated_at', { ascending: false })
+      if (data) setLeads(data)
+    }
+  }
 
   // ── Filtered leads ────────────────────────────────────────────────────────
 
@@ -344,7 +384,7 @@ export default function DMCoachClient() {
                 </div>
               )}
 
-              {messages.map((msg, i) => <MessageBubble key={i} message={msg} />)}
+              {messages.map((msg, i) => <MessageBubble key={i} message={msg} onApplyUpdates={applyCardUpdates} />)}
               {sending && <CoachLoading lines={COACH_STATUS_LINES} />}
               <div ref={messagesEndRef} />
             </div>
