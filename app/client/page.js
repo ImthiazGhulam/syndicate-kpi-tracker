@@ -5,7 +5,9 @@ import { useRouter } from 'next/navigation'
 import { supabase } from '../../lib/supabase'
 import ExpertOSMark from '../components/ExpertOSMark'
 import MonthlyMetricsChart from '../components/MonthlyMetricsChart'
+import RosterBoard from '../components/RosterBoard'
 import { MONTHLY_METRICS, MONTHLY_METRIC_GROUPS, ALL_METRIC_KEYS, getMetricColor } from '../../lib/monthly-constants'
+import { ROSTER_TRADEMARK, HEALTH_COLORS, TOUCHABLE_STATUSES } from '../../lib/roster-constants'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
@@ -443,6 +445,7 @@ export default function ClientPage() {
   const [dailyPulse, setDailyPulse] = useState({ intention: '', feeling: '', win: '', money_task: '', todo_1: '', todo_2: '', todo_3: '', gratitude: '', let_go: '', identity_read: false, completed: false, completed_at: null })
   const [dailyPulseDate, setDailyPulseDate] = useState(() => localDateStr())
   const [pulseSaving, setPulseSaving] = useState(false)
+  const [rosterTouches, setRosterTouches] = useState([]) // Today's roster touches for Morning Ops
 
   // Design™
   const [lifeDesign, setLifeDesign] = useState(null)
@@ -679,6 +682,43 @@ export default function ClientPage() {
     if (milestonesRes.data) setMisogiMilestones(milestonesRes.data)
     if (blocksRes.data) setMisogiBlocks(blocksRes.data)
     if (daysOffRes.data) setDaysOff(daysOffRes.data)
+
+    // Roster: load today's touches for Morning Ops
+    const coachId = client.user_id || client.id
+    const { data: rosterData } = await supabase
+      .from('roster_clients')
+      .select('id, name, status, health, cadence_days, red_days, last_personal_touch_at, start_date, term_end_date')
+      .eq('coach_id', coachId)
+      .in('status', [...TOUCHABLE_STATUSES, 'resign_window'])
+    if (rosterData) {
+      const now = new Date()
+      const todayStr = today
+      const items = []
+      for (const rc of rosterData) {
+        const anchor = rc.last_personal_touch_at ? new Date(rc.last_personal_touch_at) : new Date(rc.start_date)
+        const daysSince = Math.floor((now - anchor) / (1000 * 60 * 60 * 24))
+        const isRed = daysSince >= rc.red_days
+        const isAmber = daysSince >= rc.cadence_days
+        // Red cards, amber cards due today, resign runway stages due today
+        if (isRed) items.push({ id: rc.id, name: rc.name, type: 'red', label: `No personal touch in ${daysSince} days`, priority: 0 })
+        else if (isAmber) items.push({ id: rc.id, name: rc.name, type: 'amber', label: `Touch due — ${daysSince} days`, priority: 1 })
+      }
+      // Check resign events due today
+      const { data: dueEvents } = await supabase
+        .from('resign_events')
+        .select('id, client_id, stage, due_at, roster_clients!inner(name)')
+        .lte('due_at', todayStr)
+        .is('completed_at', null)
+      if (dueEvents) {
+        for (const ev of dueEvents) {
+          const stageLabel = ev.stage === 't45_book_call' ? 'Book resign call' : ev.stage === 't30_win_stack' ? 'Win Stack' : ev.stage === 't14_script' ? 'Resign script' : 'Call outcome'
+          items.push({ id: ev.client_id, name: ev.roster_clients?.name || 'Client', type: 'runway', label: stageLabel + ' due', priority: 2 })
+        }
+      }
+      items.sort((a, b) => a.priority - b.priority)
+      setRosterTouches(items)
+    }
+
     setLoading(false)
   }
 
@@ -902,6 +942,21 @@ export default function ClientPage() {
       setMovedFlash('Deal closed — Client Won')
       setTimeout(() => setMovedFlash(null), 2000)
       logActivity(leadId, lead?.name, lead?.status, 'client_won', { offerType, cashCollected, cashContracted })
+      // Hook: Hot List → Roster — create a roster_clients row
+      if (clientData?.user_id || clientData?.id) {
+        const rosterRow = {
+          coach_id: clientData.user_id || clientData.id,
+          name: lead?.name || data.name,
+          phone_e164: null,
+          status: 'onboarding',
+          hot_list_card_id: leadId,
+        }
+        const { error: rosterErr } = await supabase.from('roster_clients').insert(rosterRow)
+        if (!rosterErr) {
+          setMovedFlash('Added to the Roster — fill their Life Notes.')
+          setTimeout(() => setMovedFlash(null), 3000)
+        }
+      }
     }
     setAnimatingLeadId(null)
   }
@@ -2446,6 +2501,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
       { id: 'identity',    label: 'Identity Chamber™',   icon: '🪞' },
       { id: 'morning-ops', label: 'Morning Ops™',        icon: '☀️' },
       { id: 'hot-list',    label: 'Hot List',             icon: '🔥' },
+      { id: 'roster',      label: ROSTER_TRADEMARK,       icon: '📋' },
       { id: 'debrief',     label: 'The Debrief™',        icon: '🌙' },
     ]},
     { heading: 'Weekly', items: [
@@ -2598,7 +2654,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
           <div className="w-9" />
         </header>
 
-        <div className={`mx-auto p-4 md:px-8 md:py-8 ${activeTab === 'hot-list' ? 'max-w-7xl' : 'max-w-4xl'}`}>
+        <div className={`mx-auto p-4 md:px-8 md:py-8 ${activeTab === 'hot-list' || activeTab === 'roster' ? 'max-w-7xl' : 'max-w-4xl'}`}>
 
           {/* Page title */}
           <div className="mb-8 animate-fade-in">
@@ -3041,6 +3097,23 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
             )}
 
             <div className="space-y-6">
+              {/* Today's Touches — Roster integration */}
+              {rosterTouches.length > 0 && (
+                <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
+                  <h3 className="text-[10px] font-display text-gold uppercase tracking-widest mb-3">Today&apos;s Touches</h3>
+                  <div className="space-y-1.5">
+                    {rosterTouches.map((item, i) => (
+                      <button key={`${item.id}-${i}`} onClick={() => { setActiveTab('roster') }}
+                        className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-800 transition text-left group">
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.type === 'red' ? 'bg-red-400' : item.type === 'amber' ? 'bg-amber-400' : 'bg-violet-400'}`} />
+                        <span className="text-sm text-white font-semibold truncate">{item.name}</span>
+                        <span className={`text-[10px] font-mono ml-auto flex-shrink-0 ${item.type === 'red' ? 'text-red-400' : item.type === 'amber' ? 'text-amber-400' : 'text-violet-400'}`}>{item.label}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {/* Intention */}
               <div>
               {/* Weekly target reminder */}
@@ -5083,6 +5156,11 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               </div>
             </div>
           </div>
+        )}
+
+        {/* ── THE ROSTER™ ──────────────────────────────────────────────── */}
+        {activeTab === 'roster' && (
+          <RosterBoard clientData={clientData} />
         )}
 
         {/* ── THE DEBRIEF™ ──────────────────────────────────────────────── */}
