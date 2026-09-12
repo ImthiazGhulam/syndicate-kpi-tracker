@@ -943,9 +943,9 @@ export default function ClientPage() {
       setTimeout(() => setMovedFlash(null), 2000)
       logActivity(leadId, lead?.name, lead?.status, 'client_won', { offerType, cashCollected, cashContracted })
       // Hook: Hot List → Roster — create a roster_clients row
-      if (clientData?.user_id || clientData?.id) {
+      if (user?.id) {
         const rosterRow = {
-          coach_id: clientData.user_id || clientData.id,
+          coach_id: user.id,
           name: lead?.name || data.name,
           phone_e164: null,
           status: 'onboarding',
@@ -5160,7 +5160,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
 
         {/* ── THE ROSTER™ ──────────────────────────────────────────────── */}
         {activeTab === 'roster' && (
-          <RosterBoard clientData={clientData} />
+          <RosterBoard clientData={clientData} authUser={user} />
         )}
 
         {/* ── THE DEBRIEF™ ──────────────────────────────────────────────── */}

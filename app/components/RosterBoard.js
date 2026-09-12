@@ -22,9 +22,9 @@ function cleanPhone(phone) {
   return phone.replace(/[\s\-()]/g, '')
 }
 
-export default function RosterBoard({ clientData }) {
-  const coachId = clientData?.user_id || clientData?.id
-  const coachClientId = clientData?.id
+export default function RosterBoard({ clientData, authUser }) {
+  const coachId = authUser?.id  // auth.users UUID — matches RLS auth.uid()
+  const coachClientId = clientData?.id  // clients table UUID — for voice profile lookups
 
   // ── State ─────────────────────────────────────────────────────────────────
   const [clients, setClients] = useState([])
