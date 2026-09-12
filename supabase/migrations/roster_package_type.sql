@@ -3,7 +3,7 @@
 -- Add package_type column
 ALTER TABLE roster_clients
   ADD COLUMN IF NOT EXISTS package_type TEXT DEFAULT 'rolling'
-    CHECK (package_type IN ('12_month', '6_month', '3_month', '28_day', 'rolling'));
+    CHECK (package_type IN ('12_month', '6_month', '4_month', '3_month', '28_day', 'rolling'));
 
 -- Update resign_events stage constraint to accept new proportional stage IDs
 ALTER TABLE resign_events DROP CONSTRAINT IF EXISTS resign_events_stage_check;
