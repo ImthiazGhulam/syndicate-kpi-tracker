@@ -298,10 +298,6 @@ export default function RosterBoard({ clientData, authUser }) {
     }
   }
 
-  const toggleProof = async (winId, current) => {
-    await supabase.from('wins').update({ use_as_proof: !current }).eq('id', winId)
-    setWins(prev => prev.map(w => w.id === winId ? { ...w, use_as_proof: !current } : w))
-  }
 
   // ── Touch logging ─────────────────────────────────────────────────────────
   const logTouch = async (type, channel, messageText, aiDrafted, lifeNoteId) => {
@@ -867,17 +863,10 @@ export default function RosterBoard({ clientData, authUser }) {
                       className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold transition" />
                     <button onClick={addWin} className="px-3 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded transition">Add</button>
                   </div>
-                  {/* Filter: show proof only */}
                   {wins.length === 0 && <p className="text-zinc-600 text-sm">No wins logged yet.</p>}
                   {wins.map(win => (
-                    <div key={win.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3 group">
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm text-zinc-300 flex-1">{win.text}</p>
-                        <button onClick={() => toggleProof(win.id, win.use_as_proof)}
-                          className={`text-[10px] font-semibold uppercase tracking-wider px-2 py-0.5 rounded transition ${win.use_as_proof ? 'bg-gold/20 text-gold' : 'bg-zinc-700 text-zinc-500 hover:text-gold'}`}>
-                          {win.use_as_proof ? 'Proof ✓' : 'Use as proof'}
-                        </button>
-                      </div>
+                    <div key={win.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
+                      <p className="text-sm text-zinc-300">{win.text}</p>
                       <p className="text-[10px] text-zinc-600 mt-1 font-mono">{win.source} · {new Date(win.win_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                     </div>
                   ))}
