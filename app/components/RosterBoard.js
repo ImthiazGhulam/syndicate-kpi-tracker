@@ -6,7 +6,8 @@ import {
   ROSTER_TRADEMARK, ROSTER_COLUMNS, TERMINAL_STATUSES, TOUCHABLE_STATUSES,
   HEALTH_COLORS, HEALTH_TEXT, DEFAULT_CADENCE_DAYS, DEFAULT_RED_DAYS,
   ONBOARDING_PROMPTS, CHURN_REASONS, RESIGN_STAGES, MAX_SNOOZES,
-  RESIGN_SCRIPT_STAGES, DRAFT_MAX_WORDS,
+  RESIGN_SCRIPT_STAGES, DRAFT_MAX_WORDS, PACKAGE_PRESETS,
+  getRunwayDays, getStageDueDates,
 } from '../../lib/roster-constants'
 
 const supabase = createClient(
@@ -44,6 +45,7 @@ export default function RosterBoard({ clientData, authUser }) {
   // Add card
   const [addingCol, setAddingCol] = useState(null)
   const [newName, setNewName] = useState('')
+  const [newPackage, setNewPackage] = useState('rolling')
 
   // Draft
   const [draft, setDraft] = useState(null) // { message, life_note_id }
@@ -131,14 +133,27 @@ export default function RosterBoard({ clientData, authUser }) {
   // ── Add client ────────────────────────────────────────────────────────────
   const addClient = async (status) => {
     if (!newName.trim() || !coachId) return
+    const preset = PACKAGE_PRESETS.find(p => p.id === newPackage) || PACKAGE_PRESETS[4]
+    const termEnd = preset.termDays
+      ? new Date(Date.now() + preset.termDays * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+      : null
     const { data } = await supabase
       .from('roster_clients')
-      .insert({ coach_id: coachId, name: newName.trim(), status })
+      .insert({
+        coach_id: coachId,
+        name: newName.trim(),
+        status,
+        package_type: newPackage,
+        cadence_days: preset.cadence,
+        red_days: preset.red,
+        term_end_date: termEnd,
+      })
       .select()
       .single()
     if (data) {
       setClients(prev => [data, ...prev])
       setNewName('')
+      setNewPackage('rolling')
       setAddingCol(null)
       showToast('Client added')
       if (status === 'onboarding') {
@@ -590,6 +605,11 @@ export default function RosterBoard({ clientData, authUser }) {
                     {TERMINAL_STATUSES.includes(client.status) && (
                       <p className="text-[10px] text-zinc-600 mt-1 uppercase tracking-wider">{client.status}</p>
                     )}
+
+                    {/* Package label */}
+                    {!TERMINAL_STATUSES.includes(client.status) && client.package_type && (
+                      <p className="text-[10px] text-zinc-600 mt-1 font-mono">{PACKAGE_PRESETS.find(p => p.id === client.package_type)?.label || client.package_type}</p>
+                    )}
                   </div>
                 ))}
 
@@ -599,22 +619,28 @@ export default function RosterBoard({ clientData, authUser }) {
                     {addingCol === col.id ? (
                       <div className="space-y-2">
                         <input autoFocus value={newName} onChange={e => setNewName(e.target.value)}
-                          onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) addClient(col.id); if (e.key === 'Escape') { setAddingCol(null); setNewName('') } }}
+                          onKeyDown={e => { if (e.key === 'Enter' && newName.trim()) addClient(col.id); if (e.key === 'Escape') { setAddingCol(null); setNewName(''); setNewPackage('rolling') } }}
                           placeholder="Client name..."
                           className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition" />
+                        <select value={newPackage} onChange={e => setNewPackage(e.target.value)}
+                          className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold transition">
+                          {PACKAGE_PRESETS.map(p => (
+                            <option key={p.id} value={p.id}>{p.label}{p.termDays ? ` (touch every ${p.cadence}d)` : ''}</option>
+                          ))}
+                        </select>
                         <div className="flex gap-1.5">
                           <button onClick={() => addClient(col.id)}
                             className="flex-1 py-1.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded transition">
                             Add
                           </button>
-                          <button onClick={() => { setAddingCol(null); setNewName('') }}
+                          <button onClick={() => { setAddingCol(null); setNewName(''); setNewPackage('rolling') }}
                             className="px-3 py-1.5 border border-zinc-700 text-zinc-500 text-[10px] uppercase tracking-widest rounded transition">
                             ✕
                           </button>
                         </div>
                       </div>
                     ) : (
-                      <button onClick={() => { setAddingCol(col.id); setNewName('') }}
+                      <button onClick={() => { setAddingCol(col.id); setNewName(''); setNewPackage('rolling') }}
                         className="w-full py-2 text-[10px] font-semibold text-zinc-600 hover:text-gold active:text-gold uppercase tracking-widest transition text-center rounded hover:bg-zinc-800/60">
                         + Add client
                       </button>

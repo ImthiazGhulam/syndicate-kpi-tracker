@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { TOUCHABLE_STATUSES, WINS_STALE_DAYS, RESIGN_RUNWAY_DAYS, RESIGN_STAGES } from '../../../../lib/roster-constants'
+import { TOUCHABLE_STATUSES, WINS_STALE_DAYS, getRunwayDays, getStageDueDates } from '../../../../lib/roster-constants'
 
 export const dynamic = 'force-dynamic'
 export const maxDuration = 60
@@ -36,7 +36,6 @@ export async function GET() {
 
         let newHealth = 'green'
         let newStatus = client.status
-        let reason = null
 
         if (daysSince >= client.red_days) {
           newHealth = 'red'
@@ -56,14 +55,12 @@ export async function GET() {
 
           if (count === 0) {
             newHealth = 'red'
-            reason = `Quiet ${daysSince} days, no win logged in ${WINS_STALE_DAYS}+ days.`
           }
         }
 
         // Red health → at_risk (unless already in at_risk or onboarding)
         if (newHealth === 'red' && client.status === 'active') {
           newStatus = 'at_risk'
-          if (!reason) reason = `No personal touch in ${daysSince} days.`
         }
 
         // Only update if something changed
@@ -79,34 +76,33 @@ export async function GET() {
       }
     }
 
-    // ── 2. Resign window trigger: term_end_date within 45 days ─────────────
-    const cutoff = new Date(now)
-    cutoff.setDate(cutoff.getDate() + RESIGN_RUNWAY_DAYS)
-    const cutoffDate = cutoff.toISOString().slice(0, 10)
-
+    // ── 2. Resign window: trigger at 75% of term (25% remaining) ──────────
+    // Fetch all term clients not yet in resign flow
     const { data: termClients } = await supabase
       .from('roster_clients')
-      .select('id, coach_id, term_end_date')
+      .select('id, coach_id, start_date, term_end_date')
       .not('term_end_date', 'is', null)
-      .lte('term_end_date', cutoffDate)
       .not('status', 'in', '("resign_window","resigned","churned")')
 
     if (termClients && termClients.length > 0) {
       for (const client of termClients) {
-        const termEnd = new Date(client.term_end_date)
+        const runwayDays = getRunwayDays(client.start_date, client.term_end_date)
+        if (!runwayDays) continue
 
-        // Create the four resign_events rows
-        const events = RESIGN_STAGES.map(stage => {
-          const dueDate = new Date(termEnd)
-          dueDate.setDate(dueDate.getDate() - stage.offsetDays)
-          // If due date is in the past, set to today
-          const due = dueDate < now ? today : dueDate.toISOString().slice(0, 10)
-          return {
-            client_id: client.id,
-            stage: stage.id,
-            due_at: due,
-          }
-        })
+        const termEnd = new Date(client.term_end_date)
+        const triggerDate = new Date(termEnd)
+        triggerDate.setDate(triggerDate.getDate() - runwayDays)
+
+        // Only trigger if we've passed the 75% mark
+        if (now < triggerDate) continue
+
+        // Create resign_events with proportional due dates
+        const stages = getStageDueDates(client.term_end_date, runwayDays)
+        const events = stages.map(stage => ({
+          client_id: client.id,
+          stage: stage.id,
+          due_at: stage.dueDate < today ? today : stage.dueDate,
+        }))
 
         await supabase.from('resign_events').insert(events)
         await supabase
