@@ -4572,58 +4572,94 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                   </div>
                 )}
 
-                {pipelineInsights && !insightsLoading && (
-                  <div className="p-4 space-y-4">
-                    {pipelineInsights.summary && (
-                      <p className="text-zinc-300 text-sm leading-relaxed">{pipelineInsights.summary}</p>
-                    )}
+                {pipelineInsights && !insightsLoading && (() => {
+                  // Split insight text into headline + evidence quotes
+                  const splitInsight = (text) => {
+                    // Try to split on first parenthetical block containing names/quotes
+                    const match = text.match(/^(.+?)\s*\(([^)]+(?:\([^)]*\))*[^)]*)\)\s*$/)
+                    if (match) return { headline: match[1].replace(/,\s*$/, ''), evidence: match[2] }
+                    // Try splitting on common patterns like "Name: 'quote'"
+                    const nameQuoteIdx = text.search(/\s+\w+:\s*['"]/)
+                    if (nameQuoteIdx > 20) return { headline: text.slice(0, nameQuoteIdx).replace(/,\s*$/, ''), evidence: text.slice(nameQuoteIdx).trim() }
+                    return { headline: text, evidence: null }
+                  }
 
-                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                      {pipelineInsights.top_objections && (
-                        <div className="bg-red-500/5 border border-red-500/20 rounded-lg p-3">
-                          <p className="text-[10px] font-bold text-red-400 uppercase tracking-widest mb-2">Top Objections</p>
-                          {pipelineInsights.top_objections.map((o, i) => (
-                            <p key={i} className="text-xs text-zinc-300 mb-1">• {o}</p>
-                          ))}
+                  const InsightCard = ({ items, title, borderColor, textColor, bgColor }) => {
+                    if (!items || items.length === 0) return null
+                    return (
+                      <div className={`${bgColor} border ${borderColor} rounded-lg p-3`}>
+                        <p className={`text-[10px] font-bold ${textColor} uppercase tracking-widest mb-3`}>{title}</p>
+                        <div className="space-y-2.5">
+                          {items.map((item, i) => {
+                            const { headline, evidence } = splitInsight(item)
+                            return (
+                              <div key={i}>
+                                <p className="text-xs text-white font-medium leading-snug">{i + 1}. {headline}</p>
+                                {evidence && <p className="text-[10px] text-zinc-500 mt-0.5 leading-relaxed italic">{evidence}</p>}
+                              </div>
+                            )
+                          })}
+                        </div>
+                      </div>
+                    )
+                  }
+
+                  return (
+                    <div className="p-4 space-y-4">
+                      {pipelineInsights.summary && (
+                        <p className="text-zinc-300 text-sm leading-relaxed">{pipelineInsights.summary}</p>
+                      )}
+
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <InsightCard items={pipelineInsights.top_objections} title="Top Objections" borderColor="border-red-500/20" textColor="text-red-400" bgColor="bg-red-500/5" />
+                        <InsightCard items={pipelineInsights.top_pain_points} title="Top Pain Points" borderColor="border-amber-500/20" textColor="text-amber-400" bgColor="bg-amber-500/5" />
+                        <InsightCard items={pipelineInsights.top_desires} title="Top Desires" borderColor="border-emerald-500/20" textColor="text-emerald-400" bgColor="bg-emerald-500/5" />
+                      </div>
+
+                      {pipelineInsights.gap_patterns && pipelineInsights.gap_patterns.length > 0 && (
+                        <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
+                          <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-3">Gap Patterns</p>
+                          <div className="space-y-2.5">
+                            {pipelineInsights.gap_patterns.map((g, i) => {
+                              const { headline, evidence } = splitInsight(g)
+                              return (
+                                <div key={i}>
+                                  <p className="text-xs text-white font-medium leading-snug">{i + 1}. {headline}</p>
+                                  {evidence && <p className="text-[10px] text-zinc-500 mt-0.5 leading-relaxed italic">{evidence}</p>}
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
-                      {pipelineInsights.top_pain_points && (
-                        <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-3">
-                          <p className="text-[10px] font-bold text-amber-400 uppercase tracking-widest mb-2">Top Pain Points</p>
-                          {pipelineInsights.top_pain_points.map((p, i) => (
-                            <p key={i} className="text-xs text-zinc-300 mb-1">• {p}</p>
-                          ))}
-                        </div>
-                      )}
-                      {pipelineInsights.top_desires && (
-                        <div className="bg-emerald-500/5 border border-emerald-500/20 rounded-lg p-3">
-                          <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest mb-2">Top Desires</p>
-                          {pipelineInsights.top_desires.map((d, i) => (
-                            <p key={i} className="text-xs text-zinc-300 mb-1">• {d}</p>
-                          ))}
+
+                      {pipelineInsights.content_angles && pipelineInsights.content_angles.length > 0 && (
+                        <div className="bg-gold/5 border border-gold/20 rounded-lg p-3">
+                          <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-3">Content Ideas</p>
+                          <div className="space-y-3">
+                            {pipelineInsights.content_angles.map((c, i) => {
+                              // Content angles often have a title before the colon
+                              const colonIdx = c.indexOf(':')
+                              const hasTitle = colonIdx > 0 && colonIdx < 60
+                              return (
+                                <div key={i} className="bg-zinc-900/50 rounded p-2.5">
+                                  {hasTitle ? (
+                                    <>
+                                      <p className="text-xs text-gold font-semibold">{i + 1}. {c.slice(0, colonIdx)}</p>
+                                      <p className="text-xs text-zinc-300 mt-1 leading-relaxed">{c.slice(colonIdx + 1).trim()}</p>
+                                    </>
+                                  ) : (
+                                    <p className="text-xs text-zinc-300 leading-relaxed">{i + 1}. {c}</p>
+                                  )}
+                                </div>
+                              )
+                            })}
+                          </div>
                         </div>
                       )}
                     </div>
-
-                    {pipelineInsights.gap_patterns && (
-                      <div className="bg-zinc-800/50 border border-zinc-700 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-zinc-400 uppercase tracking-widest mb-2">Gap Patterns — What's Stopping Them</p>
-                        {pipelineInsights.gap_patterns.map((g, i) => (
-                          <p key={i} className="text-xs text-zinc-300 mb-1">• {g}</p>
-                        ))}
-                      </div>
-                    )}
-
-                    {pipelineInsights.content_angles && (
-                      <div className="bg-gold/5 border border-gold/20 rounded-lg p-3">
-                        <p className="text-[10px] font-bold text-gold uppercase tracking-widest mb-2">Content Ideas From Your Pipeline</p>
-                        {pipelineInsights.content_angles.map((c, i) => (
-                          <p key={i} className="text-xs text-zinc-300 mb-1.5">{i + 1}. {c}</p>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                  )
+                })()}
 
                 {!pipelineInsights && !insightsLoading && leads.filter(l => l.notes).length === 0 && (
                   <div className="p-6 text-center text-zinc-500 text-sm">
