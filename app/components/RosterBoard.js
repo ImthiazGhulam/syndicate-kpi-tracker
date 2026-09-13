@@ -47,6 +47,15 @@ export default function RosterBoard({ clientData, authUser }) {
   const [newName, setNewName] = useState('')
   const [newPackage, setNewPackage] = useState('rolling')
 
+  // Cadence settings
+  const [showCadenceSettings, setShowCadenceSettings] = useState(false)
+  const [bulkCadence, setBulkCadence] = useState({})
+  const [bulkRed, setBulkRed] = useState({})
+
+  // Reminder
+  const [reminderDate, setReminderDate] = useState('')
+  const [reminderNote, setReminderNote] = useState('')
+
   // Draft
   const [draft, setDraft] = useState(null) // { message, life_note_id }
   const [draftLoading, setDraftLoading] = useState(false)
@@ -113,6 +122,8 @@ export default function RosterBoard({ clientData, authUser }) {
     setExcludeNoteId(null)
     setWinStackHtml(null)
     setResignScript(null)
+    setReminderDate(client.reminder_date || '')
+    setReminderNote(client.reminder_note || '')
     const [notesRes, touchesRes, winsRes, eventsRes] = await Promise.all([
       supabase.from('life_notes').select('*').eq('client_id', client.id).order('created_at', { ascending: false }),
       supabase.from('touches').select('*').eq('client_id', client.id).order('sent_at', { ascending: false }).limit(20),
@@ -161,6 +172,53 @@ export default function RosterBoard({ clientData, authUser }) {
         setOnboardingValues({})
       }
     }
+  }
+
+  // ── Bulk cadence update (per package) ───────────────────────────────────
+  const applyBulkCadence = async (packageId) => {
+    const cadence = bulkCadence[packageId]
+    const red = bulkRed[packageId]
+    if (!cadence && !red) return
+    const update = { updated_at: new Date().toISOString() }
+    if (cadence) update.cadence_days = parseInt(cadence)
+    if (red) update.red_days = parseInt(red)
+    const { data } = await supabase
+      .from('roster_clients')
+      .update(update)
+      .eq('coach_id', coachId)
+      .eq('package_type', packageId)
+      .select()
+    if (data) {
+      setClients(prev => prev.map(c => {
+        const updated = data.find(d => d.id === c.id)
+        return updated || c
+      }))
+      showToast(`Updated ${data.length} client${data.length !== 1 ? 's' : ''}`)
+    }
+  }
+
+  // ── Per-client cadence update ─────────────────────────────────────────────
+  const updateClientCadence = async (clientId, cadence, red) => {
+    const update = { updated_at: new Date().toISOString() }
+    if (cadence) update.cadence_days = parseInt(cadence)
+    if (red) update.red_days = parseInt(red)
+    await supabase.from('roster_clients').update(update).eq('id', clientId)
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...update } : c))
+    setActiveDrawer(prev => prev ? { ...prev, ...update } : prev)
+    showToast('Cadence updated')
+  }
+
+  // ── Per-client reminder ───────────────────────────────────────────────────
+  const saveReminder = async (clientId) => {
+    const update = {
+      reminder_date: reminderDate || null,
+      reminder_note: reminderNote || null,
+      updated_at: new Date().toISOString(),
+    }
+    await supabase.from('roster_clients').update(update).eq('id', clientId)
+    setClients(prev => prev.map(c => c.id === clientId ? { ...c, ...update } : c))
+    setActiveDrawer(prev => prev ? { ...prev, ...update } : prev)
+    showToast(reminderDate ? 'Reminder set' : 'Reminder cleared')
   }
 
   // ── Move client ───────────────────────────────────────────────────────────
@@ -522,13 +580,65 @@ export default function RosterBoard({ clientData, authUser }) {
     <div className="fade-in">
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <h2 className="font-display text-lg tracking-widest text-gold uppercase">{ROSTER_TRADEMARK}</h2>
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-lg tracking-widest text-gold uppercase">{ROSTER_TRADEMARK}</h2>
+          <button onClick={() => setShowCadenceSettings(!showCadenceSettings)}
+            className="text-[10px] font-semibold text-zinc-600 hover:text-gold uppercase tracking-wider transition px-2 py-1 rounded hover:bg-zinc-800">
+            Settings
+          </button>
+        </div>
         <div className="flex items-center gap-3 text-xs text-zinc-500">
           <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${HEALTH_COLORS.green}`} /> {clients.filter(c => c.health === 'green' && !TERMINAL_STATUSES.includes(c.status)).length} green</span>
           <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${HEALTH_COLORS.amber}`} /> {clients.filter(c => c.health === 'amber').length} amber</span>
           <span className="flex items-center gap-1.5"><span className={`w-2 h-2 rounded-full ${HEALTH_COLORS.red}`} /> {clients.filter(c => c.health === 'red').length} red</span>
         </div>
       </div>
+
+      {/* Cadence settings panel */}
+      {showCadenceSettings && (
+        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 fade-in">
+          <h3 className="text-[10px] font-display text-gold uppercase tracking-widest mb-3">Touch Cadence by Package</h3>
+          <p className="text-[10px] text-zinc-500 mb-3">Change the touch frequency for all clients on a package. This updates every client on that package at once.</p>
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {PACKAGE_PRESETS.map(pkg => {
+              const count = clients.filter(c => c.package_type === pkg.id && !TERMINAL_STATUSES.includes(c.status)).length
+              if (count === 0) return null
+              return (
+                <div key={pkg.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs font-semibold text-white">{pkg.label}</span>
+                    <span className="text-[10px] text-zinc-500 font-mono">{count} client{count !== 1 ? 's' : ''}</span>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="flex-1">
+                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Amber (days)</label>
+                      <input type="number" min="1" max="60"
+                        placeholder={String(pkg.cadence)}
+                        value={bulkCadence[pkg.id] || ''}
+                        onChange={e => setBulkCadence(prev => ({ ...prev, [pkg.id]: e.target.value }))}
+                        className="w-full mt-1 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Red (days)</label>
+                      <input type="number" min="1" max="60"
+                        placeholder={String(pkg.red)}
+                        value={bulkRed[pkg.id] || ''}
+                        onChange={e => setBulkRed(prev => ({ ...prev, [pkg.id]: e.target.value }))}
+                        className="w-full mt-1 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
+                    </div>
+                    <div className="flex items-end">
+                      <button onClick={() => applyBulkCadence(pkg.id)}
+                        className="px-3 py-1.5 bg-gold/10 border border-gold/30 text-gold text-[10px] font-semibold uppercase tracking-wider rounded hover:bg-gold/20 transition">
+                        Apply
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+      )}
 
       {/* Desktop Kanban */}
       <div className="hidden sm:grid gap-2" style={{ gridTemplateColumns: `repeat(${ROSTER_COLUMNS.length}, minmax(0, 1fr))` }}>
@@ -821,6 +931,66 @@ export default function RosterBoard({ clientData, authUser }) {
                       </button>
                     </div>
                     <p className="text-[10px] text-zinc-600 mt-1">Leave empty for rolling/monthly clients.</p>
+                  </div>
+
+                  {/* Per-client cadence */}
+                  <div className="border-t border-zinc-800 pt-4 mt-4">
+                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Touch Cadence</label>
+                    <div className="flex gap-2 mt-1">
+                      <div className="flex-1">
+                        <label className="text-[10px] text-zinc-600">Amber (days)</label>
+                        <input type="number" min="1" max="60"
+                          value={activeDrawer.cadence_days || ''}
+                          onChange={e => setActiveDrawer(prev => ({ ...prev, cadence_days: e.target.value }))}
+                          className="w-full mt-0.5 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
+                      </div>
+                      <div className="flex-1">
+                        <label className="text-[10px] text-zinc-600">Red (days)</label>
+                        <input type="number" min="1" max="60"
+                          value={activeDrawer.red_days || ''}
+                          onChange={e => setActiveDrawer(prev => ({ ...prev, red_days: e.target.value }))}
+                          className="w-full mt-0.5 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
+                      </div>
+                      <div className="flex items-end">
+                        <button onClick={() => updateClientCadence(activeDrawer.id, activeDrawer.cadence_days, activeDrawer.red_days)}
+                          className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                          Save
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Follow-up reminder */}
+                  <div className="border-t border-zinc-800 pt-4 mt-4">
+                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Follow-up Reminder</label>
+                    <div className="flex gap-2 mt-1">
+                      <input type="date"
+                        value={reminderDate || activeDrawer.reminder_date || ''}
+                        onChange={e => setReminderDate(e.target.value)}
+                        className="flex-shrink-0 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
+                      <input
+                        value={reminderNote || activeDrawer.reminder_note || ''}
+                        onChange={e => setReminderNote(e.target.value)}
+                        placeholder="What to follow up on..."
+                        className="flex-1 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold transition" />
+                    </div>
+                    <div className="flex gap-2 mt-1.5">
+                      <button onClick={() => saveReminder(activeDrawer.id)}
+                        className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                        {activeDrawer.reminder_date ? 'Update' : 'Set'} Reminder
+                      </button>
+                      {activeDrawer.reminder_date && (
+                        <button onClick={() => { setReminderDate(''); setReminderNote(''); saveReminder(activeDrawer.id) }}
+                          className="px-3 py-1.5 text-zinc-600 hover:text-red-400 text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                          Clear
+                        </button>
+                      )}
+                    </div>
+                    {activeDrawer.reminder_date && (
+                      <p className="text-[10px] text-amber-400 mt-1.5 font-mono">
+                        Reminder: {new Date(activeDrawer.reminder_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} — {activeDrawer.reminder_note || 'No note'}
+                      </p>
+                    )}
                   </div>
                 </>
               )}

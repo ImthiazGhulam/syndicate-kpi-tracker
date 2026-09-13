@@ -687,7 +687,7 @@ export default function ClientPage() {
     const coachId = client.user_id || client.id
     const { data: rosterData } = await supabase
       .from('roster_clients')
-      .select('id, name, status, health, cadence_days, red_days, last_personal_touch_at, start_date, term_end_date')
+      .select('id, name, status, health, cadence_days, red_days, last_personal_touch_at, start_date, term_end_date, reminder_date, reminder_note')
       .eq('coach_id', coachId)
       .in('status', [...TOUCHABLE_STATUSES, 'resign_window'])
     if (rosterData) {
@@ -702,6 +702,10 @@ export default function ClientPage() {
         // Red cards, amber cards due today, resign runway stages due today
         if (isRed) items.push({ id: rc.id, name: rc.name, type: 'red', label: `No personal touch in ${daysSince} days`, priority: 0 })
         else if (isAmber) items.push({ id: rc.id, name: rc.name, type: 'amber', label: `Touch due — ${daysSince} days`, priority: 1 })
+        // Follow-up reminders due today or overdue
+        if (rc.reminder_date && rc.reminder_date <= todayStr) {
+          items.push({ id: rc.id, name: rc.name, type: 'reminder', label: rc.reminder_note || 'Follow up', priority: 0.5 })
+        }
       }
       // Check resign events due today
       const { data: dueEvents } = await supabase
@@ -3105,9 +3109,9 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                     {rosterTouches.map((item, i) => (
                       <button key={`${item.id}-${i}`} onClick={() => { setActiveTab('roster') }}
                         className="w-full flex items-center gap-2 px-3 py-2 rounded hover:bg-zinc-800 transition text-left group">
-                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.type === 'red' ? 'bg-red-400' : item.type === 'amber' ? 'bg-amber-400' : 'bg-violet-400'}`} />
+                        <span className={`w-2 h-2 rounded-full flex-shrink-0 ${item.type === 'red' ? 'bg-red-400' : item.type === 'amber' ? 'bg-amber-400' : item.type === 'reminder' ? 'bg-gold' : 'bg-violet-400'}`} />
                         <span className="text-sm text-white font-semibold truncate">{item.name}</span>
-                        <span className={`text-[10px] font-mono ml-auto flex-shrink-0 ${item.type === 'red' ? 'text-red-400' : item.type === 'amber' ? 'text-amber-400' : 'text-violet-400'}`}>{item.label}</span>
+                        <span className={`text-[10px] font-mono ml-auto flex-shrink-0 ${item.type === 'red' ? 'text-red-400' : item.type === 'amber' ? 'text-amber-400' : item.type === 'reminder' ? 'text-gold' : 'text-violet-400'}`}>{item.label}</span>
                       </button>
                     ))}
                   </div>
