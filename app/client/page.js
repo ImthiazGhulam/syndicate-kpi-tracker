@@ -1235,24 +1235,48 @@ export default function ClientPage() {
 LEAD CARDS:
 ${cardSummaries}
 
-Analyse ALL the cards and extract patterns. Return ONLY valid JSON (no markdown, no code fences):
+Analyse ALL the cards and extract patterns. Return ONLY valid JSON (no markdown, no code fences, no trailing text). Keep each item concise — one clear sentence for the pattern, then names and short quotes in parentheses as evidence. Do not write paragraphs.
+
 {
-  "top_objections": ["The 3-5 most common objections or hesitations, in the prospect's own words where possible"],
-  "top_pain_points": ["The 3-5 most common pain points or problems prospects describe"],
-  "top_desires": ["The 3-5 most common desired outcomes or goals prospects mention"],
-  "gap_patterns": ["The 2-3 most common gaps — what's stopping them from getting what they want"],
-  "content_angles": ["5 specific content ideas derived from these patterns — each one should name the pain/objection/desire it addresses and suggest a content type (story, carousel, reel, email)"],
-  "summary": "2-3 sentences summarising what this pipeline is telling you about your audience right now"
+  "summary": "2-3 sentences summarising what this pipeline is telling you about your audience right now",
+  "top_objections": ["Pattern in one sentence (Name: 'short quote', Name: 'short quote')"],
+  "top_pain_points": ["Pattern in one sentence (Name: 'short quote', Name: 'short quote')"],
+  "top_desires": ["Pattern in one sentence (Name: 'short quote', Name: 'short quote')"],
+  "gap_patterns": ["Pattern in one sentence (Name, Name, Name)"],
+  "content_angles": ["Title: one-sentence description. Content type: reel/carousel/caption/email"]
 }`,
-          maxTokens: 1500,
+          maxTokens: 3000,
         }),
       })
       const result = await res.json()
       if (result.content) {
+        let parsed = null
+        const raw = result.content
+        // Try direct parse after stripping code fences
         try {
-          const cleaned = result.content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-          setPipelineInsights(JSON.parse(cleaned))
-        } catch { setPipelineInsights({ summary: result.content }) }
+          parsed = JSON.parse(raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim())
+        } catch {
+          // Try extracting JSON object from the text
+          const jsonMatch = raw.match(/\{[\s\S]*\}/)
+          if (jsonMatch) {
+            try { parsed = JSON.parse(jsonMatch[0]) } catch { /* fall through */ }
+          }
+        }
+        // If we got a truncated response, try to salvage partial JSON
+        if (!parsed) {
+          try {
+            let partial = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
+            // Close any unclosed arrays/objects
+            const opens = (partial.match(/\[/g) || []).length - (partial.match(/\]/g) || []).length
+            const braces = (partial.match(/\{/g) || []).length - (partial.match(/\}/g) || []).length
+            // Trim to last complete string entry
+            partial = partial.replace(/,\s*"[^"]*$/, '')
+            for (let i = 0; i < opens; i++) partial += ']'
+            for (let i = 0; i < braces; i++) partial += '}'
+            parsed = JSON.parse(partial)
+          } catch { /* give up */ }
+        }
+        setPipelineInsights(parsed || { summary: 'Insights generated but could not be formatted. Try hitting Refresh.' })
       }
     } catch (err) { console.error('Pipeline analysis error:', err) }
     setInsightsLoading(false)
