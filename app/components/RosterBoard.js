@@ -208,6 +208,16 @@ export default function RosterBoard({ clientData, authUser }) {
     showToast('Cadence updated')
   }
 
+  // ── Delete client ──────────────────────────────────────────────────────────
+  const [confirmDelete, setConfirmDelete] = useState(null) // client id
+  const deleteClient = async (clientId) => {
+    await supabase.from('roster_clients').delete().eq('id', clientId)
+    setClients(prev => prev.filter(c => c.id !== clientId))
+    setConfirmDelete(null)
+    closeDrawer()
+    showToast('Client removed')
+  }
+
   // ── Per-client reminder ───────────────────────────────────────────────────
   const saveReminder = async (clientId) => {
     const update = {
@@ -833,9 +843,29 @@ export default function RosterBoard({ clientData, authUser }) {
                   <span className={`w-2.5 h-2.5 rounded-full ${HEALTH_COLORS[activeDrawer.health]}`} />
                   <h3 className="text-lg font-semibold text-white">{activeDrawer.name}</h3>
                 </div>
-                <button onClick={closeDrawer} className="text-zinc-600 hover:text-white transition">
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
+                <div className="flex items-center gap-1">
+                  {confirmDelete === activeDrawer.id ? (
+                    <div className="flex items-center gap-1.5 mr-2">
+                      <span className="text-[10px] text-red-400">Delete?</span>
+                      <button onClick={() => deleteClient(activeDrawer.id)}
+                        className="px-2 py-1 text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded hover:bg-red-500/20 transition uppercase tracking-wider">
+                        Yes
+                      </button>
+                      <button onClick={() => setConfirmDelete(null)}
+                        className="px-2 py-1 text-[10px] font-semibold text-zinc-500 bg-zinc-800 border border-zinc-700 rounded hover:border-zinc-600 transition uppercase tracking-wider">
+                        No
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmDelete(activeDrawer.id)}
+                      className="text-zinc-700 hover:text-red-400 transition p-1" title="Delete client">
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>
+                    </button>
+                  )}
+                  <button onClick={closeDrawer} className="text-zinc-600 hover:text-white transition p-1">
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
                 <span>{activeDrawer.status}</span>
