@@ -1219,64 +1219,30 @@ export default function ClientPage() {
 
   // ── Pipeline Insights ──────────────────────────────────────────────────────
 
-  const analysePipeline = async () => {
+  const analysePipeline = async (forceRefresh = false) => {
     if (insightsLoading) return
     const cardsWithNotes = leads.filter(l => l.notes && l.notes.trim())
     if (cardsWithNotes.length === 0) return
     setInsightsLoading(true)
     try {
-      const cardSummaries = cardsWithNotes.map(l => `${l.name} (${LEAD_STAGES.find(s => s.id === l.status)?.label || l.status}): ${l.notes}`).join('\n---\n')
-      const res = await fetch('/api/generate-content', {
+      const cards = cardsWithNotes.map(l => ({
+        id: l.id,
+        name: l.name,
+        status: l.status,
+        stage: LEAD_STAGES.find(s => s.id === l.status)?.label || l.status,
+        notes: l.notes,
+      }))
+      const res = await fetch('/api/pipeline-insights', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          prompt: `You are analysing a sales pipeline. Below are the notes from ${cardsWithNotes.length} lead cards on a coach/consultant's Hot List. Each card contains DM conversation notes, gap words, objections, pain points, and desires captured during real sales conversations.
-
-LEAD CARDS:
-${cardSummaries}
-
-Analyse ALL the cards and extract patterns. Return ONLY valid JSON (no markdown, no code fences, no trailing text). Keep each item concise — one clear sentence for the pattern, then names and short quotes in parentheses as evidence. Do not write paragraphs.
-
-{
-  "summary": "2-3 sentences summarising what this pipeline is telling you about your audience right now",
-  "top_objections": ["Pattern in one sentence (Name: 'short quote', Name: 'short quote')"],
-  "top_pain_points": ["Pattern in one sentence (Name: 'short quote', Name: 'short quote')"],
-  "top_desires": ["Pattern in one sentence (Name: 'short quote', Name: 'short quote')"],
-  "gap_patterns": ["Pattern in one sentence (Name, Name, Name)"],
-  "content_angles": ["Title: one-sentence description. Content type: reel/carousel/caption/email"]
-}`,
-          maxTokens: 3000,
-        }),
+        body: JSON.stringify({ clientId: clientData.id, cards, forceRefresh }),
       })
       const result = await res.json()
-      if (result.content) {
-        let parsed = null
-        const raw = result.content
-        // Try direct parse after stripping code fences
-        try {
-          parsed = JSON.parse(raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim())
-        } catch {
-          // Try extracting JSON object from the text
-          const jsonMatch = raw.match(/\{[\s\S]*\}/)
-          if (jsonMatch) {
-            try { parsed = JSON.parse(jsonMatch[0]) } catch { /* fall through */ }
-          }
-        }
-        // If we got a truncated response, try to salvage partial JSON
-        if (!parsed) {
-          try {
-            let partial = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim()
-            // Close any unclosed arrays/objects
-            const opens = (partial.match(/\[/g) || []).length - (partial.match(/\]/g) || []).length
-            const braces = (partial.match(/\{/g) || []).length - (partial.match(/\}/g) || []).length
-            // Trim to last complete string entry
-            partial = partial.replace(/,\s*"[^"]*$/, '')
-            for (let i = 0; i < opens; i++) partial += ']'
-            for (let i = 0; i < braces; i++) partial += '}'
-            parsed = JSON.parse(partial)
-          } catch { /* give up */ }
-        }
-        setPipelineInsights(parsed || { summary: 'Insights generated but could not be formatted. Try hitting Refresh.' })
+      if (result.insights) {
+        setPipelineInsights(result.insights)
+        if (result.cached) console.log('Pipeline insights loaded from cache')
+      } else {
+        setPipelineInsights({ summary: result.error || 'Could not generate insights. Try Refresh.' })
       }
     } catch (err) { console.error('Pipeline analysis error:', err) }
     setInsightsLoading(false)
@@ -4581,7 +4547,7 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                     <p className="text-[10px] text-zinc-500 mt-0.5">Patterns from your DM conversations → content ideas</p>
                   </div>
                   <div className="flex items-center gap-2">
-                    <button onClick={() => { setPipelineInsights(null); analysePipeline() }}
+                    <button onClick={() => { setPipelineInsights(null); analysePipeline(true) }}
                       className="text-[10px] text-zinc-500 hover:text-white uppercase tracking-widest font-bold transition">
                       Refresh
                     </button>
