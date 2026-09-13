@@ -4716,7 +4716,13 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                                 </button>
                               </div>
                             </div>
-                            {lead.notes && <p className="text-[10px] text-zinc-500 mt-1 line-clamp-2">{lead.notes}</p>}
+                            {lead.notes && (() => {
+                              const lines = lead.notes.split('\n').map(l => l.trim()).filter(Boolean)
+                              const latest = lines[lines.length - 1]
+                              return (
+                                <p className="text-[10px] text-zinc-500 mt-1 line-clamp-1" title={lead.notes}>{latest}</p>
+                              )
+                            })()}
                             <p className="text-[10px] text-zinc-600 mt-1.5">
                             Moved: {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                             </p>
@@ -4805,7 +4811,13 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                                 </button>
                               </div>
                             </div>
-                            {lead.notes && <p className="text-[10px] text-zinc-500 mt-1.5 line-clamp-2">{lead.notes}</p>}
+                            {lead.notes && (() => {
+                              const lines = lead.notes.split('\n').map(l => l.trim()).filter(Boolean)
+                              const latest = lines[lines.length - 1]
+                              return (
+                                <p className="text-[10px] text-zinc-500 mt-1.5 line-clamp-1" title={lead.notes}>{latest}</p>
+                              )
+                            })()}
                             <p className="text-[10px] text-zinc-600 mt-1.5">Moved: {new Date(lead.updated_at || lead.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                             <div className="flex items-center gap-1.5 mt-2">
                               {prevStageId && (
