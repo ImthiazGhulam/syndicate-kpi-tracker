@@ -593,7 +593,7 @@ export default function RosterBoard({ clientData, authUser }) {
         <div className="flex items-center gap-3">
           <h2 className="font-display text-lg tracking-widest text-gold uppercase">{ROSTER_TRADEMARK}</h2>
           <button onClick={() => setShowCadenceSettings(!showCadenceSettings)}
-            className="text-[10px] font-semibold text-zinc-600 hover:text-gold uppercase tracking-wider transition px-2 py-1 rounded hover:bg-zinc-800">
+            className="text-xs font-semibold text-zinc-600 hover:text-gold uppercase tracking-wider transition px-2 py-1 rounded hover:bg-zinc-800">
             Settings
           </button>
         </div>
@@ -607,8 +607,8 @@ export default function RosterBoard({ clientData, authUser }) {
       {/* Cadence settings panel */}
       {showCadenceSettings && (
         <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4 mb-6 fade-in">
-          <h3 className="text-[10px] font-display text-gold uppercase tracking-widest mb-3">Touch Cadence by Package</h3>
-          <p className="text-[10px] text-zinc-500 mb-3">Change the touch frequency for all clients on a package. This updates every client on that package at once.</p>
+          <h3 className="text-xs font-display text-gold uppercase tracking-widest mb-3">Touch Cadence by Package</h3>
+          <p className="text-xs text-zinc-500 mb-3">Change the touch frequency for all clients on a package. This updates every client on that package at once.</p>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {PACKAGE_PRESETS.map(pkg => {
               const count = clients.filter(c => c.package_type === pkg.id && !TERMINAL_STATUSES.includes(c.status)).length
@@ -617,11 +617,11 @@ export default function RosterBoard({ clientData, authUser }) {
                 <div key={pkg.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-semibold text-white">{pkg.label}</span>
-                    <span className="text-[10px] text-zinc-500 font-mono">{count} client{count !== 1 ? 's' : ''}</span>
+                    <span className="text-xs text-zinc-500 font-mono">{count} client{count !== 1 ? 's' : ''}</span>
                   </div>
                   <div className="flex gap-2">
                     <div className="flex-1">
-                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Amber (days)</label>
+                      <label className="text-xs font-mono text-zinc-600 uppercase tracking-wider">Amber (days)</label>
                       <input type="number" min="1" max="60"
                         placeholder={String(pkg.cadence)}
                         value={bulkCadence[pkg.id] || ''}
@@ -629,7 +629,7 @@ export default function RosterBoard({ clientData, authUser }) {
                         className="w-full mt-1 px-2 py-1.5 bg-zinc-900 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
                     </div>
                     <div className="flex-1">
-                      <label className="text-[10px] font-mono text-zinc-600 uppercase tracking-wider">Red (days)</label>
+                      <label className="text-xs font-mono text-zinc-600 uppercase tracking-wider">Red (days)</label>
                       <input type="number" min="1" max="60"
                         placeholder={String(pkg.red)}
                         value={bulkRed[pkg.id] || ''}
@@ -638,7 +638,7 @@ export default function RosterBoard({ clientData, authUser }) {
                     </div>
                     <div className="flex items-end">
                       <button onClick={() => applyBulkCadence(pkg.id)}
-                        className="px-3 py-1.5 bg-gold/10 border border-gold/30 text-gold text-[10px] font-semibold uppercase tracking-wider rounded hover:bg-gold/20 transition">
+                        className="px-3 py-1.5 bg-gold/10 border border-gold/30 text-gold text-xs font-semibold uppercase tracking-wider rounded hover:bg-gold/20 transition">
                         Apply
                       </button>
                     </div>
@@ -692,39 +692,39 @@ export default function RosterBoard({ clientData, authUser }) {
                     {/* Status-specific content */}
                     {client.status === 'onboarding' && (
                       <button onClick={(e) => { e.stopPropagation(); setShowOnboarding(client.id); setOnboardingValues({}) }}
-                        className="mt-2 w-full py-1.5 text-[10px] font-semibold text-gold bg-gold/10 hover:bg-gold/20 rounded transition uppercase tracking-wider">
+                        className="mt-2 w-full py-1.5 text-xs font-semibold text-gold bg-gold/10 hover:bg-gold/20 rounded transition uppercase tracking-wider">
                         Fill Life Notes
                       </button>
                     )}
 
                     {(client.status === 'active' || client.status === 'at_risk') && (
                       <div className="mt-1.5">
-                        <p className={`text-[10px] font-mono ${HEALTH_TEXT[client.health]}`}>
+                        <p className={`text-xs font-mono ${HEALTH_TEXT[client.health]}`}>
                           {daysSinceTouch(client)}d since touch {client.health !== 'green' && '·'} {client.health === 'amber' && 'Due now'}{client.health === 'red' && 'OVERDUE'}
                         </p>
                         {client.health === 'green' && (
-                          <p className="text-[10px] text-zinc-600 font-mono">Next in {nextTouchIn(client)}d</p>
+                          <p className="text-xs text-zinc-600 font-mono">Next in {nextTouchIn(client)}d</p>
                         )}
                       </div>
                     )}
 
                     {client.status === 'at_risk' && (
-                      <p className="text-[10px] text-amber-400 mt-1">{atRiskReason(client)}</p>
+                      <p className="text-xs text-amber-400 mt-1">{atRiskReason(client)}</p>
                     )}
 
                     {client.status === 'resign_window' && client.term_end_date && (
-                      <p className="text-[10px] text-red-400 font-mono mt-1.5">
+                      <p className="text-xs text-red-400 font-mono mt-1.5">
                         Term ends {new Date(client.term_end_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                       </p>
                     )}
 
                     {TERMINAL_STATUSES.includes(client.status) && (
-                      <p className="text-[10px] text-zinc-600 mt-1 uppercase tracking-wider">{client.status}</p>
+                      <p className="text-xs text-zinc-600 mt-1 uppercase tracking-wider">{client.status}</p>
                     )}
 
                     {/* Package label */}
                     {!TERMINAL_STATUSES.includes(client.status) && client.package_type && (
-                      <p className="text-[10px] text-zinc-600 mt-1 font-mono">{PACKAGE_PRESETS.find(p => p.id === client.package_type)?.label || client.package_type}</p>
+                      <p className="text-xs text-zinc-600 mt-1 font-mono">{PACKAGE_PRESETS.find(p => p.id === client.package_type)?.label || client.package_type}</p>
                     )}
                   </div>
                 ))}
@@ -746,18 +746,18 @@ export default function RosterBoard({ clientData, authUser }) {
                         </select>
                         <div className="flex gap-1.5">
                           <button onClick={() => addClient(col.id)}
-                            className="flex-1 py-1.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded transition">
+                            className="flex-1 py-1.5 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">
                             Add
                           </button>
                           <button onClick={() => { setAddingCol(null); setNewName(''); setNewPackage('rolling') }}
-                            className="px-3 py-1.5 border border-zinc-700 text-zinc-500 text-[10px] uppercase tracking-widest rounded transition">
+                            className="px-3 py-1.5 border border-zinc-700 text-zinc-500 text-xs uppercase tracking-widest rounded transition">
                             ✕
                           </button>
                         </div>
                       </div>
                     ) : (
                       <button onClick={() => { setAddingCol(col.id); setNewName(''); setNewPackage('rolling') }}
-                        className="w-full py-2 text-[10px] font-semibold text-zinc-600 hover:text-gold active:text-gold uppercase tracking-widest transition text-center rounded hover:bg-zinc-800/60">
+                        className="w-full py-2 text-xs font-semibold text-zinc-600 hover:text-gold active:text-gold uppercase tracking-widest transition text-center rounded hover:bg-zinc-800/60">
                         + Add client
                       </button>
                     )}
@@ -774,7 +774,7 @@ export default function RosterBoard({ clientData, authUser }) {
         <div className="flex gap-1 mb-3 overflow-x-auto pb-1">
           {ROSTER_COLUMNS.map(col => (
             <button key={col.id} onClick={() => setMobileStage(col.id)}
-              className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded-full whitespace-nowrap transition ${mobileStage === col.id ? 'bg-gold text-zinc-950' : 'bg-zinc-800 text-zinc-500'}`}>
+              className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded-full whitespace-nowrap transition ${mobileStage === col.id ? 'bg-gold text-zinc-950' : 'bg-zinc-800 text-zinc-500'}`}>
               {col.label} ({getColumnClients(col.id).length})
             </button>
           ))}
@@ -787,14 +787,14 @@ export default function RosterBoard({ clientData, authUser }) {
                 <span className={`w-2 h-2 rounded-full ${HEALTH_COLORS[client.health]}`} />
                 <p className="text-sm font-semibold text-white">{client.name}</p>
                 {(client.status === 'active' || client.status === 'at_risk') && (
-                  <span className={`text-[10px] font-mono ml-auto ${HEALTH_TEXT[client.health]}`}>{daysSinceTouch(client)}d</span>
+                  <span className={`text-xs font-mono ml-auto ${HEALTH_TEXT[client.health]}`}>{daysSinceTouch(client)}d</span>
                 )}
               </div>
             </div>
           ))}
           {mobileStage !== 'resigned' && (
             <button onClick={() => { setAddingCol(mobileStage); setNewName('') }}
-              className="w-full py-2 text-[10px] font-semibold text-zinc-600 hover:text-gold uppercase tracking-widest transition text-center rounded hover:bg-zinc-800/60">
+              className="w-full py-2 text-xs font-semibold text-zinc-600 hover:text-gold uppercase tracking-widest transition text-center rounded hover:bg-zinc-800/60">
               + Add client
             </button>
           )}
@@ -808,14 +808,14 @@ export default function RosterBoard({ clientData, authUser }) {
             <h3 className="font-display text-sm tracking-widest text-gold uppercase">Life Notes — Onboarding</h3>
             {ONBOARDING_PROMPTS.map(prompt => (
               <div key={prompt.key}>
-                <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">{prompt.label}</label>
+                <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">{prompt.label}</label>
                 <input
                   value={onboardingValues[prompt.key] || ''}
                   onChange={e => setOnboardingValues(prev => ({ ...prev, [prompt.key]: e.target.value }))}
                   placeholder={prompt.placeholder}
                   className="w-full mt-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold focus:border-gold transition"
                 />
-                {prompt.isPhone && phoneError && <p className="text-[10px] text-red-400 mt-1">{phoneError}</p>}
+                {prompt.isPhone && phoneError && <p className="text-xs text-red-400 mt-1">{phoneError}</p>}
               </div>
             ))}
             <div className="flex gap-2 pt-2">
@@ -846,13 +846,13 @@ export default function RosterBoard({ clientData, authUser }) {
                 <div className="flex items-center gap-1">
                   {confirmDelete === activeDrawer.id ? (
                     <div className="flex items-center gap-1.5 mr-2">
-                      <span className="text-[10px] text-red-400">Delete?</span>
+                      <span className="text-xs text-red-400">Delete?</span>
                       <button onClick={() => deleteClient(activeDrawer.id)}
-                        className="px-2 py-1 text-[10px] font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded hover:bg-red-500/20 transition uppercase tracking-wider">
+                        className="px-2 py-1 text-xs font-semibold text-red-400 bg-red-500/10 border border-red-500/30 rounded hover:bg-red-500/20 transition uppercase tracking-wider">
                         Yes
                       </button>
                       <button onClick={() => setConfirmDelete(null)}
-                        className="px-2 py-1 text-[10px] font-semibold text-zinc-500 bg-zinc-800 border border-zinc-700 rounded hover:border-zinc-600 transition uppercase tracking-wider">
+                        className="px-2 py-1 text-xs font-semibold text-zinc-500 bg-zinc-800 border border-zinc-700 rounded hover:border-zinc-600 transition uppercase tracking-wider">
                         No
                       </button>
                     </div>
@@ -867,7 +867,7 @@ export default function RosterBoard({ clientData, authUser }) {
                   </button>
                 </div>
               </div>
-              <div className="flex items-center gap-3 mt-2 text-[10px] text-zinc-500 font-mono uppercase tracking-wider">
+              <div className="flex items-center gap-3 mt-2 text-xs text-zinc-500 font-mono uppercase tracking-wider">
                 <span>{activeDrawer.status}</span>
                 <span>·</span>
                 <span>{daysSinceTouch(activeDrawer)}d since touch</span>
@@ -884,7 +884,7 @@ export default function RosterBoard({ clientData, authUser }) {
                     setDrawerTab(tab)
                     if (tab === 'draft' && !draft && !draftLoading) generateDraft()
                   }}
-                    className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded whitespace-nowrap transition ${drawerTab === tab ? 'bg-gold/20 text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
+                    className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded whitespace-nowrap transition ${drawerTab === tab ? 'bg-gold/20 text-gold' : 'text-zinc-600 hover:text-zinc-400'}`}>
                     {tab === 'life-notes' ? 'Life Notes' : tab === 'draft' ? 'Draft Message' : tab.charAt(0).toUpperCase() + tab.slice(1)}
                   </button>
                 ))}
@@ -901,7 +901,7 @@ export default function RosterBoard({ clientData, authUser }) {
                       onKeyDown={e => { if (e.key === 'Enter') addNote() }}
                       placeholder="Add a life note..."
                       className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold transition" />
-                    <button onClick={addNote} className="px-3 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded transition">Add</button>
+                    <button onClick={addNote} className="px-3 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">Add</button>
                   </div>
                   {lifeNotes.length === 0 && <p className="text-zinc-600 text-sm">No life notes yet.</p>}
                   {lifeNotes.map(note => (
@@ -912,13 +912,13 @@ export default function RosterBoard({ clientData, authUser }) {
                           <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
                         </button>
                       </div>
-                      <p className="text-[10px] text-zinc-600 mt-1 font-mono">{note.source} · {new Date(note.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-xs text-zinc-600 mt-1 font-mono">{note.source} · {new Date(note.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                     </div>
                   ))}
 
                   {/* Phone number field */}
                   <div className="border-t border-zinc-800 pt-4 mt-4">
-                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">WhatsApp Number</label>
+                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">WhatsApp Number</label>
                     <div className="flex gap-2 mt-1">
                       <input
                         value={activeDrawer.phone_e164 || ''}
@@ -937,7 +937,7 @@ export default function RosterBoard({ clientData, authUser }) {
                         await supabase.from('roster_clients').update({ phone_e164: phone, updated_at: new Date().toISOString() }).eq('id', activeDrawer.id)
                         setClients(prev => prev.map(c => c.id === activeDrawer.id ? { ...c, phone_e164: phone } : c))
                         showToast('Phone saved')
-                      }} className="px-3 py-2 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                      }} className="px-3 py-2 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-xs uppercase tracking-widest rounded transition font-semibold">
                         Save
                       </button>
                     </div>
@@ -945,7 +945,7 @@ export default function RosterBoard({ clientData, authUser }) {
 
                   {/* Term end date */}
                   <div>
-                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Term End Date</label>
+                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Term End Date</label>
                     <div className="flex gap-2 mt-1">
                       <input type="date"
                         value={activeDrawer.term_end_date || ''}
@@ -956,26 +956,26 @@ export default function RosterBoard({ clientData, authUser }) {
                         await supabase.from('roster_clients').update({ term_end_date: val, updated_at: new Date().toISOString() }).eq('id', activeDrawer.id)
                         setClients(prev => prev.map(c => c.id === activeDrawer.id ? { ...c, term_end_date: val } : c))
                         showToast(val ? 'Term end date saved' : 'Set to rolling/monthly')
-                      }} className="px-3 py-2 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                      }} className="px-3 py-2 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-xs uppercase tracking-widest rounded transition font-semibold">
                         Save
                       </button>
                     </div>
-                    <p className="text-[10px] text-zinc-600 mt-1">Leave empty for rolling/monthly clients.</p>
+                    <p className="text-xs text-zinc-600 mt-1">Leave empty for rolling/monthly clients.</p>
                   </div>
 
                   {/* Per-client cadence */}
                   <div className="border-t border-zinc-800 pt-4 mt-4">
-                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Touch Cadence</label>
+                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Touch Cadence</label>
                     <div className="flex gap-2 mt-1">
                       <div className="flex-1">
-                        <label className="text-[10px] text-zinc-600">Amber (days)</label>
+                        <label className="text-xs text-zinc-600">Amber (days)</label>
                         <input type="number" min="1" max="60"
                           value={activeDrawer.cadence_days || ''}
                           onChange={e => setActiveDrawer(prev => ({ ...prev, cadence_days: e.target.value }))}
                           className="w-full mt-0.5 px-2 py-1.5 bg-zinc-800 border border-zinc-700 rounded text-sm text-white font-mono focus:outline-none focus:ring-1 focus:ring-gold transition" />
                       </div>
                       <div className="flex-1">
-                        <label className="text-[10px] text-zinc-600">Red (days)</label>
+                        <label className="text-xs text-zinc-600">Red (days)</label>
                         <input type="number" min="1" max="60"
                           value={activeDrawer.red_days || ''}
                           onChange={e => setActiveDrawer(prev => ({ ...prev, red_days: e.target.value }))}
@@ -983,7 +983,7 @@ export default function RosterBoard({ clientData, authUser }) {
                       </div>
                       <div className="flex items-end">
                         <button onClick={() => updateClientCadence(activeDrawer.id, activeDrawer.cadence_days, activeDrawer.red_days)}
-                          className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                          className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-xs uppercase tracking-widest rounded transition font-semibold">
                           Save
                         </button>
                       </div>
@@ -992,7 +992,7 @@ export default function RosterBoard({ clientData, authUser }) {
 
                   {/* Follow-up reminder */}
                   <div className="border-t border-zinc-800 pt-4 mt-4">
-                    <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Follow-up Reminder</label>
+                    <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Follow-up Reminder</label>
                     <div className="flex gap-2 mt-1">
                       <input type="date"
                         value={reminderDate || activeDrawer.reminder_date || ''}
@@ -1006,18 +1006,18 @@ export default function RosterBoard({ clientData, authUser }) {
                     </div>
                     <div className="flex gap-2 mt-1.5">
                       <button onClick={() => saveReminder(activeDrawer.id)}
-                        className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                        className="px-3 py-1.5 bg-zinc-800 border border-zinc-700 hover:border-gold text-zinc-400 hover:text-gold text-xs uppercase tracking-widest rounded transition font-semibold">
                         {activeDrawer.reminder_date ? 'Update' : 'Set'} Reminder
                       </button>
                       {activeDrawer.reminder_date && (
                         <button onClick={() => { setReminderDate(''); setReminderNote(''); saveReminder(activeDrawer.id) }}
-                          className="px-3 py-1.5 text-zinc-600 hover:text-red-400 text-[10px] uppercase tracking-widest rounded transition font-semibold">
+                          className="px-3 py-1.5 text-zinc-600 hover:text-red-400 text-xs uppercase tracking-widest rounded transition font-semibold">
                           Clear
                         </button>
                       )}
                     </div>
                     {activeDrawer.reminder_date && (
-                      <p className="text-[10px] text-amber-400 mt-1.5 font-mono">
+                      <p className="text-xs text-amber-400 mt-1.5 font-mono">
                         Reminder: {new Date(activeDrawer.reminder_date).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })} — {activeDrawer.reminder_note || 'No note'}
                       </p>
                     )}
@@ -1030,11 +1030,11 @@ export default function RosterBoard({ clientData, authUser }) {
                 <>
                   <div className="flex gap-2">
                     <button onClick={logManualTouch}
-                      className="flex-1 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-[10px] font-semibold uppercase tracking-wider rounded hover:bg-emerald-500/20 transition">
+                      className="flex-1 py-2 bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold uppercase tracking-wider rounded hover:bg-emerald-500/20 transition">
                       I touched them myself
                     </button>
                     <button onClick={logWorkContact}
-                      className="py-2 px-3 bg-zinc-800 border border-zinc-700 text-zinc-500 text-[10px] font-semibold uppercase tracking-wider rounded hover:border-zinc-600 transition">
+                      className="py-2 px-3 bg-zinc-800 border border-zinc-700 text-zinc-500 text-xs font-semibold uppercase tracking-wider rounded hover:border-zinc-600 transition">
                       Log work contact
                     </button>
                   </div>
@@ -1043,9 +1043,9 @@ export default function RosterBoard({ clientData, authUser }) {
                     <div key={touch.id} className={`bg-zinc-800 border rounded-lg p-3 ${touch.type === 'personal' ? 'border-emerald-500/20' : 'border-zinc-700'}`}>
                       <div className="flex items-center gap-2">
                         <span className={`w-1.5 h-1.5 rounded-full ${touch.type === 'personal' ? 'bg-emerald-400' : 'bg-zinc-500'}`} />
-                        <span className="text-[10px] font-mono text-zinc-500 uppercase">{touch.type} · {touch.channel}</span>
-                        {touch.ai_drafted && <span className="text-[10px] text-violet-400 font-mono">AI</span>}
-                        <span className="text-[10px] text-zinc-600 font-mono ml-auto">{new Date(touch.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
+                        <span className="text-xs font-mono text-zinc-500 uppercase">{touch.type} · {touch.channel}</span>
+                        {touch.ai_drafted && <span className="text-xs text-violet-400 font-mono">AI</span>}
+                        <span className="text-xs text-zinc-600 font-mono ml-auto">{new Date(touch.sent_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</span>
                       </div>
                       {touch.message_text && <p className="text-xs text-zinc-400 mt-1.5 line-clamp-3">{touch.message_text}</p>}
                     </div>
@@ -1061,13 +1061,13 @@ export default function RosterBoard({ clientData, authUser }) {
                       onKeyDown={e => { if (e.key === 'Enter') addWin() }}
                       placeholder="Log a win..."
                       className="flex-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold transition" />
-                    <button onClick={addWin} className="px-3 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-[10px] uppercase tracking-widest rounded transition">Add</button>
+                    <button onClick={addWin} className="px-3 py-2 bg-gold hover:bg-gold-light text-zinc-950 font-bold text-xs uppercase tracking-widest rounded transition">Add</button>
                   </div>
                   {wins.length === 0 && <p className="text-zinc-600 text-sm">No wins logged yet.</p>}
                   {wins.map(win => (
                     <div key={win.id} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
                       <p className="text-sm text-zinc-300">{win.text}</p>
-                      <p className="text-[10px] text-zinc-600 mt-1 font-mono">{win.source} · {new Date(win.win_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
+                      <p className="text-xs text-zinc-600 mt-1 font-mono">{win.source} · {new Date(win.win_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</p>
                     </div>
                   ))}
                 </>
@@ -1091,21 +1091,21 @@ export default function RosterBoard({ clientData, authUser }) {
                         className="w-full px-3 py-2 bg-zinc-800 border border-zinc-700 rounded-lg text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold transition resize-none" />
                       <div className="flex items-center gap-2">
                         <button onClick={sendWhatsApp}
-                          className="flex-1 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-[10px] uppercase tracking-widest rounded hover:bg-emerald-500/30 transition">
+                          className="flex-1 py-2 bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 font-bold text-xs uppercase tracking-widest rounded hover:bg-emerald-500/30 transition">
                           {activeDrawer.phone_e164 ? 'Send on WhatsApp' : 'Copy message'}
                         </button>
                         <button onClick={regenerateDraft}
-                          className="py-2 px-3 bg-zinc-800 border border-zinc-700 text-zinc-400 text-[10px] uppercase tracking-widest rounded hover:border-gold hover:text-gold transition font-semibold">
+                          className="py-2 px-3 bg-zinc-800 border border-zinc-700 text-zinc-400 text-xs uppercase tracking-widest rounded hover:border-gold hover:text-gold transition font-semibold">
                           Regenerate
                         </button>
                       </div>
                       <div className="flex gap-2">
                         <button onClick={logManualTouch}
-                          className="flex-1 py-1.5 text-[10px] font-semibold text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition uppercase tracking-wider text-center">
+                          className="flex-1 py-1.5 text-xs font-semibold text-zinc-500 hover:text-white bg-zinc-800 hover:bg-zinc-700 rounded transition uppercase tracking-wider text-center">
                           I touched them myself
                         </button>
                         <button onClick={logWorkContact}
-                          className="py-1.5 px-3 text-[10px] font-semibold text-zinc-600 hover:text-zinc-400 rounded transition uppercase tracking-wider">
+                          className="py-1.5 px-3 text-xs font-semibold text-zinc-600 hover:text-zinc-400 rounded transition uppercase tracking-wider">
                           Log work contact
                         </button>
                       </div>
@@ -1141,26 +1141,26 @@ export default function RosterBoard({ clientData, authUser }) {
                             </span>
                             <span className="text-sm text-white font-semibold">{stage?.label || event.stage}</span>
                           </div>
-                          <span className={`text-[10px] font-mono ${isOverdue ? 'text-red-400' : 'text-zinc-600'}`}>
+                          <span className={`text-xs font-mono ${isOverdue ? 'text-red-400' : 'text-zinc-600'}`}>
                             {isComplete ? 'Done' : `Due ${new Date(event.due_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
                           </span>
                         </div>
-                        <p className="text-[10px] text-zinc-500 mt-1">{stage?.description}</p>
+                        <p className="text-xs text-zinc-500 mt-1">{stage?.description}</p>
 
                         {!isComplete && (
                           <div className="flex gap-2 mt-2">
                             {event.stage === 'call_outcome' ? (
                               <>
                                 <button onClick={() => { setResignModal({ clientId: activeDrawer.id, eventId: event.id }); setNewTermEnd('') }}
-                                  className="flex-1 py-1.5 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
+                                  className="flex-1 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
                                   Resigned
                                 </button>
                                 <button onClick={() => { setChurnModal({ clientId: activeDrawer.id, eventId: event.id }); setChurnReason(''); setChurnReasonText('') }}
-                                  className="flex-1 py-1.5 text-[10px] font-semibold text-red-400 bg-red-500/10 rounded hover:bg-red-500/20 transition uppercase tracking-wider">
+                                  className="flex-1 py-1.5 text-xs font-semibold text-red-400 bg-red-500/10 rounded hover:bg-red-500/20 transition uppercase tracking-wider">
                                   Churned
                                 </button>
                                 <button onClick={() => snoozeOutcome(event.id)}
-                                  className="py-1.5 px-2 text-[10px] font-semibold text-zinc-500 bg-zinc-700 rounded hover:bg-zinc-600 transition uppercase tracking-wider"
+                                  className="py-1.5 px-2 text-xs font-semibold text-zinc-500 bg-zinc-700 rounded hover:bg-zinc-600 transition uppercase tracking-wider"
                                   title={`Snooze 3 days (${event.snooze_count}/${MAX_SNOOZES} used)`}>
                                   Snooze
                                 </button>
@@ -1168,28 +1168,28 @@ export default function RosterBoard({ clientData, authUser }) {
                             ) : event.stage === 't30_win_stack' ? (
                               <div className="flex gap-2 w-full">
                                 <button onClick={() => { loadWinStack(); setDrawerTab('win-stack-preview') }}
-                                  className="flex-1 py-1.5 text-[10px] font-semibold text-gold bg-gold/10 rounded hover:bg-gold/20 transition uppercase tracking-wider">
+                                  className="flex-1 py-1.5 text-xs font-semibold text-gold bg-gold/10 rounded hover:bg-gold/20 transition uppercase tracking-wider">
                                   View Win Stack
                                 </button>
                                 <button onClick={() => completeResignStage(event.id)}
-                                  className="py-1.5 px-3 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
+                                  className="py-1.5 px-3 text-xs font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
                                   ✓ Done
                                 </button>
                               </div>
                             ) : event.stage === 't14_script' ? (
                               <div className="flex gap-2 w-full">
                                 <button onClick={() => { generateResignScript(); setDrawerTab('resign-script') }}
-                                  className="flex-1 py-1.5 text-[10px] font-semibold text-gold bg-gold/10 rounded hover:bg-gold/20 transition uppercase tracking-wider">
+                                  className="flex-1 py-1.5 text-xs font-semibold text-gold bg-gold/10 rounded hover:bg-gold/20 transition uppercase tracking-wider">
                                   Generate Script
                                 </button>
                                 <button onClick={() => completeResignStage(event.id)}
-                                  className="py-1.5 px-3 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
+                                  className="py-1.5 px-3 text-xs font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
                                   ✓ Done
                                 </button>
                               </div>
                             ) : (
                               <button onClick={() => completeResignStage(event.id)}
-                                className="flex-1 py-1.5 text-[10px] font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
+                                className="flex-1 py-1.5 text-xs font-semibold text-emerald-400 bg-emerald-500/10 rounded hover:bg-emerald-500/20 transition uppercase tracking-wider">
                                 ✓ Complete
                               </button>
                             )}
@@ -1197,7 +1197,7 @@ export default function RosterBoard({ clientData, authUser }) {
                         )}
 
                         {event.outcome && (
-                          <p className="text-[10px] font-mono mt-1 text-zinc-500">
+                          <p className="text-xs font-mono mt-1 text-zinc-500">
                             Outcome: {event.outcome}{event.churn_reason ? ` — ${event.churn_reason}` : ''}{event.new_term_end_date ? ` — new term: ${event.new_term_end_date}` : ''}
                           </p>
                         )}
@@ -1211,13 +1211,13 @@ export default function RosterBoard({ clientData, authUser }) {
               {drawerTab === 'win-stack-preview' && winStackHtml && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setDrawerTab('runway')} className="text-[10px] text-zinc-500 hover:text-gold uppercase tracking-wider transition">← Back to Runway</button>
+                    <button onClick={() => setDrawerTab('runway')} className="text-xs text-zinc-500 hover:text-gold uppercase tracking-wider transition">← Back to Runway</button>
                     <button onClick={() => {
                       const win = window.open('', '_blank')
                       win.document.write(winStackHtml)
                       win.document.close()
                       setTimeout(() => win.print(), 500)
-                    }} className="px-3 py-1.5 bg-gold/10 border border-gold/30 text-gold text-[10px] font-semibold uppercase tracking-wider rounded hover:bg-gold/20 transition">
+                    }} className="px-3 py-1.5 bg-gold/10 border border-gold/30 text-gold text-xs font-semibold uppercase tracking-wider rounded hover:bg-gold/20 transition">
                       Print / Save PDF
                     </button>
                   </div>
@@ -1229,7 +1229,7 @@ export default function RosterBoard({ clientData, authUser }) {
               {drawerTab === 'resign-script' && (
                 <div>
                   <div className="flex items-center justify-between mb-3">
-                    <button onClick={() => setDrawerTab('runway')} className="text-[10px] text-zinc-500 hover:text-gold uppercase tracking-wider transition">← Back to Runway</button>
+                    <button onClick={() => setDrawerTab('runway')} className="text-xs text-zinc-500 hover:text-gold uppercase tracking-wider transition">← Back to Runway</button>
                   </div>
                   {scriptLoading && (
                     <div className="flex items-center gap-2 py-8 justify-center">
@@ -1242,7 +1242,7 @@ export default function RosterBoard({ clientData, authUser }) {
                       {resignScript.map(stage => (
                         <div key={stage.step} className="bg-zinc-800 border border-zinc-700 rounded-lg p-3">
                           <div className="flex items-center gap-2 mb-2">
-                            <span className="text-[10px] font-mono text-gold">{stage.step}.</span>
+                            <span className="text-xs font-mono text-gold">{stage.step}.</span>
                             <span className="text-xs font-semibold text-white uppercase tracking-wider">{stage.label}</span>
                           </div>
                           <textarea
@@ -1266,7 +1266,7 @@ export default function RosterBoard({ clientData, authUser }) {
           <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="font-display text-sm tracking-widest text-emerald-400 uppercase">Client Resigned</h3>
             <div>
-              <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">New Term End Date</label>
+              <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">New Term End Date</label>
               <input type="date" value={newTermEnd} onChange={e => setNewTermEnd(e.target.value)}
                 className="w-full mt-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white focus:outline-none focus:ring-1 focus:ring-gold transition font-mono" />
             </div>
@@ -1290,18 +1290,18 @@ export default function RosterBoard({ clientData, authUser }) {
           <div className="bg-zinc-900 border border-zinc-700 rounded-lg p-6 w-full max-w-sm space-y-4" onClick={e => e.stopPropagation()}>
             <h3 className="font-display text-sm tracking-widest text-red-400 uppercase">Client Churned</h3>
             <div>
-              <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Reason</label>
+              <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Reason</label>
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {CHURN_REASONS.map(r => (
                   <button key={r.value} onClick={() => setChurnReason(r.value)}
-                    className={`px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider rounded transition ${churnReason === r.value ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>
+                    className={`px-3 py-1.5 text-xs font-semibold uppercase tracking-wider rounded transition ${churnReason === r.value ? 'bg-red-500/20 text-red-400 border border-red-500/30' : 'bg-zinc-800 text-zinc-500 border border-zinc-700'}`}>
                     {r.label}
                   </button>
                 ))}
               </div>
             </div>
             <div>
-              <label className="text-[10px] font-mono text-zinc-500 uppercase tracking-wider">Details (optional)</label>
+              <label className="text-xs font-mono text-zinc-500 uppercase tracking-wider">Details (optional)</label>
               <textarea value={churnReasonText} onChange={e => setChurnReasonText(e.target.value)}
                 rows={2} placeholder="Any extra context..."
                 className="w-full mt-1 px-3 py-2 bg-zinc-800 border border-zinc-700 rounded text-sm text-white placeholder-zinc-600 focus:outline-none focus:ring-1 focus:ring-gold transition resize-none" />
