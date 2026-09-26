@@ -532,10 +532,10 @@ export default function AIAcceleratorPage() {
                       </div>
                     </div>
                     <div className="flex items-start gap-3 p-3 bg-zinc-900/60 rounded-xl">
-                      <span className="text-lg">☀️</span>
+                      <span className="text-lg">📅</span>
                       <div>
-                        <p className="text-sm font-bold text-white">Morning Ops</p>
-                        <p className="text-xs text-zinc-400 mt-0.5">Your test task will appear in <span className="text-gold font-semibold">Today's Schedule</span> tomorrow</p>
+                        <p className="text-sm font-bold text-white">Scheduled</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">Your test task is scheduled for tomorrow</p>
                       </div>
                     </div>
                   </div>

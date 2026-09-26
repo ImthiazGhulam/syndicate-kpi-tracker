@@ -434,7 +434,6 @@ export default function UnshakeablePage() {
   const [generatedTasks, setGeneratedTasks] = useState([])
   const [planSummary, setPlanSummary] = useState('')
   const [deployedToCalendar, setDeployedToCalendar] = useState(false)
-  const [identityAffirmation, setIdentityAffirmation] = useState('')
 
   const generateActionPlan = async () => {
     setPlanLoading(true)
@@ -521,30 +520,6 @@ export default function UnshakeablePage() {
 
     const { error: tasksErr } = await supabase.from('project_tasks').insert(taskInserts)
     if (tasksErr) console.error('project_tasks save error:', tasksErr)
-
-    // Auto-populate Identity Chamber from The Identity Shift™ (framework_1) go_deeper answer
-    const identityAnswer = frameworkData.framework_1?.go_deeper?.trim()
-    if (identityAnswer) {
-      // Paraphrase into an "I am" affirmation
-      const affirmation = identityAnswer.startsWith('I ') ? identityAnswer : `I am ${identityAnswer.charAt(0).toLowerCase()}${identityAnswer.slice(1)}`
-      // Clean it up — remove trailing period, ensure it reads as a statement
-      const cleanAffirmation = affirmation.replace(/\.$/, '').trim()
-      const marker = `\n\n— Performance Flywheel™: ${record?.title || 'My Commitment'} —\n${cleanAffirmation}`
-
-      // Fetch existing affirmations and append
-      const { data: existing } = await supabase.from('identity_change').select('affirmations').eq('client_id', clientData.id).maybeSingle()
-      const currentAffirmations = existing?.affirmations || ''
-      const updated = currentAffirmations.trim() ? `${currentAffirmations.trim()}${marker}` : cleanAffirmation
-
-      const { error: identityErr } = await supabase.from('identity_change').upsert({
-        client_id: clientData.id,
-        affirmations: updated,
-        updated_at: new Date().toISOString(),
-      }, { onConflict: 'client_id' })
-      if (identityErr) console.error('identity_change save error:', identityErr)
-
-      setIdentityAffirmation(cleanAffirmation)
-    }
 
     setDeployedToCalendar(true)
     setPlanLoading(false)
@@ -829,29 +804,10 @@ export default function UnshakeablePage() {
                           </div>
 
                           <div className="flex items-start gap-3 p-3 bg-zinc-900/60 rounded-xl">
-                            <span className="text-lg">☀️</span>
-                            <div>
-                              <p className="text-sm font-bold text-white">Morning Ops Updated</p>
-                              <p className="text-xs text-zinc-400 mt-0.5">Your tasks will appear in <span className="text-gold font-semibold">Today's Schedule</span> every morning</p>
-                            </div>
-                          </div>
-
-                          {identityAffirmation && (
-                            <div className="flex items-start gap-3 p-3 bg-zinc-900/60 rounded-xl">
-                              <span className="text-lg">🪞</span>
-                              <div>
-                                <p className="text-sm font-bold text-white">Identity Chamber Updated</p>
-                                <p className="text-xs text-zinc-400 mt-0.5">Your identity shift has been added to your <span className="text-gold font-semibold">Identity Chamber</span> affirmations:</p>
-                                <p className="text-sm text-gold font-semibold mt-2 italic">"{identityAffirmation}"</p>
-                              </div>
-                            </div>
-                          )}
-
-                          <div className="flex items-start gap-3 p-3 bg-zinc-900/60 rounded-xl">
                             <span className="text-lg">📅</span>
                             <div>
                               <p className="text-sm font-bold text-white">Calendar</p>
-                              <p className="text-xs text-zinc-400 mt-0.5">Tasks run from <span className="text-white font-medium">{generatedTasks[0]?.scheduled_date && new Date(generatedTasks[0].scheduled_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span> to <span className="text-white font-medium">{generatedTasks[generatedTasks.length - 1]?.scheduled_date && new Date(generatedTasks[generatedTasks.length - 1].scheduled_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span> — check your <span className="text-gold font-semibold">War Map</span> calendar</p>
+                              <p className="text-xs text-zinc-400 mt-0.5">Tasks run from <span className="text-white font-medium">{generatedTasks[0]?.scheduled_date && new Date(generatedTasks[0].scheduled_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span> to <span className="text-white font-medium">{generatedTasks[generatedTasks.length - 1]?.scheduled_date && new Date(generatedTasks[generatedTasks.length - 1].scheduled_date + 'T12:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}</span> — check your <span className="text-gold font-semibold">Projects</span> tab</p>
                             </div>
                           </div>
                         </div>
@@ -862,7 +818,7 @@ export default function UnshakeablePage() {
                         {planLoading ? 'Deploying...' : 'Deploy to Calendar'}
                       </button>
                     )}
-                    {!deployedToCalendar && <p className="text-zinc-600 text-xs mt-2">This will create a project with all these tasks on your calendar and update your Identity Chamber.</p>}
+                    {!deployedToCalendar && <p className="text-zinc-600 text-xs mt-2">This will create a project with all these tasks on your calendar.</p>}
                   </div>
                   </div>
                 </div>

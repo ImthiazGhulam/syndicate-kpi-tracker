@@ -291,8 +291,6 @@ export default function ContentCaptureClient() {
   const [phaseAiSuggestion, setPhaseAiSuggestion] = useState(null)
 
   // Capture data
-  const [debriefData, setDebriefData] = useState([])
-  const [hasDebriefs, setHasDebriefs] = useState(true)
   const [manualCapture, setManualCapture] = useState('')
   const [selectedCapture, setSelectedCapture] = useState('')
 
@@ -383,25 +381,6 @@ export default function ContentCaptureClient() {
             }
           }
         }
-      }
-
-      // Fetch last 7 days of debriefs
-      const sevenDaysAgo = new Date()
-      sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7)
-      const dateStr = sevenDaysAgo.toISOString().split('T')[0]
-
-      const { data: debriefs } = await supabase
-        .from('evening_pulse')
-        .select('*')
-        .eq('client_id', client.id)
-        .gte('date', dateStr)
-        .order('date', { ascending: false })
-
-      if (debriefs && debriefs.length > 0) {
-        setDebriefData(debriefs)
-        setHasDebriefs(true)
-      } else {
-        setHasDebriefs(false)
       }
 
       // Check for existing content capture record
@@ -876,76 +855,15 @@ export default function ContentCaptureClient() {
     return weekData ? { ...weekData, weekNum, total: phase.weeks.length } : null
   }
 
-  // ── Extract captures from debriefs ─────────────────────────────────────────────
-
-  const extractCaptures = () => {
-    const captures = []
-    debriefData.forEach(d => {
-      if (d.went_well) captures.push(d.went_well)
-      if (d.learned) captures.push(d.learned)
-      if (d.proud_of) captures.push(d.proud_of)
-      for (let i = 1; i <= 5; i++) {
-        if (d[`win_${i}_title`]) captures.push(`Win: ${d[`win_${i}_title`]}${d[`win_${i}_action`] ? ' — ' + d[`win_${i}_action`] : ''}`)
-      }
-      if (d.do_differently) captures.push(d.do_differently)
-    })
-    return captures
-  }
-
   // ── Render Stages ──────────────────────────────────────────────────────────────
 
   // Stage 1: Capture
   const renderStage1 = () => {
-    if (hasDebriefs && debriefData.length > 0) {
-      const captures = extractCaptures()
-      return (
-        <div className="space-y-6">
-          <div>
-            <GoldLabel>Pick One Story</GoldLabel>
-            <p className="text-zinc-400 text-sm mb-4">Each capture is its own piece of content. Select the one you want to turn into something:</p>
-          </div>
-          <div className="space-y-2 max-h-[50vh] overflow-y-auto pr-2">
-            {captures.map((capture, i) => (
-              <button
-                key={i}
-                onClick={() => { setSelectedCapture(capture); setSuggestedHooks([]); setGeneratedStructure('') }}
-                className={`w-full text-left px-4 py-3 rounded border transition text-sm ${
-                  selectedCapture === capture
-                    ? 'bg-gold/10 border-gold/40 text-white'
-                    : 'bg-zinc-800 border-zinc-700 text-zinc-300 hover:border-zinc-600'
-                }`}
-              >
-                {capture}
-              </button>
-            ))}
-          </div>
-          {captures.length === 0 && (
-            <p className="text-zinc-500 text-sm italic">No content found in your debriefs. Use manual input below.</p>
-          )}
-          <div className="flex items-center gap-3 pt-2">
-            <div className="flex-1 h-px bg-zinc-800" />
-            <span className="text-zinc-600 text-xs uppercase tracking-widest">or write your own</span>
-            <div className="flex-1 h-px bg-zinc-800" />
-          </div>
-          <div>
-            <Label>Manual capture</Label>
-            <TextArea
-              value={manualCapture}
-              onChange={v => { setManualCapture(v); setSelectedCapture(''); setSuggestedHooks([]); setGeneratedStructure('') }}
-              onBlur={() => debouncedSave()}
-              placeholder="A client win, something you learned, a story from your week..."
-              rows={3}
-            />
-          </div>
-        </div>
-      )
-    }
-
     return (
       <div className="space-y-6">
         <div>
           <GoldLabel>Capture Your Story</GoldLabel>
-          <p className="text-zinc-400 text-sm mb-4">No debriefs found from the past week. Write one story, win, learning, or insight to turn into content:</p>
+          <p className="text-zinc-400 text-sm mb-4">Write one story, win, learning, or insight to turn into content:</p>
         </div>
         <TextArea
           value={manualCapture}

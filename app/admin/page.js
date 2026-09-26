@@ -205,15 +205,6 @@ function AdminPageInner() {
 
   // Client data
   const [dailyKpis, setDailyKpis] = useState([])
-  const [weekMorningOps, setWeekMorningOps] = useState([])
-  const [weekDebriefs, setWeekDebriefs] = useState([])
-  const [warMapWeekly, setWarMapWeekly] = useState(null)
-  const [weeklyReview, setWeeklyReview] = useState(null)
-  const [reviewPriorities, setReviewPriorities] = useState(null)
-  const [allClientLockIns, setAllClientLockIns] = useState([])
-  const [allClientWarMaps, setAllClientWarMaps] = useState([])
-  const [adminReviewWeek, setAdminReviewWeek] = useState(() => getMonday())
-  const [adminWarMapWeek, setAdminWarMapWeek] = useState(() => getMonday())
   const [adminViewDate, setAdminViewDate] = useState(() => localDateStr())
   // Default monthly view to previous month
   const [adminMonthlyMonth, setAdminMonthlyMonth] = useState(() => {
@@ -243,10 +234,8 @@ function AdminPageInner() {
   const [clientDistinction, setClientDistinction] = useState(null)
   const [clientAIAccelerator, setClientAIAccelerator] = useState(null)
   const [clientLeadMagnets, setClientLeadMagnets] = useState(null)
-  const [identityChange, setIdentityChange] = useState(null)
   const [lifeDesign, setLifeDesign] = useState(null)
   const [adventures, setAdventures] = useState(defaultAdventures())
-  const [warMapTasks, setWarMapTasks] = useState([])
   const [projects, setProjects] = useState([])
   const [projectTasks, setProjectTasks] = useState({})
   const [leads, setLeads] = useState([])
@@ -294,53 +283,22 @@ function AdminPageInner() {
   }, [selectedClient?.id])
 
   const fetchAllClientHealth = async (clientList) => {
-    const monday = getMonday()
-    const sunday = getWeekDays(monday)[6]
-    const today = localDateStr()
-    const todayIdx = getWeekDays(monday).indexOf(today)
-    const elapsed = Math.max(1, todayIdx >= 0 ? todayIdx + 1 : 1)
-
-    // Fetch this week's morning ops and debriefs for ALL clients
     const safe = async (fn) => { try { return await fn } catch(e) { console.error('Health query failed:', e); return { data: [] } } }
-    // Also check last month's monthly review completion
     const prevMonth = new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1
     const prevYear = new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()
+    const elapsed = 0
 
-    const [morningRes, eveningRes, warWeeklyRes, reviewRes, identityRes, monthlyRes] = await Promise.all([
-      safe(supabase.from('daily_pulse').select('client_id, date, completed, identity_read').gte('date', monday).lte('date', sunday)),
-      safe(supabase.from('evening_pulse').select('client_id, date, completed').gte('date', monday).lte('date', sunday)),
-      safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
-      safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
-      safe(supabase.from('identity_change').select('client_id, affirmations')),
+    const [monthlyRes] = await Promise.all([
       safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent, month, year').or(`and(month.eq.${prevMonth},year.eq.${prevYear}),and(month.eq.${new Date().getMonth()},year.eq.${new Date().getFullYear()})`)),
     ])
 
     const health = {}
     clientList.forEach(c => {
-      const mp = (Array.isArray(morningRes.data) ? morningRes.data : []).filter(r => r.client_id === c.id)
-      const ep = (Array.isArray(eveningRes.data) ? eveningRes.data : []).filter(r => r.client_id === c.id)
-      const mornings = mp.filter(r => r.completed).length
-      const debriefs = ep.filter(r => r.completed).length
-      const identityReads = mp.filter(r => r.identity_read).length
-      const warMap = (Array.isArray(warWeeklyRes.data) ? warWeeklyRes.data : []).find(r => r.client_id === c.id)?.completed ? 1 : 0
-      const lockIn = (Array.isArray(reviewRes.data) ? reviewRes.data : []).find(r => r.client_id === c.id)?.completed ? 1 : 0
-      const hasIdentity = (Array.isArray(identityRes.data) ? identityRes.data : []).find(r => r.client_id === c.id)?.affirmations?.trim().length > 0 ? 1 : 0
       const monthlyRecord = (Array.isArray(monthlyRes.data) ? monthlyRes.data : []).find(r => r.client_id === c.id)
       const monthlyDone = monthlyRecord?.completed ? true : false
       const awaitingFeedback = monthlyRecord?.completed && !monthlyRecord?.feedback_sent ? true : false
 
-      // Score out of 85 (no tracker data in overview), scaled to 100
-      const rawScore =
-        Math.min(1, elapsed > 0 ? mornings / elapsed : 0) * 25 +
-        Math.min(1, elapsed > 0 ? debriefs / elapsed : 0) * 20 +
-        Math.min(1, elapsed > 0 ? identityReads / elapsed : 0) * 10 +
-        warMap * 15 + lockIn * 15
-      const score = Math.min(100, Math.round((rawScore / 85) * 100))
-
       const alerts = []
-      if (mornings === 0 && elapsed >= 3) alerts.push('No morning ops')
-      if (debriefs === 0 && elapsed >= 3) alerts.push('No debriefs')
-      if (!hasIdentity) alerts.push('No identity set')
       if (c.programme_renewal && c.programme_start) {
         const totalDays = Math.ceil((new Date(c.programme_renewal) - new Date(c.programme_start)) / 86400000)
         const dLeft = Math.ceil((new Date(c.programme_renewal) - new Date()) / 86400000)
@@ -356,10 +314,10 @@ function AdminPageInner() {
       // Monthly review reminder in first week of month
       if (new Date().getDate() <= 7 && !monthlyDone) alerts.push('Monthly review overdue')
 
-      const status = score >= 70 ? 'healthy' : score >= 40 ? 'at-risk' : mornings === 0 && debriefs === 0 && elapsed >= 3 ? 'critical' : 'at-risk'
+      const status = monthlyDone ? 'healthy' : 'at-risk'
 
       if (awaitingFeedback) alerts.push('Monthly review — awaiting your feedback')
-      health[c.id] = { score, mornings, debriefs, identityReads, warMap, lockIn, hasIdentity, monthlyDone, awaitingFeedback, alerts, status, elapsed }
+      health[c.id] = { monthlyDone, awaitingFeedback, alerts, status, elapsed }
     })
     setClientHealth(health)
   }
@@ -377,19 +335,12 @@ function AdminPageInner() {
 
     // Reset all data from previous client
     setDailyKpis([])
-    setWeekMorningOps([])
-    setWeekDebriefs([])
-    setWarMapWeekly(null)
-    setWeeklyReview(null)
-    setReviewPriorities(null)
     setAdminViewDate(localDateStr())
     setMonthlyReview(null)
     setAllMonthlyReviews([])
     setClientInsights(null)
-    setIdentityChange(null)
     setLifeDesign(null)
     setAdventures(defaultAdventures())
-    setWarMapTasks([])
     setProjects([])
     setProjectTasks({})
     setLeads([])
@@ -402,8 +353,6 @@ function AdminPageInner() {
     setClientDistinction(null)
     setClientAIAccelerator(null)
     setClientLeadMagnets(null)
-    setAllClientLockIns([])
-    setAllClientWarMaps([])
     setClientPhase(null)
 
     try {
@@ -411,7 +360,6 @@ function AdminPageInner() {
     const year = new Date().getFullYear()
     const monday = getMonday()
     const sunday = getWeekDays(monday)[6]
-    const today = localDateStr()
     const mStart = `${year}-${String(new Date().getMonth() + 1).padStart(2, '0')}-01`
     const mEnd = localDateStr(new Date(year, new Date().getMonth() + 1, 0))
 
@@ -420,65 +368,43 @@ function AdminPageInner() {
     // IMPORTANT: destructuring order MUST match query order exactly
     const [
       dkpiRes,          // 1. daily_kpis (month)
-      morningRes,       // 2. daily_pulse (week)
-      eveningRes,       // 3. evening_pulse (week)
-      warWeeklyRes,     // 4. war_map_weekly (this week, single)
-      reviewRes,        // 5. weekly_review (this week, single)
-      monthlyRes,       // 6. monthly_review (this month, single)
-      allMonthlyRes,    // 7. monthly_review (all)
-      identityRes,      // 8. identity_change
-      designRes,        // 9. life_design
-      adventuresRes,    // 10. mini_adventures
-      warTasksRes,      // 11. war_map_tasks
-      projectsRes,      // 12. projects
-      leadsRes,         // 13. leads
-      weekKpisRes,      // 14. daily_kpis (week)
-      playbookRes,      // 15. offer_playbooks
-      premiumPosRes,    // 16. premium_position
-      wealthWiredRes,   // 16b. wealth_wired
-      unshakeableRes,   // 16c. unshakeable_playbook
-      bounceBackRes,    // 16e. bounce_back
-      distinctionRes,   // 16f. distinction_engine
-      aiAccelRes,       // 16d. ai_accelerator
-      leadMagnetsRes,   // 16g. lead_magnets
-      allLockInsRes,    // 17. weekly_review (all)
-      allWarMapsRes,    // 18. war_map_weekly (all)
+      monthlyRes,       // 2. monthly_review (this month, single)
+      allMonthlyRes,    // 3. monthly_review (all)
+      designRes,        // 4. life_design
+      adventuresRes,    // 5. mini_adventures
+      projectsRes,      // 6. projects
+      leadsRes,         // 7. leads
+      weekKpisRes,      // 8. daily_kpis (week)
+      playbookRes,      // 9. offer_playbooks
+      premiumPosRes,    // 10. premium_position
+      wealthWiredRes,   // 10b. wealth_wired
+      unshakeableRes,   // 10c. unshakeable_playbook
+      bounceBackRes,    // 10e. bounce_back
+      distinctionRes,   // 10f. distinction_engine
+      aiAccelRes,       // 10d. ai_accelerator
+      leadMagnetsRes,   // 10g. lead_magnets
     ] = await Promise.all([
       safe(supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd).order('date')),       // 1
-      safe(supabase.from('daily_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),                    // 2
-      safe(supabase.from('evening_pulse').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),                  // 3
-      safe(supabase.from('war_map_weekly').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),                     // 4
-      safe(supabase.from('weekly_review').select('*').eq('client_id', client.id).eq('week_of', monday).maybeSingle()),                      // 5
-      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getDate() <= 7 ? (new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1) : new Date().getMonth()).eq('year', new Date().getDate() <= 7 && new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle()), // 6 — current context month review
-      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month')),                            // 7
-      safe(supabase.from('identity_change').select('*').eq('client_id', client.id).maybeSingle()),                                          // 8
-      safe(supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle()),                             // 9
-      safe(supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index')),                  // 10
-      safe(supabase.from('war_map_tasks').select('*').eq('client_id', client.id).eq('week_of', monday).order('created_at', { ascending: false })),                // 11
-      safe(supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false })),                     // 12
-      safe(supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true })),                         // 13
-      safe(supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),                     // 14
-      safe(supabase.from('offer_playbooks').select('*').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle()), // 15
-      safe(supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle()),                                         // 16
-      safe(supabase.from('wealth_wired').select('*').eq('client_id', client.id).maybeSingle()),                                              // 16b
-      safe(supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),         // 16c
-      safe(supabase.from('bounce_back').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),                   // 16e
-      safe(supabase.from('distinction_engine').select('*').eq('client_id', client.id).maybeSingle()),                                        // 16f
-      safe(supabase.from('ai_accelerator').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),              // 16d
-      safe(supabase.from('lead_magnets').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),             // 16g
-      safe(supabase.from('weekly_review').select('week_of, completed, completed_at, revenue, week_rating').eq('client_id', client.id).order('week_of', { ascending: false })), // 17
-      safe(supabase.from('war_map_weekly').select('week_of, completed, completed_at, number_one_priority').eq('client_id', client.id).order('week_of', { ascending: false })), // 18
+      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).eq('month', new Date().getDate() <= 7 ? (new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1) : new Date().getMonth()).eq('year', new Date().getDate() <= 7 && new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()).maybeSingle()), // 2
+      safe(supabase.from('monthly_review').select('*').eq('client_id', client.id).order('year').order('month')),                            // 3
+      safe(supabase.from('life_design').select('*').eq('client_id', client.id).eq('year', year).maybeSingle()),                             // 4
+      safe(supabase.from('mini_adventures').select('*').eq('client_id', client.id).eq('year', year).order('order_index')),                  // 5
+      safe(supabase.from('projects').select('*').eq('client_id', client.id).order('start_date', { ascending: false })),                     // 6
+      safe(supabase.from('leads').select('*').eq('client_id', client.id).order('created_at', { ascending: true })),                         // 7
+      safe(supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', monday).lte('date', sunday)),                     // 8
+      safe(supabase.from('offer_playbooks').select('*').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle()), // 9
+      safe(supabase.from('premium_position').select('*').eq('client_id', client.id).maybeSingle()),                                         // 10
+      safe(supabase.from('wealth_wired').select('*').eq('client_id', client.id).maybeSingle()),                                              // 10b
+      safe(supabase.from('unshakeable_playbook').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),         // 10c
+      safe(supabase.from('bounce_back').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),                   // 10e
+      safe(supabase.from('distinction_engine').select('*').eq('client_id', client.id).maybeSingle()),                                        // 10f
+      safe(supabase.from('ai_accelerator').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),              // 10d
+      safe(supabase.from('lead_magnets').select('*').eq('client_id', client.id).order('created_at', { ascending: false })),             // 10g
     ])
 
     setDailyKpis(Array.isArray(dkpiRes.data) ? dkpiRes.data : [])
-    setWeekMorningOps(Array.isArray(morningRes.data) ? morningRes.data : [])
-    setWeekDebriefs(Array.isArray(eveningRes.data) ? eveningRes.data : [])
-    setWarMapWeekly(warWeeklyRes.data && !Array.isArray(warWeeklyRes.data) ? warWeeklyRes.data : null)
-    setWeeklyReview(reviewRes.data && !Array.isArray(reviewRes.data) ? reviewRes.data : null)
-    setReviewPriorities(warWeeklyRes.data && !Array.isArray(warWeeklyRes.data) ? warWeeklyRes.data : null)
     setMonthlyReview(monthlyRes.data && !Array.isArray(monthlyRes.data) ? monthlyRes.data : null)
     setAllMonthlyReviews(Array.isArray(allMonthlyRes.data) ? allMonthlyRes.data : [])
-    setIdentityChange(identityRes.data && !Array.isArray(identityRes.data) ? identityRes.data : null)
     setLifeDesign(designRes.data && !Array.isArray(designRes.data) ? designRes.data : null)
     setWeekKpis(Array.isArray(weekKpisRes.data) ? weekKpisRes.data : [])
     setClientPlaybook(playbookRes.data && !Array.isArray(playbookRes.data) ? playbookRes.data : null)
@@ -489,10 +415,6 @@ function AdminPageInner() {
     setClientDistinction(distinctionRes.data && !Array.isArray(distinctionRes.data) ? distinctionRes.data : null)
     setClientAIAccelerator(Array.isArray(aiAccelRes.data) && aiAccelRes.data.length > 0 ? aiAccelRes.data : null)
     setClientLeadMagnets(Array.isArray(leadMagnetsRes.data) && leadMagnetsRes.data.length > 0 ? leadMagnetsRes.data : null)
-    setAllClientLockIns(Array.isArray(allLockInsRes.data) ? allLockInsRes.data : [])
-    setAllClientWarMaps(Array.isArray(allWarMapsRes.data) ? allWarMapsRes.data : [])
-    setAdminReviewWeek(monday)
-    setAdminWarMapWeek(monday)
     const initM = new Date().getDate() <= 7 ? (new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1) : new Date().getMonth()
     const initY = new Date().getDate() <= 7 && new Date().getMonth() === 0 ? new Date().getFullYear() - 1 : new Date().getFullYear()
     setAdminMonthlyMonth(initM)
@@ -507,7 +429,6 @@ function AdminPageInner() {
       setAdventures(defaultAdventures())
     }
 
-    setWarMapTasks(Array.isArray(warTasksRes.data) ? warTasksRes.data : [])
     setLeads(Array.isArray(leadsRes.data) ? leadsRes.data : [])
 
     // Fetch active content phase
@@ -565,13 +486,9 @@ function AdminPageInner() {
 
     const safe = async (fn) => { try { return await fn } catch(e) { return { data: [] } } }
 
-    const [checklistRes, morningRes, debriefRes, kpiRes, warMapRes, lockInRes, monthlyRes, playbookRes, premiumRes, wealthRes, projectsRes, projectTasksRes, flywheelRes] = await Promise.all([
+    const [checklistRes, kpiRes, monthlyRes, playbookRes, premiumRes, wealthRes, projectsRes, projectTasksRes, flywheelRes] = await Promise.all([
       safe(supabase.from('admin_daily_checklist').select('*').eq('checklist_date', today)),
-      safe(supabase.from('daily_pulse').select('client_id, completed').eq('date', today)),
-      safe(supabase.from('evening_pulse').select('client_id, completed').eq('date', new Date(Date.now() - 86400000).toISOString().split('T')[0])),
       safe(supabase.from('daily_kpis').select('client_id').eq('date', today)),
-      safe(supabase.from('war_map_weekly').select('client_id, completed').eq('week_of', monday)),
-      safe(supabase.from('weekly_review').select('client_id, completed').eq('week_of', monday)),
       safe(supabase.from('monthly_review').select('client_id, completed, feedback_sent, month, year').or(`and(month.eq.${prevMonth},year.eq.${prevYear}),and(month.eq.${new Date().getMonth()},year.eq.${new Date().getFullYear()})`)),
       safe(supabase.from('offer_playbooks').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
       safe(supabase.from('premium_position').select('client_id, updated_at').order('updated_at', { ascending: false }).limit(50)),
@@ -581,19 +498,11 @@ function AdminPageInner() {
       safe(supabase.from('unshakeable_playbook').select('client_id, title, generated_plan, updated_at, created_at').order('created_at', { ascending: false })),
     ])
 
-    const mornings = Array.isArray(morningRes.data) ? morningRes.data : []
-    const debriefs = Array.isArray(debriefRes.data) ? debriefRes.data : []
     const kpis = Array.isArray(kpiRes.data) ? kpiRes.data : []
-    const warMaps = Array.isArray(warMapRes.data) ? warMapRes.data : []
-    const lockIns = Array.isArray(lockInRes.data) ? lockInRes.data : []
     const monthlys = Array.isArray(monthlyRes.data) ? monthlyRes.data : []
 
     const totalClients = clients.length
-    const morningsDone = mornings.filter(m => m.completed).length
-    const debriefsDone = debriefs.filter(d => d.completed).length
     const kpisDone = kpis.length
-    const warMapsDone = warMaps.filter(w => w.completed).length
-    const lockInsDone = lockIns.filter(l => l.completed).length
     const monthlysDone = new Set(monthlys.filter(m => m.completed).map(m => m.client_id)).size
     const awaitingFeedbackIds = new Set(monthlys.filter(m => m.completed && !m.feedback_sent).map(m => m.client_id))
     const awaitingFeedback = clients.filter(c => awaitingFeedbackIds.has(c.id))
@@ -607,31 +516,12 @@ function AdminPageInner() {
       return Math.ceil((new Date(c.programme_renewal) - new Date()) / 86400000) <= 0
     })
 
-    // Clients who haven't done Morning Ops today
-    const morningClientIds = new Set(mornings.filter(m => m.completed).map(m => m.client_id))
-    const noMorningOps = clients.filter(c => !morningClientIds.has(c.id))
-
-    // Clients at risk (score < 40)
-    const atRiskClients = clients.filter(c => clientHealth[c.id]?.status === 'critical' || clientHealth[c.id]?.status === 'at-risk' && clientHealth[c.id]?.score < 40)
-
-    // Inactive clients (score < 50 — need accountability nudge)
-    const inactiveClients = clients.filter(c => { const h = clientHealth[c.id]; return h && h.score < 50 }).sort((a, b) => (clientHealth[a.id]?.score || 0) - (clientHealth[b.id]?.score || 0))
-
-    // Clients missing debriefs yesterday
-    const debriefClientIds = new Set(debriefs.filter(dd => dd.completed).map(dd => dd.client_id))
-    const noDebriefs = clients.filter(c => !debriefClientIds.has(c.id))
+    // Clients at risk
+    const atRiskClients = clients.filter(c => clientHealth[c.id]?.status === 'at-risk')
 
     // Clients missing KPIs today
     const kpiClientIds = new Set(kpis.map(k => k.client_id))
     const noKpis = clients.filter(c => !kpiClientIds.has(c.id))
-
-    // Clients missing War Map this week
-    const warMapClientIds = new Set(warMaps.filter(w => w.completed).map(w => w.client_id))
-    const noWarMap = clients.filter(c => !warMapClientIds.has(c.id))
-
-    // Clients missing Lock In this week
-    const lockInClientIds = new Set(lockIns.filter(l => l.completed).map(l => l.client_id))
-    const noLockIn = clients.filter(c => !lockInClientIds.has(c.id))
 
     // Clients missing monthly review
     const monthlyClientIds = new Set(monthlys.filter(m => m.completed).map(m => m.client_id))
@@ -672,11 +562,11 @@ function AdminPageInner() {
     })
 
     setDailyOpsData({
-      totalClients, morningsDone, debriefsDone, kpisDone,
-      warMapsDone, lockInsDone, monthlysDone,
+      totalClients, kpisDone,
+      monthlysDone,
       awaitingFeedback, renewingSoon, expired,
-      noMorningOps, noDebriefs, noKpis, noWarMap, noLockIn, noMonthly,
-      inactiveClients, atRiskClients, dayOfWeek, dayOfMonth,
+      noKpis, noMonthly,
+      atRiskClients, dayOfWeek, dayOfMonth,
       nearComplete, overdueProjects, recentFlywheels,
     })
 
@@ -723,34 +613,10 @@ function AdminPageInner() {
 
   const isDailyOpsChecked = (key) => dailyOpsChecklist.find(c => c.item_key === key)?.completed || false
 
-  // ── Programme Score ────────────────────────────────────────────────────────
-
   const todayStr = localDateStr()
   const dashWeekDays = getWeekDays(getMonday())
   const todayDayIndex = dashWeekDays.indexOf(todayStr)
   const daysElapsed = Math.max(1, todayDayIndex >= 0 ? todayDayIndex + 1 : 1)
-
-  const morningOpsCompleted = weekMorningOps.filter(p => p.completed).length
-  const debriefsCompleted = weekDebriefs.filter(p => p.completed).length
-  const identityReads = weekMorningOps.filter(p => p.identity_read).length
-  const kpiDaysFilled = weekKpis.length
-  const warMapDone = warMapWeekly?.completed ? 1 : 0
-  const lockInDone = weeklyReview?.completed ? 1 : 0
-
-  const capPct = (val, max) => Math.min(100, Math.round((val / max) * 100))
-  const scores = {
-    morningOps: { value: Math.min(morningOpsCompleted, daysElapsed), max: daysElapsed, pct: capPct(morningOpsCompleted, daysElapsed), label: 'Morning Ops', sub: 'daily', icon: 'sun', color: 'text-amber-400', bar: 'bg-amber-400' },
-    debrief:    { value: Math.min(debriefsCompleted, daysElapsed), max: daysElapsed, pct: capPct(debriefsCompleted, daysElapsed), label: 'The Debrief', sub: 'daily', icon: 'moon', color: 'text-indigo-400', bar: 'bg-indigo-400' },
-    identity:   { value: Math.min(identityReads, daysElapsed), max: daysElapsed, pct: capPct(identityReads, daysElapsed), label: 'Identity Read', sub: 'daily', icon: 'mirror', color: 'text-violet-400', bar: 'bg-violet-400' },
-    warMap:     { value: warMapDone, max: 1, pct: warMapDone * 100, label: 'War Map', sub: 'weekly', icon: 'sword', color: 'text-sky-400', bar: 'bg-sky-400' },
-    lockIn:     { value: lockInDone, max: 1, pct: lockInDone * 100, label: 'The Lock In', sub: 'weekly', icon: 'lock', color: 'text-gold', bar: 'bg-gold' },
-    tracker:    { value: Math.min(kpiDaysFilled, daysElapsed), max: daysElapsed, pct: capPct(kpiDaysFilled, daysElapsed), label: 'Business Tracker', sub: 'daily', icon: 'chart', color: 'text-emerald-400', bar: 'bg-emerald-400' },
-  }
-
-  const overallPct = selectedClient ? Math.min(100, Math.round(
-    scores.morningOps.pct * 0.25 + scores.debrief.pct * 0.20 + scores.identity.pct * 0.10 +
-    scores.warMap.pct * 0.15 + scores.lockIn.pct * 0.15 + scores.tracker.pct * 0.15
-  )) : 0
 
   // ── Project CRUD ───────────────────────────────────────────────────────────
 
@@ -914,15 +780,8 @@ function AdminPageInner() {
       { id: 'projects',     label: 'Projects' },
     ]},
     { heading: 'Daily', items: [
-      { id: 'identity',     label: 'Identity Chamber' },
-      { id: 'morning-ops',  label: 'Morning Ops' },
-      { id: 'debrief',      label: 'The Debrief' },
       { id: 'tracker',      label: 'Business Tracker' },
       { id: 'hot-list',     label: 'Hot List' },
-    ]},
-    { heading: 'Weekly', items: [
-      { id: 'war-map',      label: 'War Map' },
-      { id: 'lock-in',      label: 'The Lock In' },
     ]},
     { heading: 'Monthly', items: [
       { id: 'monthly',      label: 'Monthly Review' },
@@ -944,22 +803,6 @@ function AdminPageInner() {
     ]},
   ]
 
-  // Today's data (for dashboard scores)
-  const todayMorning = weekMorningOps.find(p => p.date === todayStr) || null
-  const todayEvening = weekDebriefs.find(p => p.date === todayStr) || null
-
-  // Admin view date data (for detail views with navigation)
-  const viewMorning = weekMorningOps.find(p => p.date === adminViewDate) || null
-  const viewEvening = weekDebriefs.find(p => p.date === adminViewDate) || null
-  const viewDateLabel = new Date(adminViewDate + 'T12:00:00').toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'short' })
-  const canGoPrevDay = dashWeekDays.indexOf(adminViewDate) > 0
-  const canGoNextDay = dashWeekDays.indexOf(adminViewDate) < dashWeekDays.length - 1 && dashWeekDays.indexOf(adminViewDate) < dashWeekDays.indexOf(todayStr)
-
-  // War map filters
-  const delegated = warMapTasks.filter(t => t.status === 'delegate')
-  const scheduled = warMapTasks.filter(t => t.status === 'schedule')
-  const doNow     = warMapTasks.filter(t => t.status === 'do_now')
-  const brainDump = warMapTasks.filter(t => t.status === 'brain_dump')
 
   // ── Guards ─────────────────────────────────────────────────────────────────
 
@@ -1055,8 +898,8 @@ function AdminPageInner() {
             {clients.map(client => {
               const h = clientHealth[client.id] || {}
               const initials = (client.name || '').split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase()
-              const statusColor = h.status === 'critical' ? 'border-red-500' : h.status === 'at-risk' ? 'border-amber-500' : h.status === 'healthy' ? 'border-emerald-500' : 'border-zinc-700'
-              const statusBg = h.status === 'critical' ? 'bg-red-500/10' : h.status === 'at-risk' ? 'bg-amber-500/10' : h.status === 'healthy' ? 'bg-emerald-500/10' : 'bg-zinc-800'
+              const statusColor = h.status === 'at-risk' ? 'border-amber-500' : h.status === 'healthy' ? 'border-emerald-500' : 'border-zinc-700'
+              const statusBg = h.status === 'at-risk' ? 'bg-amber-500/10' : h.status === 'healthy' ? 'bg-emerald-500/10' : 'bg-zinc-800'
               return (
               <button key={client.id} onClick={() => selectClient(client)}
                 className={`w-full text-left px-4 py-3 transition ${
@@ -1073,11 +916,6 @@ function AdminPageInner() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <p className={`text-sm font-medium truncate ${selectedClient?.id === client.id ? 'text-white' : 'text-zinc-300'}`}>{client.name}</p>
-                      {h.score != null && (
-                        <span className={`text-[10px] font-bold flex-shrink-0 ${
-                          h.score >= 70 ? 'text-emerald-400' : h.score >= 40 ? 'text-amber-400' : 'text-red-400'
-                        }`}>{h.score}%</span>
-                      )}
                     </div>
                     <p className="text-[11px] text-zinc-600 truncate">{client.business || client.email}</p>
                   </div>
@@ -1586,23 +1424,14 @@ function AdminPageInner() {
                   { key: 'review_dropoffs', label: `Review at-risk clients (${d.atRiskClients.length})`, sub: d.atRiskClients.length > 0 ? d.atRiskClients.slice(0, 5).map(c => c.name).join(', ') + (d.atRiskClients.length > 5 ? ` +${d.atRiskClients.length - 5} more` : '') : 'All clients healthy', highlight: d.atRiskClients.length > 0, expandable: d.atRiskClients.length > 0, clients: d.atRiskClients.map(c => {
                     const h = clientHealth[c.id] || {}
                     const issues = []
-                    if (h.mornings === 0 && h.elapsed >= 3) issues.push('No morning ops this week')
-                    else if (h.elapsed > 0 && h.mornings / h.elapsed < 0.5) issues.push(`Morning ops: ${h.mornings}/${h.elapsed} days`)
-                    if (h.debriefs === 0 && h.elapsed >= 3) issues.push('No debriefs this week')
-                    else if (h.elapsed > 0 && h.debriefs / h.elapsed < 0.5) issues.push(`Debriefs: ${h.debriefs}/${h.elapsed} days`)
-                    if (h.elapsed > 0 && h.identityReads / h.elapsed < 0.5) issues.push('Low identity reads')
-                    if (!h.warMap) issues.push('War Map not done')
-                    if (!h.lockIn) issues.push('Lock In not done')
-                    if (h.alerts?.length > 0) issues.push(...h.alerts.filter(a => !issues.some(i => i.toLowerCase().includes(a.toLowerCase().slice(0, 8)))))
-                    return { ...c, score: h.score ?? 0, status: h.status, issues }
+                    if (h.alerts?.length > 0) issues.push(...h.alerts)
+                    return { ...c, status: h.status, issues }
                   }) },
-                  { key: 'check_morning_ops', label: `Check who's done Morning Ops today (${d.morningsDone}/${d.totalClients})`, sub: d.noMorningOps.length > 0 && d.noMorningOps.length <= 10 ? 'Not done: ' + d.noMorningOps.map(c => c.name.split(' ')[0]).join(', ') : d.noMorningOps.length > 10 ? `${d.noMorningOps.length} clients haven't logged yet` : 'Everyone\'s checked in', clients: d.noMorningOps },
                 ]
                 sections.push({ title: '☀️ Morning', subtitle: 'Start of day', items: morningItems })
 
                 // ── ACCOUNTABILITY BLOCK ──
                 const accountItems = [
-                  { key: 'send_accountability', label: `Send accountability messages (${d.inactiveClients.length} inactive)`, sub: d.inactiveClients.length > 0 ? 'DM or voice note anyone who\'s gone quiet' : 'Everyone\'s active — nice', clients: d.inactiveClients },
                   { key: 'review_hot_lists', label: 'Review client Hot Lists for coaching opportunities', sub: 'Check if anyone has stale leads or needs help with follow-ups', clients: clients },
                   { key: 'check_playbook_progress', label: 'Check playbook progress', sub: 'Review who\'s actively working through Sold Out, Premium Position, or Wealth Wired', clients: clients },
                 ]
@@ -1624,9 +1453,7 @@ function AdminPageInner() {
 
                 // ── MONDAY SPECIALS ──
                 if (isMonday) {
-                  sections.push({ title: '🔒 Monday Review', subtitle: 'Weekend catch-up', items: [
-                    { key: 'review_lock_ins', label: `Review Lock In completions (${d.lockInsDone}/${d.totalClients})`, sub: d.noLockIn.length > 0 ? `Not done: ${d.noLockIn.slice(0, 5).map(c => c.name.split(' ')[0]).join(', ')}${d.noLockIn.length > 5 ? ` +${d.noLockIn.length - 5} more` : ''}` : 'Everyone completed', clients: d.noLockIn },
-                    { key: 'review_war_maps', label: `Review War Map completions (${d.warMapsDone}/${d.totalClients})`, sub: d.noWarMap.length > 0 ? `Not done: ${d.noWarMap.slice(0, 5).map(c => c.name.split(' ')[0]).join(', ')}${d.noWarMap.length > 5 ? ` +${d.noWarMap.length - 5} more` : ''}` : 'Everyone planned their week', clients: d.noWarMap },
+                  sections.push({ title: '📋 Monday Review', subtitle: 'Weekend catch-up', items: [
                     { key: 'set_weekly_focus', label: 'Set your coaching focus for the week', sub: 'Which clients need extra attention this week?' },
                   ]})
                 }
@@ -1634,8 +1461,6 @@ function AdminPageInner() {
                 // ── FRIDAY SPECIALS ──
                 if (isFriday) {
                   sections.push({ title: '🏁 Friday Wrap-Up', subtitle: 'End of week', items: [
-                    { key: 'weekly_score_check', label: 'Review all programme scores for the week', sub: 'Identify who crushed it and who needs a push', clients: clients },
-                    { key: 'send_friday_motivation', label: 'Send weekend accountability reminder', sub: 'Remind clients to complete Lock In + War Map over the weekend', clients: clients },
                     { key: 'plan_next_week', label: 'Plan your coaching priorities for next week', sub: 'Who needs calls? Who needs content reviewed?' },
                   ]})
                 }
@@ -1650,7 +1475,6 @@ function AdminPageInner() {
 
                 // ── EVENING BLOCK ──
                 sections.push({ title: '🌙 Evening', subtitle: 'End of day', items: [
-                  { key: 'check_debriefs', label: `Check yesterday's Debrief completions (${d.debriefsDone}/${d.totalClients})`, sub: d.noDebriefs.length > 0 && d.noDebriefs.length <= 10 ? 'Not done: ' + d.noDebriefs.map(c => c.name.split(' ')[0]).join(', ') : d.noDebriefs.length > 10 ? `${d.noDebriefs.length} clients didn't debrief` : 'Everyone debriefed', clients: d.noDebriefs },
                   { key: 'check_tracker', label: `Check Business Tracker entries today (${d.kpisDone}/${d.totalClients})`, sub: d.noKpis.length > 0 && d.noKpis.length <= 10 ? 'Not logged: ' + d.noKpis.map(c => c.name.split(' ')[0]).join(', ') : d.noKpis.length > 10 ? `${d.noKpis.length} clients haven't logged` : 'Everyone\'s logging', clients: d.noKpis },
                   { key: 'daily_reflection', label: 'Your own daily reflection', sub: 'What went well today? What does tomorrow need?' },
                 ]})
@@ -2045,10 +1869,8 @@ function AdminPageInner() {
 
           ) : !selectedClient ? (() => {
             const healthEntries = clients.map(c => ({ ...c, health: clientHealth[c.id] || {} }))
-            const critical = healthEntries.filter(c => c.health.status === 'critical')
             const atRisk = healthEntries.filter(c => c.health.status === 'at-risk')
             const healthy = healthEntries.filter(c => c.health.status === 'healthy')
-            const avgScore = healthEntries.length > 0 ? Math.round(healthEntries.reduce((s, c) => s + (c.health.score || 0), 0) / healthEntries.length) : 0
 
             return (
             <div className="fade-in">
@@ -2059,18 +1881,10 @@ function AdminPageInner() {
               </div>
 
               {/* Summary Cards */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-10">
+              <div className="grid grid-cols-2 gap-3 mb-10">
                 <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-5 text-center">
                   <p className="text-3xl font-black text-white">{clients.length}</p>
                   <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">Clients</p>
-                </div>
-                <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-5 text-center">
-                  <p className={`text-3xl font-black ${avgScore >= 70 ? 'text-emerald-400' : avgScore >= 40 ? 'text-amber-400' : 'text-red-400'}`}>{avgScore}%</p>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">Avg Score</p>
-                </div>
-                <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-red-900/20 rounded-2xl p-5 text-center">
-                  <p className="text-3xl font-black text-red-400">{critical.length}</p>
-                  <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-[0.2em] mt-1">Critical</p>
                 </div>
                 <div className="bg-gradient-to-br from-zinc-900 to-zinc-800 border border-amber-900/20 rounded-2xl p-5 text-center">
                   <p className="text-3xl font-black text-amber-400">{atRisk.length}</p>
@@ -2132,38 +1946,6 @@ function AdminPageInner() {
                 )
               })()}
 
-              {/* Critical Clients — needs immediate attention */}
-              {critical.length > 0 && (
-                <div className="mb-10">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1 h-5 bg-red-500 rounded-full animate-pulse" />
-                    <h2 className="text-xs font-bold text-red-400 uppercase tracking-[0.2em]">Needs Immediate Attention</h2>
-                  </div>
-                  <div className="space-y-2">
-                    {critical.map(c => (
-                      <button key={c.id} onClick={() => selectClient(c)}
-                        className="w-full bg-red-900/10 border border-red-900/30 rounded-xl p-4 flex items-center gap-4 text-left hover:bg-red-900/20 transition">
-                        <div className="relative flex-shrink-0">
-                          <div className="w-12 h-12 rounded-full bg-red-900/30 flex items-center justify-center">
-                            <span className="text-red-400 font-black text-lg">{c.health.score || 0}%</span>
-                          </div>
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-white font-semibold text-sm">{c.name}</p>
-                          <p className="text-zinc-500 text-xs truncate">{c.business}</p>
-                          <div className="flex flex-wrap gap-1.5 mt-1.5">
-                            {(c.health.alerts || []).map((a, i) => (
-                              <span key={i} className="text-[10px] px-2 py-0.5 bg-red-900/30 text-red-400 rounded font-semibold">{a}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              )}
-
               {/* At Risk */}
               {atRisk.length > 0 && (
                 <div className="mb-10">
@@ -2172,25 +1954,16 @@ function AdminPageInner() {
                     <h2 className="text-xs font-bold text-amber-400 uppercase tracking-[0.2em]">At Risk — Monitor Closely</h2>
                   </div>
                   <div className="space-y-2">
-                    {atRisk.sort((a, b) => (a.health.score || 0) - (b.health.score || 0)).map(c => (
+                    {atRisk.map(c => (
                       <button key={c.id} onClick={() => selectClient(c)}
                         className="w-full bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4 text-left hover:border-amber-900/40 transition">
-                        <div className="relative flex-shrink-0">
-                          <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
-                            <circle cx="24" cy="24" r="20" fill="none" stroke="#27272a" strokeWidth="3" />
-                            <circle cx="24" cy="24" r="20" fill="none" stroke="#f59e0b" strokeWidth="3"
-                              strokeDasharray={`${((c.health.score || 0) / 100) * 125.7} 125.7`} strokeLinecap="round" />
-                          </svg>
-                          <span className="absolute inset-0 flex items-center justify-center text-amber-400 font-bold text-xs">{c.health.score || 0}%</span>
-                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-semibold text-sm">{c.name}</p>
                           <p className="text-zinc-500 text-xs truncate">{c.business}</p>
-                          <div className="flex gap-3 mt-1.5 text-[10px] text-zinc-600">
-                            <span>☀️ {c.health.mornings || 0}/{c.health.elapsed || 0}</span>
-                            <span>🌙 {c.health.debriefs || 0}/{c.health.elapsed || 0}</span>
-                            <span>{c.health.warMap ? '⚔️ ✓' : '⚔️ ✗'}</span>
-                            <span>{c.health.lockIn ? '🔒 ✓' : '🔒 ✗'}</span>
+                          <div className="flex flex-wrap gap-1.5 mt-1.5">
+                            {(c.health.alerts || []).map((a, i) => (
+                              <span key={i} className="text-[10px] px-2 py-0.5 bg-amber-900/30 text-amber-400 rounded font-semibold">{a}</span>
+                            ))}
                           </div>
                         </div>
                         <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
@@ -2208,17 +1981,9 @@ function AdminPageInner() {
                     <h2 className="text-xs font-bold text-emerald-400 uppercase tracking-[0.2em]">On Track</h2>
                   </div>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                    {healthy.sort((a, b) => (b.health.score || 0) - (a.health.score || 0)).map(c => (
+                    {healthy.map(c => (
                       <button key={c.id} onClick={() => selectClient(c)}
                         className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 flex items-center gap-4 text-left hover:border-emerald-900/40 transition">
-                        <div className="relative flex-shrink-0">
-                          <svg className="w-11 h-11 -rotate-90" viewBox="0 0 48 48">
-                            <circle cx="24" cy="24" r="20" fill="none" stroke="#27272a" strokeWidth="3" />
-                            <circle cx="24" cy="24" r="20" fill="none" stroke="#34d399" strokeWidth="3"
-                              strokeDasharray={`${((c.health.score || 0) / 100) * 125.7} 125.7`} strokeLinecap="round" />
-                          </svg>
-                          <span className="absolute inset-0 flex items-center justify-center text-emerald-400 font-bold text-[10px]">{c.health.score || 0}%</span>
-                        </div>
                         <div className="flex-1 min-w-0">
                           <p className="text-white font-medium text-sm">{c.name}</p>
                           <p className="text-zinc-600 text-xs truncate">{c.business}</p>
@@ -2296,17 +2061,12 @@ function AdminPageInner() {
                     <thead>
                       <tr className="bg-zinc-900 border-b border-zinc-800">
                         <th className="px-4 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Client</th>
-                        <th className="px-3 py-3 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Score</th>
-                        <th className="px-3 py-3 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">☀️</th>
-                        <th className="px-3 py-3 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">🌙</th>
-                        <th className="px-3 py-3 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">🪞</th>
-                        <th className="px-3 py-3 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">⚔️</th>
-                        <th className="px-3 py-3 text-center text-[10px] font-bold text-zinc-500 uppercase tracking-widest">🔒</th>
                         <th className="px-3 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Status</th>
+                        <th className="px-3 py-3 text-left text-[10px] font-bold text-zinc-500 uppercase tracking-widest">Alerts</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {healthEntries.sort((a, b) => (a.health.score || 0) - (b.health.score || 0)).map(c => {
+                      {healthEntries.map(c => {
                         const h = c.health
                         return (
                           <tr key={c.id} onClick={() => selectClient(c)}
@@ -2315,20 +2075,17 @@ function AdminPageInner() {
                               <p className="text-white font-medium">{c.name}</p>
                               <p className="text-zinc-600 text-xs">{c.business}</p>
                             </td>
-                            <td className="px-3 py-3 text-center">
-                              <span className={`font-bold ${(h.score || 0) >= 70 ? 'text-emerald-400' : (h.score || 0) >= 40 ? 'text-amber-400' : 'text-red-400'}`}>
-                                {h.score || 0}%
-                              </span>
-                            </td>
-                            <td className="px-3 py-3 text-center text-zinc-400">{h.mornings || 0}/{h.elapsed || 0}</td>
-                            <td className="px-3 py-3 text-center text-zinc-400">{h.debriefs || 0}/{h.elapsed || 0}</td>
-                            <td className="px-3 py-3 text-center text-zinc-400">{h.identityReads || 0}/{h.elapsed || 0}</td>
-                            <td className="px-3 py-3 text-center">{h.warMap ? <span className="text-emerald-400">✓</span> : <span className="text-zinc-700">✗</span>}</td>
-                            <td className="px-3 py-3 text-center">{h.lockIn ? <span className="text-emerald-400">✓</span> : <span className="text-zinc-700">✗</span>}</td>
                             <td className="px-3 py-3">
                               <span className={`text-xs font-bold uppercase tracking-widest ${
-                                h.status === 'critical' ? 'text-red-400' : h.status === 'at-risk' ? 'text-amber-400' : 'text-emerald-400'
-                              }`}>{h.status === 'at-risk' ? 'At Risk' : h.status === 'critical' ? 'Critical' : 'Healthy'}</span>
+                                h.status === 'at-risk' ? 'text-amber-400' : 'text-emerald-400'
+                              }`}>{h.status === 'at-risk' ? 'At Risk' : 'Healthy'}</span>
+                            </td>
+                            <td className="px-3 py-3">
+                              <div className="flex flex-wrap gap-1">
+                                {(h.alerts || []).map((a, i) => (
+                                  <span key={i} className="text-[10px] px-2 py-0.5 bg-amber-900/20 text-amber-400 rounded font-semibold">{a}</span>
+                                ))}
+                              </div>
                             </td>
                           </tr>
                         )
@@ -2525,24 +2282,9 @@ function AdminPageInner() {
               {activeTab === 'overview' && (() => {
                 // Drop-off detection
                 const alerts = []
-                const morningsDone = weekMorningOps.filter(p => p.completed).length
-                const debriefsDone = weekDebriefs.filter(p => p.completed).length
-                const identityReads = weekMorningOps.filter(p => p.identity_read).length
                 const kpiDaysDone = weekKpis.length
 
-                if (morningsDone === 0 && daysElapsed >= 3) alerts.push({ type: 'critical', msg: 'No Morning Ops completed this week', action: 'Check in — they may be disengaged' })
-                else if (morningsDone < daysElapsed - 2) alerts.push({ type: 'warning', msg: `Only ${morningsDone}/${daysElapsed} Morning Ops completed`, action: 'Gentle nudge needed' })
-
-                if (debriefsDone === 0 && daysElapsed >= 3) alerts.push({ type: 'critical', msg: 'No Debriefs completed this week', action: 'Not reflecting — follow up' })
-                else if (debriefsDone < daysElapsed - 2) alerts.push({ type: 'warning', msg: `Only ${debriefsDone}/${daysElapsed} Debriefs completed`, action: 'Encourage end-of-day reviews' })
-
-                if (identityReads === 0 && daysElapsed >= 3) alerts.push({ type: 'warning', msg: 'Identity Chamber not being read', action: 'Remind them why identity matters' })
-
                 if (kpiDaysDone === 0 && daysElapsed >= 3) alerts.push({ type: 'warning', msg: 'Business Tracker not being used', action: 'They need to track to grow' })
-
-                if (!warMapWeekly?.completed && new Date().getDay() >= 3) alerts.push({ type: 'info', msg: 'War Map not yet completed this week', action: 'Sunday planning session needed' })
-
-                if (!identityChange?.affirmations?.trim()) alerts.push({ type: 'warning', msg: 'Identity Chamber is empty', action: 'Needs to write affirmations' })
 
                 if (!clientPlaybook) alerts.push({ type: 'info', msg: 'Sold Out™ Playbook not started', action: 'Get them to build their offer' })
                 else {
@@ -2592,68 +2334,6 @@ function AdminPageInner() {
                     </div>
                   )}
 
-                  {/* Hero Score Card */}
-                  <div className="relative overflow-hidden bg-gradient-to-br from-zinc-900 via-zinc-900 to-zinc-800 border border-zinc-700/50 rounded-2xl p-6 sm:p-8 mb-6">
-                    <div className="absolute top-0 right-0 w-64 h-64 bg-gold/[0.04] rounded-full blur-3xl -mr-32 -mt-32" />
-                    <div className="absolute bottom-0 left-0 w-48 h-48 bg-gold/[0.03] rounded-full blur-3xl -ml-24 -mb-24" />
-
-                    <div className="relative flex flex-col sm:flex-row items-center gap-6 sm:gap-10">
-                      {/* Progress Ring */}
-                      <div className="relative flex-shrink-0">
-                        <svg className="w-36 h-36 sm:w-44 sm:h-44 -rotate-90" viewBox="0 0 160 160">
-                          <circle cx="80" cy="80" r="70" fill="none" stroke="#27272a" strokeWidth="8" />
-                          <circle cx="80" cy="80" r="70" fill="none" stroke="#C9A84C" strokeWidth="8"
-                            strokeDasharray={`${(overallPct / 100) * 439.8} 439.8`}
-                            strokeLinecap="round"
-                            className="transition-all duration-1000" />
-                          <circle cx="80" cy="80" r="70" fill="none" stroke="#C9A84C" strokeWidth="2" opacity="0.15" />
-                        </svg>
-                        <div className="absolute inset-0 flex flex-col items-center justify-center">
-                          <span className="text-4xl sm:text-5xl font-black text-white tracking-tight">{overallPct}</span>
-                          <span className="text-xs font-bold text-gold uppercase tracking-widest">percent</span>
-                        </div>
-                      </div>
-
-                      {/* Score Info */}
-                      <div className="text-center sm:text-left flex-1">
-                        <h2 className="text-lg sm:text-xl font-black text-white uppercase tracking-wider mb-1">Programme Score</h2>
-                        <p className="text-zinc-500 text-xs uppercase tracking-widest mb-4">
-                          Week of {formatDate(getMonday())}
-                        </p>
-                        <div className={`inline-block px-4 py-1.5 rounded-full text-xs font-bold uppercase tracking-widest ${
-                          overallPct >= 90 ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30' :
-                          overallPct >= 70 ? 'bg-gold/20 text-gold border border-gold/30' :
-                          overallPct >= 50 ? 'bg-amber-500/20 text-amber-400 border border-amber-500/30' :
-                          'bg-red-500/20 text-red-400 border border-red-500/30'
-                        }`}>
-                          {overallPct >= 90 ? 'Elite' : overallPct >= 70 ? 'Strong' : overallPct >= 50 ? 'Building' : 'Needs Work'}
-                        </div>
-                        <p className="text-zinc-600 text-xs mt-3 italic leading-relaxed">
-                          {overallPct >= 90 ? '"Operating at the highest level. This is what elite looks like."' :
-                           overallPct >= 70 ? '"Solid week. In the game. Time to go harder."' :
-                           overallPct >= 50 ? '"Foundation is there. Time to raise the standard."' :
-                           '"The programme works when you do. Needs more commitment."'}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Score Breakdown — 6 Cards */}
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
-                    {Object.values(scores).map(s => (
-                      <div key={s.label} className="bg-zinc-900 border border-zinc-800 rounded-xl p-4 hover:border-zinc-700 transition">
-                        <div className="flex items-center justify-between mb-3">
-                          <span className={`text-xs font-bold uppercase tracking-widest ${s.color}`}>{s.label}</span>
-                          <span className={`text-xl font-black ${s.pct >= 80 ? s.color : s.pct > 0 ? 'text-zinc-400' : 'text-zinc-700'}`}>{s.pct}%</span>
-                        </div>
-                        <div className="h-2 bg-zinc-800 rounded-full overflow-hidden">
-                          <div className={`h-full rounded-full ${s.bar} transition-all duration-700`} style={{ width: `${s.pct}%` }} />
-                        </div>
-                        <p className="text-zinc-700 text-[10px] mt-1.5">{s.value} of {s.max}</p>
-                      </div>
-                    ))}
-                  </div>
-
                   {/* This Week — Day by Day Grid */}
                   <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 sm:p-6 mb-6">
                     <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-5">This Week at a Glance</h3>
@@ -2663,25 +2343,18 @@ function AdminPageInner() {
                         const dateNum = new Date(dateStr).getDate()
                         const isToday = dateStr === todayStr
                         const isFuture = dateStr > todayStr
-                        const hasMorning = weekMorningOps.some(p => p.date === dateStr && p.completed)
-                        const hasEvening = weekDebriefs.some(p => p.date === dateStr && p.completed)
                         const hasKpi = weekKpis.some(k => k.date === dateStr)
-                        const hasIdentity = weekMorningOps.some(p => p.date === dateStr && p.identity_read)
-                        const dayScore = [hasMorning, hasEvening, hasKpi, hasIdentity].filter(Boolean).length
                         return (
                           <div key={dateStr} className={`text-center rounded-xl py-3 px-1 transition ${
                             isToday ? 'bg-gold/10 border-2 border-gold/40 shadow-lg shadow-gold/5' :
                             isFuture ? 'opacity-25 bg-zinc-800/30' :
-                            dayScore === 4 ? 'bg-emerald-500/10 border border-emerald-500/20' :
-                            dayScore > 0 ? 'bg-zinc-800/60 border border-zinc-800' : 'bg-zinc-800/30 border border-zinc-800/50'
+                            hasKpi ? 'bg-emerald-500/10 border border-emerald-500/20' :
+                            'bg-zinc-800/30 border border-zinc-800/50'
                           }`}>
                             <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">{day}</p>
-                            <p className={`text-lg font-black my-1 ${isToday ? 'text-gold' : dayScore === 4 ? 'text-emerald-400' : 'text-zinc-400'}`}>{dateNum}</p>
+                            <p className={`text-lg font-black my-1 ${isToday ? 'text-gold' : hasKpi ? 'text-emerald-400' : 'text-zinc-400'}`}>{dateNum}</p>
                             <div className="flex justify-center gap-0.5">
-                              <div className={`w-1.5 h-1.5 rounded-full ${hasMorning ? 'bg-amber-400' : 'bg-zinc-800'}`} title="Morning Ops" />
-                              <div className={`w-1.5 h-1.5 rounded-full ${hasEvening ? 'bg-indigo-400' : 'bg-zinc-800'}`} title="Debrief" />
                               <div className={`w-1.5 h-1.5 rounded-full ${hasKpi ? 'bg-emerald-400' : 'bg-zinc-800'}`} title="KPI" />
-                              <div className={`w-1.5 h-1.5 rounded-full ${hasIdentity ? 'bg-violet-400' : 'bg-zinc-800'}`} title="Identity" />
                             </div>
                           </div>
                         )
@@ -3088,216 +2761,8 @@ function AdminPageInner() {
                 </div>
               )}
 
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {/* ── IDENTITY CHAMBER — Read-only ────────────────────────── */}
-              {activeTab === 'identity' && (
-                <div className="fade-in max-w-2xl">
-                  <div className="flex items-center justify-between mb-5">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Identity Chamber™</h3>
-                    {identityChange?.affirmations?.trim() ? (
-                      <CompletedBadge />
-                    ) : (
-                      <NotStartedBadge />
-                    )}
-                  </div>
 
-                  {!identityChange?.affirmations?.trim() ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">Client hasn't written their affirmations yet.</p>
-                  ) : (
-                    <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-5 sm:p-7">
-                      <div className="flex items-center gap-3 mb-5 pb-4 border-b border-zinc-800">
-                        <span className="text-2xl">🪞</span>
-                        <div>
-                          <h3 className="text-sm font-bold text-white uppercase tracking-widest">Client's Identity</h3>
-                          <p className="text-zinc-600 text-xs mt-0.5">{identityChange.affirmations.split('\n').filter(l => l.trim()).length} affirmations written</p>
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        {identityChange.affirmations.split('\n').filter(l => l.trim()).map((line, i) => (
-                          <div key={i} className="flex items-start gap-3">
-                            <span className="text-xs font-bold text-zinc-700 w-5 text-right flex-shrink-0 mt-0.5">{i + 1}</span>
-                            <p className="text-white text-sm leading-relaxed">{line}</p>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
-              {/* ── MORNING OPS — Read-only ──────────────────────────────── */}
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {activeTab === 'morning-ops' && (
-                <div className="fade-in">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Morning Ops</h3>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { const idx = dashWeekDays.indexOf(adminViewDate); if (idx > 0) setAdminViewDate(dashWeekDays[idx - 1]) }}
-                        disabled={!canGoPrevDay}
-                        className={`p-2 transition rounded hover:bg-zinc-800 ${canGoPrevDay ? 'text-zinc-500 hover:text-white' : 'text-zinc-800 cursor-not-allowed'}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                      </button>
-                      <span className="text-xs font-semibold text-white min-w-[120px] text-center">{viewDateLabel}</span>
-                      <button onClick={() => { const idx = dashWeekDays.indexOf(adminViewDate); if (canGoNextDay) setAdminViewDate(dashWeekDays[idx + 1]) }}
-                        disabled={!canGoNextDay}
-                        className={`p-2 transition rounded hover:bg-zinc-800 ${canGoNextDay ? 'text-zinc-500 hover:text-white' : 'text-zinc-800 cursor-not-allowed'}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    </div>
-                    {viewMorning ? (viewMorning.completed ? <CompletedBadge /> : <PendingBadge />) : <NotStartedBadge />}
-                  </div>
-
-                  {!viewMorning ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">{adminViewDate === todayStr ? "Client hasn't started their Morning Ops today." : 'No Morning Ops for this day.'}</p>
-                  ) : (
-                    <div className="space-y-4">
-                      <ReadOnlyField label="Intention" value={viewMorning.intention} color="text-gold" />
-                      <ReadOnlyField label="Feeling" value={viewMorning.feeling} />
-                      <ReadOnlyField label="What would make today a win" value={viewMorning.win} />
-                      <ReadOnlyField label="Money-making task" value={viewMorning.money_task} color="text-gold" />
-
-                      {/* To-dos */}
-                      {(viewMorning.todo_1 || viewMorning.todo_2 || viewMorning.todo_3) && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-2">Top 3 To-Dos</p>
-                          <div className="space-y-1.5">
-                            {[viewMorning.todo_1, viewMorning.todo_2, viewMorning.todo_3].map((todo, i) => todo && (
-                              <div key={i} className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-zinc-500 w-4">{i + 1}</span>
-                                <p className="text-white text-sm">{todo}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Gratitude */}
-                      {(viewMorning.gratitude_1 || viewMorning.gratitude_2 || viewMorning.gratitude_3 || viewMorning.gratitude_4 || viewMorning.gratitude_5 || viewMorning.gratitude_6) && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-2">Gratitude — Mini Adventures</p>
-                          <div className="space-y-2">
-                            {[1,2,3,4,5,6].map(n => viewMorning[`gratitude_${n}`] && (
-                              <div key={n} className="flex items-start gap-2">
-                                <span className="text-xs font-bold text-zinc-600 w-4 flex-shrink-0 mt-0.5">{n}</span>
-                                <p className="text-white text-sm leading-relaxed">{viewMorning[`gratitude_${n}`]}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      )}
-
-                      <ReadOnlyField label="Letting go of" value={viewMorning.let_go} />
-
-                      {/* Identity Read */}
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-widest mb-1.5">Identity Read</p>
-                        <div className="flex items-center gap-2">
-                          <div className={`w-5 h-5 rounded border-2 flex items-center justify-center ${viewMorning.identity_read ? 'bg-violet-500 border-violet-500' : 'border-zinc-700'}`}>
-                            {viewMorning.identity_read && <svg className="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                          </div>
-                          <span className={`text-sm ${viewMorning.identity_read ? 'text-violet-400 font-semibold' : 'text-zinc-600'}`}>
-                            {viewMorning.identity_read ? 'Read today' : 'Not read today'}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {/* ── DEBRIEF — Read-only ──────────────────────────────────── */}
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {activeTab === 'debrief' && (
-                <div className="fade-in">
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">The Debrief</h3>
-                    <div className="flex items-center gap-1">
-                      <button onClick={() => { const idx = dashWeekDays.indexOf(adminViewDate); if (idx > 0) setAdminViewDate(dashWeekDays[idx - 1]) }}
-                        disabled={!canGoPrevDay}
-                        className={`p-2 transition rounded hover:bg-zinc-800 ${canGoPrevDay ? 'text-zinc-500 hover:text-white' : 'text-zinc-800 cursor-not-allowed'}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                      </button>
-                      <span className="text-xs font-semibold text-white min-w-[120px] text-center">{viewDateLabel}</span>
-                      <button onClick={() => { const idx = dashWeekDays.indexOf(adminViewDate); if (canGoNextDay) setAdminViewDate(dashWeekDays[idx + 1]) }}
-                        disabled={!canGoNextDay}
-                        className={`p-2 transition rounded hover:bg-zinc-800 ${canGoNextDay ? 'text-zinc-500 hover:text-white' : 'text-zinc-800 cursor-not-allowed'}`}>
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    </div>
-                    {viewEvening ? (viewEvening.completed ? <CompletedBadge /> : <PendingBadge />) : <NotStartedBadge />}
-                  </div>
-
-                  {!viewEvening ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">{adminViewDate === todayStr ? "Client hasn't started their Debrief today." : 'No Debrief for this day.'}</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Priority completed */}
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1.5">Did I complete my #1 priority?</p>
-                        <YesNoBadge value={viewEvening.priority_completed} />
-                      </div>
-
-                      <ReadOnlyField label="What went well today?" value={viewEvening.went_well} color="text-emerald-400" />
-                      <ReadOnlyField label="What will I do differently tomorrow?" value={viewEvening.do_differently} color="text-sky-400" />
-                      <ReadOnlyField label="One thing I learned today" value={viewEvening.learned} />
-
-                      {/* Show up rating */}
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-2">How did I show up today? — <span className="text-white">{viewEvening.show_up_rating || '—'}/10</span></p>
-                        <RatingBar value={viewEvening.show_up_rating} />
-                      </div>
-
-                      <ReadOnlyField label="What didn't go to plan?" value={viewEvening.not_to_plan} color="text-red-400" />
-                      <ReadOnlyField label="What am I proud of today?" value={viewEvening.proud_of} color="text-gold" />
-                      <ReadOnlyField label="The one thing I love about myself is..." value={viewEvening.love_about_self} color="text-violet-400" />
-
-                      {/* Gratitude */}
-                      {(viewEvening.gratitude_1 || viewEvening.gratitude_2 || viewEvening.gratitude_3 || viewEvening.gratitude_4 || viewEvening.gratitude_5 || viewEvening.gratitude_6) && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-2">I am so grateful I just...</p>
-                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                            {[1,2,3,4,5,6].map(n => {
-                              const val = viewEvening[`gratitude_${n}`]
-                              const adv = adventures[n - 1] || {}
-                              if (!val) return null
-                              return (
-                                <div key={n} className="bg-zinc-800/50 rounded-lg p-3">
-                                  <p className="text-[10px] font-semibold text-zinc-500 mb-1">{adv.title || `Adventure ${n}`}</p>
-                                  <p className="text-white text-xs leading-relaxed">{val}</p>
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Wins */}
-                      {[1,2,3,4,5].some(n => viewEvening[`win_${n}_title`]) && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-3">Wins for the Day</p>
-                          <div className="space-y-3">
-                            {[1,2,3,4,5].map(n => {
-                              const title = viewEvening[`win_${n}_title`]
-                              if (!title) return null
-                              return (
-                                <div key={n} className="bg-zinc-800/50 rounded-lg p-3">
-                                  <div className="flex items-center gap-2 mb-1.5">
-                                    <span className="text-gold font-bold text-xs">Win {n}</span>
-                                  </div>
-                                  <p className="text-white text-sm font-medium">{title}</p>
-                                  {viewEvening[`win_${n}_action`] && <p className="text-zinc-400 text-xs mt-1">What I did: {viewEvening[`win_${n}_action`]}</p>}
-                                  {viewEvening[`win_${n}_progress`] && <p className="text-zinc-500 text-xs mt-0.5">Further: {viewEvening[`win_${n}_progress`]}</p>}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* ══════════════════════════════════════════════════════════════ */}
               {/* ── TRACKER — Daily KPIs Table ───────────────────────────── */}
@@ -3477,258 +2942,6 @@ function AdminPageInner() {
                 </div>
               )})()}
 
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {/* ── WAR MAP — Weekly Priorities + Tasks ───────────────────── */}
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {activeTab === 'war-map' && (
-                <div className="fade-in">
-                  {/* Week nav */}
-                  <div className="flex items-center justify-between mb-6">
-                    <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">Weekly War Map</h3>
-                    <div className="flex items-center gap-1">
-                      <button onClick={async () => { const w = shiftWeek(adminWarMapWeek, -1); setAdminWarMapWeek(w); const { data } = await supabase.from('war_map_weekly').select('*').eq('client_id', selectedClient.id).eq('week_of', w).maybeSingle(); setWarMapWeekly(data || null); const { data: tasks } = await supabase.from('war_map_tasks').select('*').eq('client_id', selectedClient.id).eq('week_of', w).order('created_at', { ascending: false }); setWarMapTasks(tasks || []) }}
-                        className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                      </button>
-                      <span className="text-xs font-semibold text-white min-w-[160px] text-center">{formatWeekRange(adminWarMapWeek)}</span>
-                      <button onClick={async () => { const w = shiftWeek(adminWarMapWeek, 1); setAdminWarMapWeek(w); const { data } = await supabase.from('war_map_weekly').select('*').eq('client_id', selectedClient.id).eq('week_of', w).maybeSingle(); setWarMapWeekly(data || null); const { data: tasks } = await supabase.from('war_map_tasks').select('*').eq('client_id', selectedClient.id).eq('week_of', w).order('created_at', { ascending: false }); setWarMapTasks(tasks || []) }}
-                        className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    </div>
-                    {warMapWeekly ? (warMapWeekly.completed ? <CompletedBadge /> : <PendingBadge />) : <NotStartedBadge />}
-                  </div>
-
-                  {/* Weekly Priorities */}
-                  {warMapWeekly && (
-                    <div className="mb-8">
-                      {/* #1 Priority */}
-                      <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg px-4 py-3 mb-3">
-                        <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1">#1 Priority</p>
-                        <p className={`text-sm font-medium ${warMapWeekly.number_one_priority ? 'text-white' : 'text-zinc-700 italic'}`}>{warMapWeekly.number_one_priority || 'Not set'}</p>
-                      </div>
-                      {/* Other Priorities */}
-                      <div className="space-y-2">
-                        {[
-                          { num: 2, value: warMapWeekly.priority_2 },
-                          { num: 3, value: warMapWeekly.priority_3 },
-                          { num: 4, value: warMapWeekly.priority_4 },
-                        ].map(({ num, value }) => (
-                          <div key={num} className="flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3">
-                            <span className="text-sm font-bold w-5 flex-shrink-0 text-zinc-500">{num}</span>
-                            <p className={`text-sm ${value ? 'text-white' : 'text-zinc-700 italic'}`}>{value || 'Not set'}</p>
-                          </div>
-                        ))}
-                      </div>
-                      {/* Revenue Target */}
-                      {warMapWeekly.revenue_target > 0 && (
-                        <div className="bg-zinc-900 border-2 border-emerald-500/30 rounded-lg p-4 mt-3">
-                          <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-widest mb-1.5">Revenue Target This Week</p>
-                          <p className="text-white text-xl font-bold">£{Number(warMapWeekly.revenue_target).toLocaleString()}</p>
-                        </div>
-                      )}
-                      {warMapWeekly.completed_at && (
-                        <p className="text-zinc-600 text-xs mt-2">Submitted {new Date(warMapWeekly.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}</p>
-                      )}
-                    </div>
-                  )}
-
-                  {warMapTasks.length === 0 && !warMapWeekly ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">No War Map for this week.</p>
-                  ) : warMapTasks.length > 0 ? (
-                    <div>
-                      {/* Summary Row */}
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">Brain Dump</p>
-                          <p className="text-2xl font-bold text-zinc-400">{brainDump.length}</p>
-                          <p className="text-zinc-600 text-xs mt-1">pending triage</p>
-                        </div>
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">Delegated</p>
-                          <p className="text-2xl font-bold text-violet-400">{delegated.length}</p>
-                          <p className="text-zinc-600 text-xs mt-1">{delegated.filter(t => t.completed).length} done</p>
-                        </div>
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">Scheduled</p>
-                          <p className="text-2xl font-bold text-sky-400">{scheduled.length}</p>
-                          <p className="text-zinc-600 text-xs mt-1">{scheduled.filter(t => t.completed).length} done</p>
-                        </div>
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-xl p-4">
-                          <p className="text-zinc-500 text-xs uppercase tracking-widest mb-2">Do Now</p>
-                          <p className="text-2xl font-bold text-gold">{doNow.length}</p>
-                          <p className="text-zinc-600 text-xs mt-1">{doNow.filter(t => t.completed).length} done</p>
-                        </div>
-                      </div>
-
-                      {/* Task lists */}
-                      {[
-                        { label: 'Do Now', items: doNow, color: 'text-gold' },
-                        { label: 'Delegated', items: delegated, color: 'text-violet-400' },
-                        { label: 'Scheduled', items: scheduled, color: 'text-sky-400' },
-                        { label: 'Brain Dump', items: brainDump, color: 'text-zinc-400' },
-                      ].map(({ label, items, color }) => items.length > 0 && (
-                        <div key={label} className="mb-6">
-                          <p className={`text-xs font-bold uppercase tracking-widest mb-3 ${color}`}>{label}</p>
-                          <div className="space-y-2">
-                            {items.map(task => (
-                              <div key={task.id} className={`bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 flex items-center gap-3 ${task.completed ? 'opacity-50' : ''}`}>
-                                <div className={`w-4 h-4 rounded border flex-shrink-0 flex items-center justify-center ${task.completed ? 'bg-emerald-500 border-emerald-500' : 'border-zinc-600'}`}>
-                                  {task.completed && <svg className="w-2.5 h-2.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" /></svg>}
-                                </div>
-                                <p className={`text-sm flex-1 ${task.completed ? 'line-through text-zinc-500' : 'text-white'}`}>{task.title}</p>
-                                {task.delegated_to && <span className="text-xs text-violet-400 flex-shrink-0">→ {task.delegated_to}</span>}
-                                {task.scheduled_date && <span className="text-xs text-sky-400 flex-shrink-0">{formatDate(task.scheduled_date)}</span>}
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : null}
-                </div>
-              )}
-
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {/* ── LOCK IN — Weekly Review Read-only ─────────────────────── */}
-              {/* ══════════════════════════════════════════════════════════════ */}
-              {activeTab === 'lock-in' && (
-                <div className="fade-in">
-                  <div className="flex items-center justify-between mb-6">
-                    <div>
-                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest">The Lock In — Weekly Review</h3>
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <button onClick={async () => { const w = shiftWeek(adminReviewWeek, -1); setAdminReviewWeek(w); const [{ data }, { data: pData }] = await Promise.all([supabase.from('weekly_review').select('*').eq('client_id', selectedClient.id).eq('week_of', w).maybeSingle(), supabase.from('war_map_weekly').select('number_one_priority, priority_2, priority_3, priority_4, revenue_target').eq('client_id', selectedClient.id).eq('week_of', w).maybeSingle()]); setWeeklyReview(data || null); setReviewPriorities(pData || null) }}
-                        className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
-                      </button>
-                      <span className="text-xs font-semibold text-white min-w-[160px] text-center">{formatWeekRange(adminReviewWeek)}</span>
-                      <button onClick={async () => { const w = shiftWeek(adminReviewWeek, 1); setAdminReviewWeek(w); const [{ data }, { data: pData }] = await Promise.all([supabase.from('weekly_review').select('*').eq('client_id', selectedClient.id).eq('week_of', w).maybeSingle(), supabase.from('war_map_weekly').select('number_one_priority, priority_2, priority_3, priority_4, revenue_target').eq('client_id', selectedClient.id).eq('week_of', w).maybeSingle()]); setWeeklyReview(data || null); setReviewPriorities(pData || null) }}
-                        className="p-2 text-zinc-500 hover:text-white transition rounded hover:bg-zinc-800">
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    </div>
-                    {weeklyReview ? (weeklyReview.completed ? <CompletedBadge /> : <PendingBadge />) : <NotStartedBadge />}
-                  </div>
-
-                  {!weeklyReview ? (
-                    <p className="text-center py-12 text-zinc-600 text-sm">No review for this week.</p>
-                  ) : (
-                    <div className="space-y-4">
-                      {/* Revenue */}
-                      <div className="bg-zinc-900 border-2 border-gold/30 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-1.5">Revenue Generated This Week</p>
-                        <p className="text-white text-2xl font-bold">{weeklyReview.revenue ? formatCurrency(weeklyReview.revenue) : '—'}</p>
-                      </div>
-
-                      {/* Target hit */}
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-zinc-400 uppercase tracking-widest mb-1.5">Did I hit my weekly target?</p>
-                        <YesNoBadge value={weeklyReview.target_hit} />
-                      </div>
-
-                      {/* Week rating */}
-                      <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                        <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-2">Overall Week Rating — <span className="text-white">{weeklyReview.week_rating || '—'}/10</span></p>
-                        <RatingBar value={weeklyReview.week_rating} />
-                      </div>
-
-                      {/* Priority Ratings */}
-                      {reviewPriorities && (reviewPriorities.number_one_priority || reviewPriorities.priority_2 || reviewPriorities.priority_3 || reviewPriorities.priority_4) && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-3">Priority Execution Ratings</p>
-                          <div className="space-y-3">
-                            {[
-                              { key: 'priority_1_rating', label: '#1 Priority', value: reviewPriorities.number_one_priority, color: 'text-gold', borderColor: 'border-gold/30' },
-                              { key: 'priority_2_rating', label: 'Priority 2', value: reviewPriorities.priority_2, color: 'text-zinc-300', borderColor: 'border-zinc-700' },
-                              { key: 'priority_3_rating', label: 'Priority 3', value: reviewPriorities.priority_3, color: 'text-zinc-300', borderColor: 'border-zinc-700' },
-                              { key: 'priority_4_rating', label: 'Priority 4', value: reviewPriorities.priority_4, color: 'text-zinc-300', borderColor: 'border-zinc-700' },
-                            ].filter(p => p.value?.trim()).map(({ key, label, value, color, borderColor }) => (
-                              <div key={key} className={`border-l-2 ${borderColor} pl-4`}>
-                                <p className={`text-[10px] font-bold uppercase tracking-widest ${color} mb-0.5`}>{label}</p>
-                                <p className="text-white text-sm mb-1.5">{value} — <span className="font-bold">{weeklyReview[key] || '—'}/10</span></p>
-                                <RatingBar value={weeklyReview[key]} />
-                              </div>
-                            ))}
-                          </div>
-                          {reviewPriorities.revenue_target && (
-                            <div className="mt-4 pt-4 border-t border-zinc-800">
-                              <p className="text-[10px] font-bold text-emerald-400 uppercase tracking-widest">Revenue Target Was: <span className="text-white">{formatCurrency(reviewPriorities.revenue_target)}</span></p>
-                            </div>
-                          )}
-                        </div>
-                      )}
-
-                      {/* Reflection fields */}
-                      {[
-                        { key: 'went_well', label: 'What went well this week?', color: 'text-emerald-400' },
-                        { key: 'not_to_plan', label: "What didn't go to plan — and why?", color: 'text-red-400' },
-                        { key: 'patterns', label: 'What patterns am I noticing in myself?', color: 'text-violet-400' },
-                        { key: 'energy_drain', label: 'What drained my energy this week?', color: 'text-zinc-400' },
-                        { key: 'energy_boost', label: 'What gave me the most energy this week?', color: 'text-sky-400' },
-                        { key: 'one_fix', label: 'What is the one thing I need to fix going into next week?', color: 'text-gold' },
-                      ].map(({ key, label, color }) => (
-                        <ReadOnlyField key={key} label={label} value={weeklyReview[key]} color={color} />
-                      ))}
-
-                      {/* Top 5 Wins */}
-                      {[1,2,3,4,5].some(n => weeklyReview[`win_${n}_title`]) && (
-                        <div className="bg-zinc-900 border border-zinc-800 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-3">Top 5 Wins</p>
-                          <div className="space-y-3">
-                            {[1,2,3,4,5].map(n => {
-                              const title = weeklyReview[`win_${n}_title`]
-                              if (!title) return null
-                              return (
-                                <div key={n} className="bg-zinc-800/50 rounded-lg p-3">
-                                  <span className="text-gold font-bold text-xs">Win {n}</span>
-                                  <p className="text-white text-sm font-medium mt-1">{title}</p>
-                                  {weeklyReview[`win_${n}_action`] && <p className="text-zinc-400 text-xs mt-1">What I did: {weeklyReview[`win_${n}_action`]}</p>}
-                                  {weeklyReview[`win_${n}_progress`] && <p className="text-zinc-500 text-xs mt-0.5">Further: {weeklyReview[`win_${n}_progress`]}</p>}
-                                </div>
-                              )
-                            })}
-                          </div>
-                        </div>
-                      )}
-
-                      {/* Next Week Focus */}
-                      {(weeklyReview.next_focus || weeklyReview.next_income_target || weeklyReview.next_differently) && (
-                        <div className="bg-zinc-900 border border-gold/20 rounded-lg p-4">
-                          <p className="text-[10px] font-semibold text-gold uppercase tracking-widest mb-3">Next Week Focus</p>
-                          <div className="space-y-3">
-                            <ReadOnlyField label="My #1 focus next week is..." value={weeklyReview.next_focus} color="text-gold" />
-                            <ReadOnlyField label="My income target for next week and how I will hit it..." value={weeklyReview.next_income_target} />
-                            <ReadOnlyField label="One thing I will do differently next week..." value={weeklyReview.next_differently} />
-                          </div>
-                        </div>
-                      )}
-
-                      {weeklyReview.completed_at && (
-                        <p className="text-zinc-600 text-xs text-center mt-4">
-                          Submitted {new Date(weeklyReview.completed_at).toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long' })}
-                        </p>
-                      )}
-                    </div>
-                  )}
-                  {/* History */}
-                  {allClientLockIns.length > 0 && (
-                    <div className="mt-8 pt-6 border-t border-zinc-800">
-                      <h3 className="text-xs font-bold text-zinc-400 uppercase tracking-widest mb-3">All Lock Ins</h3>
-                      <div className="space-y-1.5">
-                        {allClientLockIns.map(li => (
-                          <button key={li.week_of} onClick={async () => { setAdminReviewWeek(li.week_of); const [{ data }, { data: pData }] = await Promise.all([supabase.from('weekly_review').select('*').eq('client_id', selectedClient.id).eq('week_of', li.week_of).maybeSingle(), supabase.from('war_map_weekly').select('number_one_priority, priority_2, priority_3, priority_4, revenue_target').eq('client_id', selectedClient.id).eq('week_of', li.week_of).maybeSingle()]); setWeeklyReview(data || null); setReviewPriorities(pData || null) }}
-                            className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg border transition text-left ${adminReviewWeek === li.week_of ? 'border-gold/30 bg-gold/5' : 'border-zinc-800 bg-zinc-900 hover:border-zinc-700'}`}>
-                            <span className="text-xs text-white">{formatWeekRange(li.week_of)}</span>
-                            {li.completed ? <span className="text-[10px] font-bold text-emerald-400 uppercase">Done</span> : <span className="text-[10px] font-bold text-amber-400 uppercase">Draft</span>}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
 
               {/* ══════════════════════════════════════════════════════════════ */}
               {/* ── MONTHLY REVIEW — Read-only ───────────────────────────── */}
