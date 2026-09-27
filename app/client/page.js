@@ -327,8 +327,13 @@ export default function ClientPage() {
 
   const [weekKpis, setWeekKpis] = useState([])
 
-  // Command Centre — stable current-week state (independent of tab navigation)
+  // Command Centre — stable current-week/month state (independent of tab navigation)
   const [currentWeekKpis, setCurrentWeekKpis] = useState({})
+  const [currentMonthKpis, setCurrentMonthKpis] = useState({})
+
+  // Playbook & tool status for Command Centre
+  const [playbookStatus, setPlaybookStatus] = useState({ soldOut: null, premiumPosition: null, distinctionEngine: null })
+  const [toolStatus, setToolStatus] = useState({ showUpPage: null, contentCapture: null, leadMagnets: [], amplifierAds: null })
 
   // Design™
   const [lifeDesign, setLifeDesign] = useState(null)
@@ -400,6 +405,12 @@ export default function ClientPage() {
       milestonesRes,    // 10. misogi_milestones
       blocksRes,        // 11. misogi_recurring_blocks
       daysOffRes,       // 12. days_off
+      soldOutRes,       // 13. offer_playbooks (scores)
+      ppRes,            // 14. premium_position (scores)
+      deRes,            // 15. distinction_engine (completion)
+      showUpRes,        // 16. show_up_pages (status)
+      ccRes,            // 17. content_captures (last updated)
+      leadMagnetsRes,   // 18. lead_magnets (count)
     ] = await Promise.all([
       supabase.from('daily_kpis').select('*').eq('client_id', client.id).gte('date', mStart).lte('date', mEnd),              // 1
       supabase.from('checkins').select('*').eq('client_id', client.id).order('checkin_date', { ascending: false }),            // 2
@@ -413,12 +424,19 @@ export default function ClientPage() {
       supabase.from('misogi_milestones').select('*').eq('client_id', client.id).eq('year', year).order('order_index'),  // 10
       supabase.from('misogi_recurring_blocks').select('*').eq('client_id', client.id).eq('year', year),                 // 11
       supabase.from('days_off').select('*').eq('client_id', client.id).eq('year', year).order('off_date'),              // 12
+      supabase.from('offer_playbooks').select('scores, generated_plan').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle(),  // 13
+      supabase.from('premium_position').select('scores, generated_plan').eq('client_id', client.id).maybeSingle(),       // 14
+      supabase.from('distinction_engine').select('engine_data, generated_output').eq('client_id', client.id).maybeSingle(),  // 15
+      supabase.from('show_up_pages').select('status, generated_output, updated_at').eq('client_id', client.id).maybeSingle(),  // 16
+      supabase.from('content_captures').select('updated_at').eq('client_id', client.id).order('updated_at', { ascending: false }).limit(1).maybeSingle(),  // 17
+      supabase.from('lead_magnets').select('id, name, dm_flow_live, built_doc').eq('client_id', client.id),  // 18
     ])
 
     if (dkpiRes.data) {
       const obj = {}
       dkpiRes.data.forEach(row => { obj[row.date] = row })
       setMonthlyKpis(obj)
+      setCurrentMonthKpis(obj) // stable copy for Command Centre
     }
     if (checkinsRes.data) setCheckins(checkinsRes.data)
     if (projectsRes.data) {
@@ -465,6 +483,20 @@ export default function ClientPage() {
     if (milestonesRes.data) setMisogiMilestones(milestonesRes.data)
     if (blocksRes.data) setMisogiBlocks(blocksRes.data)
     if (daysOffRes.data) setDaysOff(daysOffRes.data)
+
+    // Tool status for Command Centre
+    setToolStatus({
+      showUpPage: showUpRes.data ? { status: showUpRes.data.status, hasOutput: !!showUpRes.data.generated_output } : null,
+      contentCapture: ccRes.data ? { lastUpdated: ccRes.data.updated_at } : null,
+      leadMagnets: leadMagnetsRes.data || [],
+    })
+
+    // Playbook completion status
+    setPlaybookStatus({
+      soldOut: soldOutRes.data ? { band: soldOutRes.data.scores?.band || null, score: soldOutRes.data.scores?.total_score || 0, max: 50, hasPlan: !!soldOutRes.data.generated_plan } : null,
+      premiumPosition: ppRes.data ? { band: ppRes.data.scores?.band || null, score: ppRes.data.scores?.total_score || 0, max: 50, hasPlan: !!ppRes.data.generated_plan } : null,
+      distinctionEngine: deRes.data ? { hasData: !!deRes.data.engine_data, hasOutput: !!deRes.data.generated_output } : null,
+    })
 
     setLoading(false)
   }
@@ -1464,6 +1496,20 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
     weeklyKpiTotals[c.key] = dashWeekDays.reduce((sum, d) => sum + (Number(currentWeekKpis[d]?.[c.key]) || 0), 0)
   })
 
+  // Current month KPI totals (stable — for Command Centre)
+  const currentMonthTotals = {}
+  const cmYear = new Date().getFullYear()
+  const cmMonth = new Date().getMonth()
+  const cmDaysInMonth = new Date(cmYear, cmMonth + 1, 0).getDate()
+  const cmDays = Array.from({ length: cmDaysInMonth }, (_, i) => {
+    const d = i + 1
+    return `${cmYear}-${String(cmMonth + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+  })
+  KPI_COLS.filter(c => c.input).forEach(c => {
+    currentMonthTotals[c.key] = cmDays.reduce((sum, d) => sum + (Number(currentMonthKpis[d]?.[c.key]) || 0), 0)
+  })
+  const cmDaysTracked = cmDays.filter(d => currentMonthKpis[d]).length
+
   const designDone = lifeDesign ? 1 : 0
   const kpiDaysFilled = weekKpis.length
 
@@ -1612,13 +1658,81 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
         {activeTab === 'progress' && (
           <div className="fade-in stagger-in">
 
-            {/* Week Header */}
-            <div className="glass-card gold-glow-border p-6 sm:p-8 mb-6">
-              <h2 className="text-lg sm:text-xl font-display font-black text-white uppercase tracking-wider mb-1">Command Centre</h2>
-              <p className="text-zinc-500 text-xs uppercase tracking-widest">
-                Week of {new Date(getMonday()).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' })}
-              </p>
-            </div>
+            {/* Monthly Review Banner — last 3 days of month + first 3 days of next month */}
+            {(() => {
+              const now = new Date()
+              const dayOfMonth = now.getDate()
+              const daysInCurrentMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+              const isEndOfMonth = dayOfMonth >= daysInCurrentMonth - 2
+              const isStartOfMonth = dayOfMonth <= 3
+              const showBanner = isEndOfMonth || isStartOfMonth
+              if (!showBanner) return null
+              const reviewDone = isStartOfMonth ? lastMonthReview?.completed : monthlyReview?.completed
+              if (reviewDone) return null
+              const targetMonth = isStartOfMonth
+                ? MONTH_NAMES[now.getMonth() === 0 ? 11 : now.getMonth() - 1]
+                : MONTH_NAMES[now.getMonth()]
+              return (
+                <div className="mb-6 bg-gradient-to-r from-gold/10 to-amber-500/5 border border-gold/30 rounded-2xl p-5 sm:p-6">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <span className="text-2xl flex-shrink-0">📅</span>
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold text-white">Time for your {targetMonth} Monthly Review</p>
+                        <p className="text-xs text-zinc-400 mt-0.5">{isEndOfMonth ? 'Get your numbers ready before the month ends' : 'Reflect on last month and set your targets'}</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2 flex-shrink-0">
+                      <button onClick={() => switchTab('monthly')}
+                        className="px-4 py-2 bg-gold text-black text-xs font-bold uppercase tracking-widest rounded-lg hover:bg-gold/90 transition">
+                        Complete Now
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )
+            })()}
+
+            {/* Revenue Goal — Hero Card */}
+            {lastMonthReview?.revenue_target > 0 ? (() => {
+              const monthRevenue = currentMonthTotals.revenue || 0
+              const monthCash = currentMonthTotals.cash_collected || 0
+              const monthTarget = Number(lastMonthReview.revenue_target)
+              const monthPct = Math.round((monthRevenue / monthTarget) * 100)
+              const hit = monthRevenue >= monthTarget
+              const remaining = Math.max(0, monthTarget - monthRevenue)
+              const dayOfMonth = new Date().getDate()
+              const daysInMonth = new Date(cmYear, cmMonth + 1, 0).getDate()
+              const daysLeft = daysInMonth - dayOfMonth
+              return (
+                <div className={`glass-card p-6 sm:p-8 mb-6 border ${hit ? 'border-emerald-500/30 gold-glow-border' : 'border-zinc-700/40'}`}>
+                  <div className="flex items-center justify-between mb-1">
+                    <h2 className="text-lg sm:text-xl font-display font-black text-white uppercase tracking-wider">{MONTH_NAMES[cmMonth]} Revenue Goal</h2>
+                    <span className={`text-2xl sm:text-3xl font-black ${hit ? 'text-emerald-400' : monthPct >= 75 ? 'text-gold' : monthPct >= 50 ? 'text-amber-400' : 'text-white'}`}>{monthPct}%</span>
+                  </div>
+                  <div className="flex items-baseline gap-3 mb-4">
+                    <span className={`text-3xl sm:text-4xl font-black ${hit ? 'text-emerald-400' : 'text-white'}`}>£{monthRevenue.toLocaleString()}</span>
+                    <span className="text-zinc-500 text-sm font-medium">/ £{monthTarget.toLocaleString()}</span>
+                  </div>
+                  <div className="h-3 bg-zinc-800 rounded-full overflow-hidden mb-4">
+                    <div className={`h-full rounded-full transition-all duration-700 ${hit ? 'bg-emerald-400' : monthPct >= 75 ? 'bg-gold' : 'bg-amber-400'}`} style={{ width: `${Math.min(100, monthPct)}%` }} />
+                  </div>
+                  <div className="flex items-center justify-between text-xs">
+                    {hit ? (
+                      <span className="text-emerald-400 font-bold uppercase tracking-widest">Target hit</span>
+                    ) : (
+                      <span className="text-zinc-400">£{remaining.toLocaleString()} to go &middot; {daysLeft} day{daysLeft !== 1 ? 's' : ''} left</span>
+                    )}
+                    {monthCash > 0 && <span className="text-zinc-500">£{monthCash.toLocaleString()} cash collected</span>}
+                  </div>
+                </div>
+              )
+            })() : (
+              <div className="glass-card gold-glow-border p-6 sm:p-8 mb-6">
+                <h2 className="text-lg sm:text-xl font-display font-black text-white uppercase tracking-wider mb-1">Command Centre</h2>
+                <p className="text-zinc-500 text-xs uppercase tracking-widest">{MONTH_NAMES[cmMonth]} {cmYear}</p>
+              </div>
+            )}
 
             {/* Project Deadline Countdown */}
             {projectDeadlines.length > 0 && (
@@ -1651,156 +1765,118 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
               </div>
             )}
 
-
-            {/* Action Items */}
+            {/* Playbook Status — Backbone Check */}
             {(() => {
-              const actions = []
-              const dayOfMonth = new Date().getDate()
-              if (dayOfMonth <= 7 && !lastMonthReview?.completed) {
-                const prevMonthName = MONTH_NAMES[new Date().getMonth() === 0 ? 11 : new Date().getMonth() - 1]
-                actions.push({ icon: '📅', label: `Complete your ${prevMonthName} Monthly Review`, sub: 'Reflect on last month and set next month\'s targets', tab: 'monthly' })
-              }
-              if (actions.length === 0) return null
+              const playbooks = [
+                { key: 'premiumPosition', label: 'Premium Position™', icon: '👑', href: '/premium-position',
+                  status: playbookStatus.premiumPosition,
+                  getBand: (s) => s?.band || null,
+                  getScore: (s) => s ? `${s.score}/${s.max}` : null,
+                  isDone: (s) => s?.band === 'Premium' || s?.band === 'Healthy' || s?.hasPlan,
+                },
+                { key: 'soldOut', label: 'Sold Out™ Playbook', icon: '📖', href: '/playbook',
+                  status: playbookStatus.soldOut,
+                  getBand: (s) => s?.band || null,
+                  getScore: (s) => s ? `${s.score}/${s.max}` : null,
+                  isDone: (s) => s?.band === 'Offer-Ready' || s?.band === 'Strong Foundation' || s?.hasPlan,
+                },
+                { key: 'distinctionEngine', label: 'Distinction Engine™', icon: '⚙️', href: '/distinction-engine',
+                  status: playbookStatus.distinctionEngine,
+                  getBand: () => null,
+                  getScore: () => null,
+                  isDone: (s) => s?.hasOutput,
+                },
+              ]
+              const incomplete = playbooks.filter(p => !p.isDone(p.status))
               return (
-                <div className="mb-8">
-                  <div className="flex items-center gap-2 mb-4">
-                    <div className="w-1 h-5 bg-gold rounded-full" />
-                    <h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Actions</h3>
-                  </div>
+                <div className="mb-6">
+                  <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">The Backbone</h3></div>
                   <div className="space-y-2">
-                    {actions.map((a, i) => (
-                      <button key={i} onClick={() => switchTab(a.tab)}
-                        className="w-full flex items-center gap-3 bg-zinc-900 border border-zinc-800 rounded-lg px-4 py-3 text-left hover:border-gold/30 active:border-gold/30 transition">
-                        <span className="text-lg flex-shrink-0">{a.icon}</span>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium text-white">{a.label}</p>
-                          <p className="text-xs text-zinc-500">{a.sub}</p>
-                        </div>
-                        <svg className="w-4 h-4 text-zinc-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
-                      </button>
-                    ))}
+                    {playbooks.map(p => {
+                      const done = p.isDone(p.status)
+                      const band = p.getBand(p.status)
+                      const notStarted = !p.status
+                      return (
+                        <button key={p.key} onClick={() => router.push(p.href)}
+                          className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition ${
+                            done ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' :
+                            notStarted ? 'bg-red-900/10 border-red-800/40 hover:border-red-700/50' :
+                            'bg-amber-900/10 border-amber-800/30 hover:border-amber-700/40'
+                          }`}>
+                          <span className="text-lg flex-shrink-0">{p.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-white">{p.label}</p>
+                            <p className={`text-[10px] font-bold uppercase tracking-widest ${
+                              done ? 'text-emerald-400' : notStarted ? 'text-red-400' : 'text-amber-400'
+                            }`}>
+                              {done ? (band || 'Complete') : notStarted ? 'Not started' : (band || 'In progress')}
+                              {p.getScore(p.status) && !done && ` \u00b7 ${p.getScore(p.status)}`}
+                            </p>
+                          </div>
+                          <div className={`w-3 h-3 rounded-full flex-shrink-0 ${done ? 'bg-emerald-400' : notStarted ? 'bg-red-400' : 'bg-amber-400'}`} />
+                        </button>
+                      )
+                    })}
                   </div>
+                  {incomplete.length > 0 && (
+                    <p className="text-[10px] text-red-400/80 mt-2 pl-1">
+                      {incomplete.length === 1 ? '1 playbook needs' : `${incomplete.length} playbooks need`} completing — these are the backbone of your business
+                    </p>
+                  )}
                 </div>
               )
             })()}
 
-            {/* This Week — Day by Day Grid */}
-            <div className="bg-gradient-to-br from-zinc-900 to-zinc-800/80 border border-zinc-700/40 rounded-2xl p-5 sm:p-6 mb-8">
-              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">This Week at a Glance</h3></div>
-              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
-                {dashWeekDays.map((dateStr) => {
-                  const { day } = formatDayHeader(dateStr)
-                  const dateNum = new Date(dateStr + 'T12:00:00').getDate()
-                  const isToday = dateStr === todayStr
-                  const isFuture = dateStr > todayStr
-                  const hasKpi = weekKpis.some(k => k.date === dateStr)
-                  return (
-                    <div key={dateStr} className={`text-center rounded-xl py-3 px-1 transition ${
-                      isToday ? 'bg-gold/10 border-2 border-gold/40 shadow-lg shadow-gold/5' :
-                      isFuture ? 'opacity-25 bg-zinc-800/30' :
-                      hasKpi ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-zinc-800/30 border border-zinc-800/50'
-                    }`}>
-                      <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">{day}</p>
-                      <p className={`text-lg font-black my-1 ${isToday ? 'text-gold' : hasKpi ? 'text-emerald-400' : 'text-zinc-400'}`}>{dateNum}</p>
-                      <div className="flex justify-center">
-                        <div className={`w-2.5 h-2.5 rounded-full transition ${hasKpi ? 'bg-emerald-400 shadow-sm shadow-emerald-400/30' : 'bg-zinc-700/50'}`} />
-                      </div>
-                    </div>
-                  )
-                })}
-              </div>
-              <div className="flex items-center gap-5 mt-5 justify-center">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400" />
-                  <span className="text-[10px] text-zinc-500 font-medium">Tracker</span>
+            {/* This Month's Pipeline Stats */}
+            <div className="glass-card p-5 sm:p-6 mb-6">
+              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">{MONTH_NAMES[cmMonth]} Pipeline</h3></div>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Revenue</p>
+                  <p className="text-xl font-black text-emerald-400">£{(currentMonthTotals.revenue || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Cash Collected</p>
+                  <p className="text-xl font-black text-emerald-400">£{(currentMonthTotals.cash_collected || 0).toLocaleString()}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">New Followers</p>
+                  <p className="text-xl font-black text-sky-400">{currentMonthTotals.new_followers || 0}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Qual. Followers</p>
+                  <p className="text-xl font-black text-sky-400">{currentMonthTotals.qual_followers || 0}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">New Convos</p>
+                  <p className="text-xl font-black text-violet-400">{currentMonthTotals.new_convos || 0}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Calls Taken</p>
+                  <p className="text-xl font-black text-gold">{currentMonthTotals.calls_taken || 0}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Offers Made</p>
+                  <p className="text-xl font-black text-gold">{currentMonthTotals.offers || 0}</p>
+                </div>
+                <div>
+                  <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Closed</p>
+                  <p className="text-xl font-black text-gold">{currentMonthTotals.closed || 0}</p>
+                  {(currentMonthTotals.offers || 0) > 0 && (
+                    <p className="text-[10px] text-zinc-500 mt-0.5">{Math.round((currentMonthTotals.closed || 0) / currentMonthTotals.offers * 100)}% close rate</p>
+                  )}
                 </div>
               </div>
-            </div>
-
-            {/* Two-column: Foundations + Business */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-              {/* Programme Foundations */}
-              <div className="glass-card p-5">
-                <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Programme Foundations</h3></div>
-                <div className="space-y-3">
-                  {/* Design */}
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${designDone ? 'bg-gold/20' : 'bg-zinc-800'}`}>🎯</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white">Design™</p>
-                      <p className="text-zinc-600 text-xs">{designDone ? `${adventuresForm.filter(a => a.completed).length}/6 adventures` : 'Not started'}</p>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${designDone ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
-                  </div>
-                  {/* KPI Tracker */}
-                  <div className="flex items-center gap-3">
-                    <div className={`w-10 h-10 rounded-lg flex items-center justify-center text-lg ${kpiDaysFilled > 0 ? 'bg-emerald-500/20' : 'bg-zinc-800'}`}>📊</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-white">Business Tracker</p>
-                      <p className="text-zinc-600 text-xs">{kpiDaysFilled} day{kpiDaysFilled !== 1 ? 's' : ''} tracked this week</p>
-                    </div>
-                    <div className={`w-3 h-3 rounded-full ${kpiDaysFilled > 0 ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
-                  </div>
-                </div>
-              </div>
-
-              {/* Revenue Targets */}
-              {monthlyReview.revenue_target > 0 && (
-                <div className="glass-card p-5 mb-3">
-                  <h3 className="text-xs font-bold text-white uppercase tracking-widest mb-4">Revenue Targets</h3>
-                  <div className="grid grid-cols-1 gap-4">
-                    {lastMonthReview?.revenue_target > 0 && (() => {
-                      const monthRevenue = kpiTotals.revenue || 0
-                      const monthTarget = Number(lastMonthReview.revenue_target)
-                      const monthPct = Math.round((monthRevenue / monthTarget) * 100)
-                      const hit = monthRevenue >= monthTarget
-                      return (
-                        <div>
-                          <div className="flex items-center justify-between mb-1">
-                            <p className="text-[10px] font-bold text-zinc-500 uppercase tracking-widest">This Month</p>
-                            <p className={`text-xs font-bold ${hit ? 'text-emerald-400' : 'text-gold'}`}>{monthPct}%</p>
-                          </div>
-                          <div className="flex items-baseline gap-2 mb-2">
-                            <span className={`text-xl font-black ${hit ? 'text-emerald-400' : 'text-white'}`}>£{monthRevenue.toLocaleString()}</span>
-                            <span className="text-zinc-600 text-xs">/ £{monthTarget.toLocaleString()}</span>
-                          </div>
-                          <div className="h-2.5 bg-zinc-800 rounded-full overflow-hidden">
-                            <div className={`h-full rounded-full transition-all duration-700 ${hit ? 'bg-emerald-400' : 'bg-gold'}`} style={{ width: `${Math.min(100, monthPct)}%` }} />
-                          </div>
-                        </div>
-                      )
-                    })()}
-                  </div>
-                </div>
-              )}
-
-              {/* Business Snapshot — This Week */}
-              <div className="glass-card p-5">
-                <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">This Week's Numbers</h3></div>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                  <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Revenue</p>
-                    <p className="text-lg font-bold text-emerald-400">£{(weeklyKpiTotals.revenue || 0).toLocaleString('en-GB', { minimumFractionDigits: 0 })}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">New Followers</p>
-                    <p className="text-lg font-bold text-sky-400">{weeklyKpiTotals.new_followers || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Calls Taken</p>
-                    <p className="text-lg font-bold text-gold">{weeklyKpiTotals.calls_taken || 0}</p>
-                  </div>
-                  <div>
-                    <p className="text-[10px] text-zinc-600 uppercase tracking-widest mb-1">Closed</p>
-                    <p className="text-lg font-bold text-violet-400">{weeklyKpiTotals.closed || 0}</p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-3 text-[10px] text-zinc-600">
+                <span>{cmDaysTracked} day{cmDaysTracked !== 1 ? 's' : ''} tracked</span>
+                {(currentMonthTotals.ad_spend || 0) > 0 && <span>&middot; £{currentMonthTotals.ad_spend.toLocaleString()} ad spend</span>}
+                {(currentMonthTotals.content_posted || 0) > 0 && <span>&middot; {currentMonthTotals.content_posted} posts</span>}
               </div>
             </div>
 
-            {/* Pipeline Summary */}
-            <div className="glass-card p-5">
-              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Pipeline</h3></div>
+            {/* Hot List Pipeline */}
+            <div className="glass-card p-5 mb-6">
+              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Hot List Pipeline</h3></div>
               <div className="flex items-end justify-between gap-1">
                 {[
                   { id: 'new_lead', label: 'New', color: 'bg-sky-400' },
@@ -1820,6 +1896,147 @@ Extract and return ONLY valid JSON (no markdown, no code fences):
                         <div className={`${s.color} rounded-t-sm mx-auto transition-all duration-500`} style={{ height: `${Math.max(4, (count / Math.max(1, maxCount)) * 60)}px`, width: '100%' }} />
                       </div>
                       <p className="text-[9px] text-zinc-600 uppercase tracking-wider font-semibold mt-2">{s.label}</p>
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+
+            {/* Tools & Systems Status */}
+            <div className="glass-card p-5 sm:p-6 mb-6">
+              <div className="flex items-center gap-2 mb-4"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">Your Systems</h3></div>
+              <div className="space-y-2">
+                {/* Show Up Page */}
+                <button onClick={() => router.push('/build/show-up-page')}
+                  className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition ${
+                    toolStatus.showUpPage?.status === 'complete' || toolStatus.showUpPage?.hasOutput ? 'bg-zinc-900 border-zinc-800 hover:border-zinc-700' :
+                    !toolStatus.showUpPage ? 'bg-red-900/10 border-red-800/40 hover:border-red-700/50' :
+                    'bg-amber-900/10 border-amber-800/30 hover:border-amber-700/40'
+                  }`}>
+                  <span className="text-lg flex-shrink-0">📄</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">Show Up Page Builder™</p>
+                    <p className={`text-[10px] font-bold uppercase tracking-widest ${
+                      toolStatus.showUpPage?.status === 'complete' || toolStatus.showUpPage?.hasOutput ? 'text-emerald-400' :
+                      !toolStatus.showUpPage ? 'text-red-400' : 'text-amber-400'
+                    }`}>
+                      {toolStatus.showUpPage?.status === 'complete' || toolStatus.showUpPage?.hasOutput ? 'Complete' : !toolStatus.showUpPage ? 'Not started' : 'In progress'}
+                    </p>
+                  </div>
+                  <div className={`w-3 h-3 rounded-full flex-shrink-0 ${
+                    toolStatus.showUpPage?.status === 'complete' || toolStatus.showUpPage?.hasOutput ? 'bg-emerald-400' :
+                    !toolStatus.showUpPage ? 'bg-red-400' : 'bg-amber-400'
+                  }`} />
+                </button>
+
+                {/* Content Capture */}
+                <button onClick={() => router.push('/build/content-capture-v2')}
+                  className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-left transition">
+                  <span className="text-lg flex-shrink-0">🎬</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-white">Content Capture™</p>
+                    <p className="text-[10px] text-zinc-500">
+                      {toolStatus.contentCapture?.lastUpdated
+                        ? `Last used ${new Date(toolStatus.contentCapture.lastUpdated).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`
+                        : 'Not used yet'}
+                    </p>
+                  </div>
+                  {!toolStatus.contentCapture && <div className="w-3 h-3 rounded-full flex-shrink-0 bg-zinc-700" />}
+                </button>
+
+                {/* Lead Magnets */}
+                {(() => {
+                  const total = toolStatus.leadMagnets.length
+                  const live = toolStatus.leadMagnets.filter(m => m.dm_flow_live).length
+                  const built = toolStatus.leadMagnets.filter(m => m.built_doc).length
+                  return (
+                    <button onClick={() => router.push('/build/lead-magnets')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-left transition">
+                      <span className="text-lg flex-shrink-0">🧲</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white">Lead Magnets</p>
+                        <p className="text-[10px] text-zinc-500">
+                          {total === 0 ? 'None created' : `${total} created${live > 0 ? ` \u00b7 ${live} live` : ''}${built > 0 && built !== total ? ` \u00b7 ${built} built` : ''}`}
+                        </p>
+                      </div>
+                      {total > 0 && <span className="text-xs font-black text-gold">{total}</span>}
+                      {total === 0 && <div className="w-3 h-3 rounded-full flex-shrink-0 bg-zinc-700" />}
+                    </button>
+                  )
+                })()}
+
+                {/* Amplifier Ads */}
+                {(() => {
+                  const monthAdSpend = currentMonthTotals.ad_spend || 0
+                  const isRunning = monthAdSpend > 0
+                  return (
+                    <button onClick={() => router.push('/build/amplifier-ads')}
+                      className="w-full flex items-center gap-3 px-4 py-3 rounded-lg border bg-zinc-900 border-zinc-800 hover:border-zinc-700 text-left transition">
+                      <span className="text-lg flex-shrink-0">📢</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white">Amplifier Ads™</p>
+                        <p className={`text-[10px] ${isRunning ? 'text-emerald-400' : 'text-zinc-500'}`}>
+                          {isRunning ? `Active \u00b7 £${monthAdSpend.toLocaleString()} spent this month` : 'No ad spend this month'}
+                        </p>
+                      </div>
+                      <div className={`w-3 h-3 rounded-full flex-shrink-0 ${isRunning ? 'bg-emerald-400' : 'bg-zinc-700'}`} />
+                    </button>
+                  )
+                })()}
+
+                {/* Hot List */}
+                {(() => {
+                  const totalLeads = leads.length
+                  const lastUpdated = leads.length > 0
+                    ? leads.reduce((latest, l) => {
+                        const d = new Date(l.updated_at || l.created_at)
+                        return d > latest ? d : latest
+                      }, new Date(0))
+                    : null
+                  const daysSinceUpdate = lastUpdated ? Math.floor((new Date() - lastUpdated) / (1000 * 60 * 60 * 24)) : null
+                  const isStale = daysSinceUpdate !== null && daysSinceUpdate > 7
+                  return (
+                    <button onClick={() => switchTab('hot-list')}
+                      className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg border text-left transition ${
+                        isStale ? 'bg-amber-900/10 border-amber-800/30 hover:border-amber-700/40' : 'bg-zinc-900 border-zinc-800 hover:border-zinc-700'
+                      }`}>
+                      <span className="text-lg flex-shrink-0">🔥</span>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-white">Hot List</p>
+                        <p className={`text-[10px] ${isStale ? 'text-amber-400' : 'text-zinc-500'}`}>
+                          {totalLeads === 0 ? 'No leads yet' : `${totalLeads} leads`}
+                          {lastUpdated && ` \u00b7 ${isStale ? 'Last updated ' : ''}${lastUpdated.toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}`}
+                          {isStale && ' — needs attention'}
+                        </p>
+                      </div>
+                      {isStale && <div className="w-3 h-3 rounded-full flex-shrink-0 bg-amber-400" />}
+                    </button>
+                  )
+                })()}
+              </div>
+            </div>
+
+            {/* This Week — Day by Day Grid */}
+            <div className="bg-gradient-to-br from-zinc-900 to-zinc-800/80 border border-zinc-700/40 rounded-2xl p-5 sm:p-6">
+              <div className="flex items-center gap-2 mb-5"><div className="w-1 h-5 bg-gold/40 rounded-full" /><h3 className="text-xs font-bold text-white uppercase tracking-[0.2em]">This Week — Tracker</h3></div>
+              <div className="grid grid-cols-7 gap-1.5 sm:gap-3">
+                {dashWeekDays.map((dateStr) => {
+                  const { day } = formatDayHeader(dateStr)
+                  const dateNum = new Date(dateStr + 'T12:00:00').getDate()
+                  const isToday = dateStr === todayStr
+                  const isFuture = dateStr > todayStr
+                  const hasKpi = weekKpis.some(k => k.date === dateStr)
+                  return (
+                    <div key={dateStr} className={`text-center rounded-xl py-3 px-1 transition ${
+                      isToday ? 'bg-gold/10 border-2 border-gold/40 shadow-lg shadow-gold/5' :
+                      isFuture ? 'opacity-25 bg-zinc-800/30' :
+                      hasKpi ? 'bg-emerald-500/10 border border-emerald-500/20' : 'bg-zinc-800/30 border border-zinc-800/50'
+                    }`}>
+                      <p className="text-[10px] text-zinc-500 uppercase font-bold tracking-wider">{day}</p>
+                      <p className={`text-lg font-black my-1 ${isToday ? 'text-gold' : hasKpi ? 'text-emerald-400' : 'text-zinc-400'}`}>{dateNum}</p>
+                      <div className="flex justify-center">
+                        <div className={`w-2.5 h-2.5 rounded-full transition ${hasKpi ? 'bg-emerald-400 shadow-sm shadow-emerald-400/30' : 'bg-zinc-700/50'}`} />
+                      </div>
                     </div>
                   )
                 })}
